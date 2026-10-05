@@ -1,0 +1,550 @@
+{
+  "schemaVersion": "v1",
+  "title": "Öğrenme oranı ısınması küçük transformer modellerinde gerekli mi?",
+  "note": "Örnek veri: sayılar temsilidir, gerçek bir deneyden gelmez. İtiraz, ön kayıt değişikliği, pilot, çapraz model doğrulama, kısmi tekrar ve türetilmiş hipotez durumlarını gösterir.",
+  "objects": [
+    {
+      "id": "Q-0012",
+      "type": "question",
+      "revision": 1,
+      "createdAt": "2026-11-02T09:00:00Z",
+      "createdBy": {
+        "kind": "human",
+        "userId": "u-ornek"
+      },
+      "title": "Öğrenme oranı ısınması küçük transformer modellerinde gerekli mi?",
+      "domain": "ml",
+      "scope": "≤50M parametreli dil modelleri, AdamW, tek GPU",
+      "tags": [
+        "optimizasyon",
+        "ısınma"
+      ]
+    },
+    {
+      "id": "H-0001",
+      "type": "hypothesis",
+      "revision": 1,
+      "createdAt": "2026-11-02T10:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "hypothesis",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "questionId": "Q-0012",
+      "statement": "≤50M modellerde düşük öğrenme oranlarında (≤1e-3) ısınma nihai doğrulama kaybını anlamlı biçimde değiştirmez.",
+      "falsifiabilityNote": "Isınmasız koşulda 3 seed ortalamasında kayıp farkı 0.05'ten büyükse hipotez çürür.",
+      "status": "supported",
+      "approval": {
+        "by": {
+          "kind": "human",
+          "userId": "u-ornek"
+        },
+        "at": "2026-11-02T10:20:00Z",
+        "decision": "approved",
+        "autonomyLevel": "manual"
+      }
+    },
+    {
+      "id": "H-0002",
+      "type": "hypothesis",
+      "revision": 1,
+      "createdAt": "2026-11-02T10:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "hypothesis",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "questionId": "Q-0012",
+      "statement": "Yüksek öğrenme oranında (3e-3) ısınmasız eğitim ıraksar.",
+      "falsifiabilityNote": "Isınmasız 3e-3 çalıştırmalarının hiçbiri ıraksamazsa hipotez çürür.",
+      "status": "inconclusive",
+      "approval": {
+        "by": {
+          "kind": "human",
+          "userId": "u-ornek"
+        },
+        "at": "2026-11-02T10:20:00Z",
+        "decision": "approved",
+        "autonomyLevel": "manual"
+      }
+    },
+    {
+      "id": "CR-0001",
+      "type": "critique",
+      "revision": 1,
+      "createdAt": "2026-11-02T10:30:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "critic",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "targetId": "H-0002",
+      "category": "methodology",
+      "severity": "high",
+      "body": "H2 tek bir öğrenme oranında test edilecek; sonuç oranın yüksekliğine bağlı olabilir, en az 3 oran denenmeli.",
+      "blindReview": false,
+      "status": "accepted",
+      "resolution": {
+        "by": {
+          "kind": "agent",
+          "role": "experiment_designer",
+          "model": "anthropic/claude-sonnet-5-5",
+          "modelFamily": "anthropic"
+        },
+        "at": "2026-11-02T11:10:00Z",
+        "text": "Plan 3 oran × 3 seed olarak güncellendi.",
+        "followUpId": "E-0031"
+      }
+    },
+    {
+      "id": "MSG-0001",
+      "type": "message",
+      "revision": 1,
+      "createdAt": "2026-11-02T10:30:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "critic",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "kind": "objection",
+      "to": "experiment_designer",
+      "subjectId": "CR-0001",
+      "body": "Tek öğrenme oranı yetersiz.",
+      "round": 1,
+      "requiresResponse": true
+    },
+    {
+      "id": "MSG-0002",
+      "type": "message",
+      "revision": 1,
+      "createdAt": "2026-11-02T11:10:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "kind": "response",
+      "to": "critic",
+      "subjectId": "CR-0001",
+      "inReplyTo": "MSG-0001",
+      "body": "Kabul; plan r2: 3 oran × 3 seed.",
+      "round": 1
+    },
+    {
+      "id": "PRE-0031",
+      "type": "preregistration",
+      "revision": 1,
+      "createdAt": "2026-11-02T11:20:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "hypothesisId": "H-0001",
+      "primaryMetric": "val_loss_final",
+      "successCriterion": "1e-3 ve altında ısınmalı ile ısınmasız arasında 3 seed ortalama kayıp farkı ≤ 0.05.",
+      "analysisPlan": "Her koşul için 3 seed ortalaması ve %95 güven aralığı; tek yönlü değil iki yönlü karşılaştırma.",
+      "seeds": 3,
+      "lockedAt": "2026-11-02T11:25:00Z",
+      "amendments": [
+        {
+          "at": "2026-11-03T08:00:00Z",
+          "reason": "Pilot sonrası adım sayısı bütçeye sığdırıldı",
+          "change": "10k yerine 8k adım",
+          "by": {
+            "kind": "agent",
+            "role": "experiment_designer",
+            "model": "anthropic/claude-sonnet-5-5",
+            "modelFamily": "anthropic"
+          },
+          "afterResultsSeen": false
+        }
+      ],
+      "contentHash": "16436939ca10abe41b77cc9f2df1cdeb025a9c46f7d1c9eb0f80280ad46f0b69"
+    },
+    {
+      "id": "E-0031",
+      "type": "experiment",
+      "revision": 2,
+      "createdAt": "2026-11-02T11:15:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "hypothesisIds": [
+        "H-0001",
+        "H-0002"
+      ],
+      "domain": "ml",
+      "method": "Üç öğrenme oranı (3e-4, 1e-3, 3e-3) × ısınmalı/ısınmasız × 3 seed; 20M parametreli transformer.",
+      "baselines": [
+        "sabit öğrenme oranı, ısınmalı"
+      ],
+      "metrics": [
+        {
+          "name": "val_loss_final",
+          "direction": "lower_is_better"
+        }
+      ],
+      "code": {
+        "repo": "https://github.com/ornek/isinma-deneyi",
+        "commit": "a3f9c21",
+        "license": "Apache-2.0"
+      },
+      "environment": {
+        "runtime": "python3.12",
+        "lockfileSha256": "4086f40fa196cc3e7e49c247071a77e32f7a168173240b8579f8c76853ba2c28"
+      },
+      "budget": {
+        "estimatedUsd": 3.2,
+        "estimatedGpuHours": 6,
+        "approvedUsd": 4.0,
+        "pilotCalibratedUsd": 2.9
+      },
+      "noveltyCheck": {
+        "verdict": "partially_done",
+        "summary": "Büyük modeller için çalışılmış; ≤50M ölçekte sistematik karşılaştırma bulunamadı.",
+        "priorWork": [
+          "arXiv:örnek"
+        ],
+        "userChoice": "proceed"
+      },
+      "preregistrationId": "PRE-0031",
+      "status": "completed",
+      "approval": {
+        "by": {
+          "kind": "human",
+          "userId": "u-ornek"
+        },
+        "at": "2026-11-02T11:30:00Z",
+        "decision": "approved",
+        "autonomyLevel": "manual"
+      }
+    },
+    {
+      "id": "MSG-0003",
+      "type": "message",
+      "revision": 1,
+      "createdAt": "2026-11-02T11:26:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "kind": "approval_request",
+      "to": "human",
+      "subjectId": "E-0031",
+      "body": "E-0031 planı ve bütçesi onayınızı bekliyor.",
+      "approvalRequest": {
+        "action": "approve_experiment",
+        "estimatedUsd": 3.2,
+        "estimatedGpuHours": 6,
+        "decision": {
+          "by": {
+            "kind": "human",
+            "userId": "u-ornek"
+          },
+          "at": "2026-11-02T11:30:00Z",
+          "decision": "approved",
+          "autonomyLevel": "manual"
+        }
+      }
+    },
+    {
+      "id": "RUN-0001",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-11-02T12:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0031",
+      "kind": "pilot",
+      "status": "succeeded",
+      "seed": 0,
+      "config": {
+        "steps": 200,
+        "data_fraction": 0.01
+      },
+      "hardware": "1×A10G",
+      "startedAt": "2026-11-02T12:00:00Z",
+      "endedAt": "2026-11-02T12:06:00Z",
+      "cost": {
+        "usd": 0.12,
+        "gpuHours": 0.1
+      }
+    },
+    {
+      "id": "RUN-0002",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-11-03T09:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0031",
+      "kind": "full",
+      "status": "succeeded",
+      "seed": 1,
+      "config": {
+        "lr": 0.001,
+        "warmup": 0,
+        "steps": 8000
+      },
+      "hardware": "1×A10G",
+      "startedAt": "2026-11-03T09:00:00Z",
+      "endedAt": "2026-11-03T10:00:00Z",
+      "metrics": {
+        "val_loss_final": 2.47
+      },
+      "cost": {
+        "usd": 0.31,
+        "gpuHours": 1
+      }
+    },
+    {
+      "id": "RUN-0003",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-11-03T10:05:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0031",
+      "kind": "full",
+      "status": "succeeded",
+      "seed": 1,
+      "config": {
+        "lr": 0.003,
+        "warmup": 0,
+        "steps": 8000
+      },
+      "hardware": "1×A10G",
+      "startedAt": "2026-11-03T10:05:00Z",
+      "endedAt": "2026-11-03T11:05:00Z",
+      "metrics": {
+        "val_loss_final": 2.91
+      },
+      "cost": {
+        "usd": 0.31,
+        "gpuHours": 1
+      }
+    },
+    {
+      "id": "RES-0031",
+      "type": "result",
+      "revision": 1,
+      "createdAt": "2026-11-04T09:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0031",
+      "runIds": [
+        "RUN-0002"
+      ],
+      "summary": "1e-3'te ısınmalı ve ısınmasız koşulların 3 seed ortalama kayıp farkı 0.02 (ön kayıttaki eşik 0.05).",
+      "metrics": {
+        "loss_gap": 0.02
+      },
+      "limitations": [
+        "Tek model boyutu (20M)",
+        "Yalnızca AdamW"
+      ]
+    },
+    {
+      "id": "RES-0032",
+      "type": "result",
+      "revision": 1,
+      "createdAt": "2026-11-04T09:05:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0031",
+      "runIds": [
+        "RUN-0003"
+      ],
+      "summary": "3e-3'te ısınmasız eğitim ıraksamadı ama kayıp 2.91'de takıldı.",
+      "negative": true,
+      "metrics": {
+        "val_loss_final": 2.91
+      },
+      "limitations": [
+        "Takılma ile ıraksama ayrımı tek bir eşikle yapıldı"
+      ]
+    },
+    {
+      "id": "RUN-0004",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-11-04T12:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "experimentId": "E-0031",
+      "kind": "verification",
+      "status": "succeeded",
+      "seed": 1,
+      "startedAt": "2026-11-04T12:00:00Z",
+      "endedAt": "2026-11-04T13:00:00Z",
+      "metrics": {
+        "val_loss_final": 2.48
+      }
+    },
+    {
+      "id": "VER-0031",
+      "type": "verification",
+      "revision": 1,
+      "createdAt": "2026-11-04T13:05:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "resultId": "RES-0031",
+      "verificationRunIds": [
+        "RUN-0004"
+      ],
+      "reproduced": "yes",
+      "tolerance": "kayıp ±0.02",
+      "crossModel": true
+    },
+    {
+      "id": "RUN-0005",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-11-04T13:10:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "experimentId": "E-0031",
+      "kind": "verification",
+      "status": "succeeded",
+      "seed": 1,
+      "startedAt": "2026-11-04T13:10:00Z",
+      "endedAt": "2026-11-04T14:10:00Z",
+      "metrics": {
+        "val_loss_final": 3.2
+      }
+    },
+    {
+      "id": "VER-0032",
+      "type": "verification",
+      "revision": 1,
+      "createdAt": "2026-11-04T14:15:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "resultId": "RES-0032",
+      "verificationRunIds": [
+        "RUN-0005"
+      ],
+      "reproduced": "partial",
+      "tolerance": "kayıp ±0.02",
+      "crossModel": true,
+      "differences": [
+        "Temiz ortamda kayıp 3.20; takılma tekrarlandı ama seviyesi farklı"
+      ]
+    },
+    {
+      "id": "EL-0001",
+      "type": "evidence_link",
+      "revision": 1,
+      "createdAt": "2026-11-04T09:10:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "resultId": "RES-0031",
+      "hypothesisId": "H-0001",
+      "relation": "supports",
+      "independence": "L1"
+    },
+    {
+      "id": "EL-0002",
+      "type": "evidence_link",
+      "revision": 1,
+      "createdAt": "2026-11-04T09:12:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "resultId": "RES-0032",
+      "hypothesisId": "H-0002",
+      "relation": "contradicts",
+      "independence": "L0"
+    },
+    {
+      "id": "MSG-0004",
+      "type": "message",
+      "revision": 1,
+      "createdAt": "2026-11-04T09:20:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "kind": "proposal",
+      "to": "human",
+      "subjectId": "E-0031",
+      "body": "Isınma süresi ablasyonu öneriyorum: 0/100/500/2000 adım × 3 seed."
+    },
+    {
+      "id": "H-0004",
+      "type": "hypothesis",
+      "revision": 1,
+      "createdAt": "2026-11-04T15:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "hypothesis",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "questionId": "Q-0012",
+      "statement": "Yüksek öğrenme oranındaki takılma, Adam'ın β2 değeri düşürüldüğünde ortadan kalkar.",
+      "falsifiabilityNote": "β2=0.95 ile ısınmasız 3e-3 çalıştırmaları yine 2.9 civarında takılırsa hipotez çürür.",
+      "status": "draft",
+      "derivedFrom": [
+        "RES-0032"
+      ]
+    }
+  ]
+}

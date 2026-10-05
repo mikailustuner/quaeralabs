@@ -1,0 +1,17 @@
+import { chromium } from "playwright";
+import { readdirSync } from "node:fs";
+import { homedir } from "node:os";
+const dir = `${homedir()}/.cache/ms-playwright`; const shell = readdirSync(dir).find((d) => d.startsWith("chromium_headless_shell"));
+const b = await chromium.launch({ executablePath: `${dir}/${shell}/chrome-headless-shell-linux64/chrome-headless-shell` });
+const [url, out, scheme] = process.argv.slice(2);
+const p = await b.newPage({ viewport: { width: 1440, height: 1000 }, colorScheme: scheme || "light" });
+const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+await p.goto(url); await p.waitForTimeout(3000);
+await p.getByRole("button", { name: /Nasıl seçildi/ }).click();
+await p.getByRole("heading", { name: "Hipotez puanlaması" }).scrollIntoViewIfNeeded();
+await p.screenshot({ path: `${out}-ranking.png` });
+await p.getByRole("button", { name: /^Mühendis:/ }).click();
+await p.waitForTimeout(1500);
+await p.screenshot({ path: `${out}-drawer.png` });
+console.log("hatalar:", errs);
+await b.close();

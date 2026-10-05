@@ -1,0 +1,12 @@
+id: mathlib-arama
+version: 0.1.0
+description: Mathlib'de ilgili lemma ve tanımları arar.
+domains:
+- math
+tools:
+- name: mathlib.search
+  protocol: mcp
+  server: lean
+requiredPermissions:
+  literatureRead: true
+eval: pending

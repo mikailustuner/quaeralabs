@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:critique",
+  "title": "Eleştiri (CR)",
+  "description": "Eleştirmenin itirazı. Açık bir itiraz cevapsız kapatılamaz: kabul edilir ya da gerekçeyle reddedilir.",
+  "allOf": [
+    { "$ref": "urn:quaeralabs:v1:common#/$defs/base" },
+    {
+      "if": { "properties": { "status": { "enum": ["accepted", "rejected_with_reason", "resolved"] } } },
+      "then": { "required": ["resolution"] }
+    }
+  ],
+  "required": ["targetId", "category", "severity", "body", "status"],
+  "properties": {
+    "id": { "pattern": "^CR-" },
+    "type": { "const": "critique" },
+    "targetId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "category": { "enum": ["methodology", "statistics", "confound", "leakage", "implementation", "citation", "overclaim", "preregistration_violation", "other"] },
+    "severity": { "enum": ["low", "medium", "high", "blocking"] },
+    "body": { "type": "string", "minLength": 10 },
+    "blindReview": { "type": "boolean", "description": "Eleştirmen önce ham verileri, sonra yorumları okudu mu?" },
+    "status": { "enum": ["open", "accepted", "rejected_with_reason", "resolved"] },
+    "resolution": {
+      "type": "object",
+      "required": ["by", "at", "text"],
+      "properties": {
+        "by": { "$ref": "urn:quaeralabs:v1:common#/$defs/actor" },
+        "at": { "$ref": "urn:quaeralabs:v1:common#/$defs/timestamp" },
+        "text": { "type": "string", "minLength": 10 },
+        "followUpId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "unevaluatedProperties": false
+}

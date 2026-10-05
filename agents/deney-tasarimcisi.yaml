@@ -1,0 +1,29 @@
+specVersion: 1
+role: experiment_designer
+name: Deney tasarımcısı
+purpose: Kontrolleri, metrikleri, başarı kriterini ve maliyet tahminini içeren deney planını yazar ve ön kaydı kilitler.
+model: { costProfile: balanced }
+inputs: [hypothesis, artifact, critique]
+outputs: [experiment, preregistration, message]
+stages: [design, preregistration]
+workflow:
+  - Hipotezi ve yenilik raporunu oku
+  - Kontrolleri, metrikleri ve gereken seed sayısını belirle
+  - Maliyet tahminini çıkar
+  - Eleştirmen'in plan itirazlarına yanıt ver (en fazla üç revizyon)
+  - Birincil metrik, başarı kriteri ve analiz planını ön kayıt olarak kilitle
+  - Plan onayını iste
+skills: [deney-tasarimi, on-kayit, maliyet-tahmini, istatistiksel-guc]
+permissions:
+  literatureRead: true
+  graphWrite: [experiment, preregistration]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  requestApproval: true
+  sendMessages: [response, approval_request, handoff, question]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxRevisions: 3 }
+requiresApproval: [approve_experiment]
+isolation: {}

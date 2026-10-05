@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:hypothesis",
+  "title": "Hipotez (H)",
+  "description": "Test edilebilir iddia. Taslak dışındaki her durum, hipotezin bir insan tarafından listeye alındığını gösteren onay gerektirir.",
+  "allOf": [
+    {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/base"
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "not": {
+              "enum": [
+                "draft",
+                "rejected"
+              ]
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "approval"
+        ],
+        "properties": {
+          "approval": {
+            "properties": {
+              "decision": {
+                "const": "approved"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "required": [
+    "questionId",
+    "statement",
+    "falsifiabilityNote",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "pattern": "^H-"
+    },
+    "type": {
+      "const": "hypothesis"
+    },
+    "questionId": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/publicId"
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 10
+    },
+    "falsifiabilityNote": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Hangi gözlem bu hipotezi çürütür?"
+    },
+    "expectedSignal": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "rejected",
+        "accepted",
+        "testing",
+        "under_critique",
+        "supported",
+        "refuted",
+        "inconclusive",
+        "retracted"
+      ]
+    },
+    "derivedFrom": {
+      "description": "Türetilmiş hipotez: hangi sonuç veya hipotezden türedi.",
+      "type": "array",
+      "items": {
+        "$ref": "urn:quaeralabs:v1:common#/$defs/publicId"
+      }
+    },
+    "approval": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/approval"
+    },
+    "scopeRelation": {
+      "description": "Hipotezin soruyla ilişkisi: soruyu tamamen mi yanıtlıyor, yoksa kısıtlı bir halini mi (ör. sonlu bir aralık)?",
+      "type": "object",
+      "required": [
+        "relation"
+      ],
+      "properties": {
+        "relation": {
+          "enum": [
+            "full",
+            "restricted",
+            "related"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "unevaluatedProperties": false
+}

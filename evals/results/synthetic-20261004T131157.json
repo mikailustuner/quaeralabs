@@ -1,0 +1,28 @@
+{
+  "createdAt": "2026-10-04T13:13:17+00:00",
+  "tasks": 1,
+  "correct": 0,
+  "correct_and_reproduced": 0,
+  "gate_min": 4,
+  "passed": false,
+  "spent_usd": 0.1243,
+  "rows": [
+    {
+      "id": "syn-01",
+      "truth": "no",
+      "answer": "unclear",
+      "correct": false,
+      "reproduced": false,
+      "counts": false,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "inconclusive",
+        "statement": "/data/train.npz üzerinde varsayılan ayarlarla (L2 düzenlileştirme, C=1.0, özellikler standartlaştırılmış) eğitilen lojistik regresyon, /data/test.npz üzerinde %75'in üzerinde doğruluk elde eder."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.1243,
+      "data_seed": 1367265353,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T131157-syn-01"
+    }
+  ]
+}

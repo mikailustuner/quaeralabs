@@ -1,0 +1,13 @@
+id: deney-tasarimi
+version: 0.1.0
+description: Kontroller, metrikler ve başarı kriteriyle deney planı yazar.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+- name: templates.experiment
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

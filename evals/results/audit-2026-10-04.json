@@ -1,0 +1,347 @@
+{
+  "createdAt": "2026-10-04T16:34:40+00:00",
+  "lean": true,
+  "online": true,
+  "summary": {
+    "projects": 35,
+    "audited": 24,
+    "skipped": 11,
+    "citations_checked": 50,
+    "references_checked": 127,
+    "verifications_checked": 21,
+    "fabricated_citations": 0,
+    "unverified_citations": 3,
+    "dangling_references": 0,
+    "fake_verifications": 0,
+    "tampered_reports": 0,
+    "lean_rechecked": 4,
+    "lean_inconclusive": 0,
+    "clean": false
+  },
+  "projects": [
+    {
+      "project": "2026-10-04-goldbach-ilk-koşu-kapsam-hatasi",
+      "checked": {
+        "citations": 7,
+        "references": 0,
+        "verifications": 1,
+        "lean_rechecked": true
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "2026-10-04-her-n-dogal-sayisi-icin-n3-n-ifadesi-6-ya-bolunu",
+      "checked": {
+        "citations": 0,
+        "references": 0,
+        "verifications": 1,
+        "lean_rechecked": true
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "2026-10-04-ikiden-buyuk-her-cift-dogal-sayi-iki-asal-sayini",
+      "checked": {
+        "citations": 3,
+        "references": 0,
+        "verifications": 1,
+        "lean_rechecked": true
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "itiraz-20261004T151057-control",
+      "checked": {},
+      "findings": [],
+      "skipped": "bilinçli hata enjeksiyonu (değerlendirme projesi)"
+    },
+    {
+      "project": "itiraz-20261004T151057-flip",
+      "checked": {},
+      "findings": [],
+      "skipped": "bilinçli hata enjeksiyonu (değerlendirme projesi)"
+    },
+    {
+      "project": "itiraz-20261004T151057-overclaim",
+      "checked": {},
+      "findings": [],
+      "skipped": "bilinçli hata enjeksiyonu (değerlendirme projesi)"
+    },
+    {
+      "project": "itiraz-20261004T151412-control",
+      "checked": {},
+      "findings": [],
+      "skipped": "bilinçli hata enjeksiyonu (değerlendirme projesi)"
+    },
+    {
+      "project": "itiraz-20261004T151412-flip",
+      "checked": {},
+      "findings": [],
+      "skipped": "bilinçli hata enjeksiyonu (değerlendirme projesi)"
+    },
+    {
+      "project": "itiraz-20261004T151412-overclaim",
+      "checked": {},
+      "findings": [],
+      "skipped": "bilinçli hata enjeksiyonu (değerlendirme projesi)"
+    },
+    {
+      "project": "sentetik-20261004T130914-syn-01",
+      "checked": {
+        "citations": 0,
+        "references": 0,
+        "verifications": 0
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T131157-syn-01",
+      "checked": {
+        "citations": 0,
+        "references": 4,
+        "verifications": 0
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T131355-syn-01",
+      "checked": {},
+      "findings": [],
+      "skipped": "rapor yok"
+    },
+    {
+      "project": "sentetik-20261004T131805-syn-01",
+      "checked": {
+        "citations": 0,
+        "references": 4,
+        "verifications": 0
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T131805-syn-02",
+      "checked": {},
+      "findings": [],
+      "skipped": "rapor yok"
+    },
+    {
+      "project": "sentetik-20261004T131950-syn-01",
+      "checked": {
+        "citations": 2,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T131950-syn-02",
+      "checked": {},
+      "findings": [],
+      "skipped": "rapor yok"
+    },
+    {
+      "project": "sentetik-20261004T133417-syn-01",
+      "checked": {
+        "citations": 0,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T133417-syn-02",
+      "checked": {
+        "citations": 0,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T133417-syn-03",
+      "checked": {
+        "citations": 4,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T133417-syn-04",
+      "checked": {
+        "citations": 4,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T133417-syn-05",
+      "checked": {
+        "citations": 3,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140045-syn-01",
+      "checked": {},
+      "findings": [],
+      "skipped": "rapor yok"
+    },
+    {
+      "project": "sentetik-20261004T140045-syn-02",
+      "checked": {},
+      "findings": [],
+      "skipped": "rapor yok"
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-01",
+      "checked": {
+        "citations": 0,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-02",
+      "checked": {
+        "citations": 2,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [
+        {
+          "kind": "unverified_citation",
+          "detail": "10.1007/978-981-97-0700-3_56 raporda geçiyor ama doğrulama hattından geçmemiş (gerçek bir yayın)"
+        },
+        {
+          "kind": "unverified_citation",
+          "detail": "10.3389/fmicb.2021.634511 raporda geçiyor ama doğrulama hattından geçmemiş (gerçek bir yayın)"
+        }
+      ],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-03",
+      "checked": {
+        "citations": 5,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-04",
+      "checked": {
+        "citations": 3,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-05",
+      "checked": {
+        "citations": 6,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [
+        {
+          "kind": "unverified_citation",
+          "detail": "10.48550/arxiv.1801.01003 raporda geçiyor ama doğrulama hattından geçmemiş (gerçek bir yayın)"
+        }
+      ],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-06",
+      "checked": {
+        "citations": 5,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-07",
+      "checked": {
+        "citations": 0,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-08",
+      "checked": {
+        "citations": 0,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-09",
+      "checked": {
+        "citations": 6,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "sentetik-20261004T140221-syn-10",
+      "checked": {
+        "citations": 0,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "vaka-20261004T152932-fail-goldbach-scope",
+      "checked": {
+        "citations": 0,
+        "references": 0,
+        "verifications": 1,
+        "lean_rechecked": true
+      },
+      "findings": [],
+      "skipped": null
+    },
+    {
+      "project": "vaka-20261004T152932-fail-ml-no-hypothesis",
+      "checked": {
+        "citations": 0,
+        "references": 7,
+        "verifications": 1
+      },
+      "findings": [],
+      "skipped": null
+    }
+  ]
+}

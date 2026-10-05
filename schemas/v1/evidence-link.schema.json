@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:evidence-link",
+  "title": "Kanıt bağı (EL)",
+  "description": "Bir sonucu bir hipoteze bağlar. Tek bir doğruluk skoru yoktur; ilişki türü ve bağımsızlık seviyesi gösterilir.",
+  "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
+  "required": ["resultId", "hypothesisId", "relation", "independence"],
+  "properties": {
+    "id": { "pattern": "^EL-" },
+    "type": { "const": "evidence_link" },
+    "resultId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "hypothesisId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "relation": { "enum": ["supports", "contradicts", "inconclusive", "methodological_only"] },
+    "independence": {
+      "description": "L0 aynı kod/veri tekrarı · L1 aynı ekip farklı seed · L2 farklı ekip aynı kod · L3 farklı uygulama · L4 farklı model/veri/ortam",
+      "enum": ["L0", "L1", "L2", "L3", "L4"]
+    },
+    "context": { "type": "string" }
+  },
+  "unevaluatedProperties": false
+}

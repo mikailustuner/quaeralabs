@@ -1,0 +1,215 @@
+{
+  "createdAt": "2026-10-04T15:10:28+00:00",
+  "seed": 2028,
+  "problems": 21,
+  "statement_compile_ok": 21,
+  "attempted": 21,
+  "solved": 21,
+  "pass@2": 1.0,
+  "by_template": {
+    "fermat_poly": "3/3",
+    "fib_identity": "3/3",
+    "gcd_linear": "3/3",
+    "ind_div": "3/3",
+    "ineq3": "3/3",
+    "mod_powers": "3/3",
+    "no_rational_root": "3/3"
+  },
+  "models": [
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "spent_usd": 0.3649,
+  "budget_usd": 3.0,
+  "rows": [
+    {
+      "name": "qsm_ind_div_0",
+      "template": "ind_div",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_ind_div_0 (n : ℕ) : 14 ∣ 5 ^ (2 * n + 1) + 11 ^ (n + 2) := by\n  induction n with\n  | zero => norm_num\n  | succ n ih =>\n    obtain ⟨k, hk⟩ := ih\n    refine ⟨11 * k + 5 ^ (2 * n + 1), ?_⟩\n    have h1 : (5:ℕ) ^ (2 * (n + 1) + 1) = 25 * 5 ^ (2 * n + 1) := by ring\n    have h2 : (11:ℕ) ^ (n + 1 + 2) = 11 * 11 ^ (n + 2) := by ring\n    rw [h1, h2]\n    linarith\n"
+    },
+    {
+      "name": "qsm_ind_div_1",
+      "template": "ind_div",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_ind_div_1 (n : ℕ) : 27 ∣ 8 ^ (2 * n + 1) + 10 ^ (n + 2) := by\n  have h1 : ∀ m : ℕ, 8 ^ (2 * m + 1) = 8 * 64 ^ m := by\n    intro m\n    rw [pow_succ, pow_mul]\n    ring\n  induction n with\n  | zero => norm_num\n  | succ n ih =>\n    rw [h1] at ih\n    rw [h1 (n + 1)]\n    obtain ⟨k, hk⟩ := ih\n    refine ⟨10 * k + 16 * 64 ^ n, ?_⟩\n    have e1 : (64 : ℕ) ^ (n + 1) = 64 * 64 ^ n := by ring\n    have e2 : (10 : ℕ) ^ (n + 1 + 2) = 10 * 10 ^ (n + 2) := by ring\n    rw [e1, e2]\n    linarith\n"
+    },
+    {
+      "name": "qsm_ind_div_2",
+      "template": "ind_div",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_ind_div_2 (n : ℕ) : 12 ∣ 11 ^ (2 * n + 1) + 13 ^ (n + 2) := by\n  induction n with\n  | zero => norm_num\n  | succ n ih =>\n    obtain ⟨k, hk⟩ := ih\n    have h1 : 11 ^ (2 * (n + 1) + 1) = 121 * 11 ^ (2 * n + 1) := by ring\n    have h2 : 13 ^ (n + 1 + 2) = 13 * 13 ^ (n + 2) := by ring\n    rw [h1, h2]\n    refine ⟨13 * k + 9 * 11 ^ (2 * n + 1), ?_⟩\n    generalize 11 ^ (2 * n + 1) = x at hk ⊢\n    generalize 13 ^ (n + 2) = y at hk ⊢\n    omega\n"
+    },
+    {
+      "name": "qsm_fermat_poly_0",
+      "template": "fermat_poly",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_fermat_poly_0 (n : ℤ) : 30 ∣ n ^ 9 - n := by\n  have h : ∀ x : ZMod 30, x ^ 9 - x = 0 := by decide\n  have h2 : ((n ^ 9 - n : ℤ) : ZMod 30) = 0 := by\n    push_cast\n    exact h _\n  have h3 := (ZMod.intCast_zmod_eq_zero_iff_dvd (n ^ 9 - n) 30).mp h2\n  exact_mod_cast h3\n"
+    },
+    {
+      "name": "qsm_fermat_poly_1",
+      "template": "fermat_poly",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_fermat_poly_1 (n : ℤ) : 510 ∣ n ^ 17 - n := by\n  have h2 : (2:ℤ) ∣ n ^ 17 - n := by\n    have h : n % 2 = 0 ∨ n % 2 = 1 := by omega\n    rw [Int.dvd_iff_emod_eq_zero]\n    rcases h with h | h <;>\n      simp [h, pow_succ, Int.sub_emod, Int.mul_emod]\n  have h3 : (3:ℤ) ∣ n ^ 17 - n := by\n    have h : n % 3 = 0 ∨ n % 3 = 1 ∨ n % 3 = 2 := by omega\n    rw [Int.dvd_iff_emod_eq_zero]\n    rcases h with h | h | h <;>\n      simp [h, pow_succ, Int.sub_emod, Int.mul_emod]\n  have h5 : (5:ℤ) ∣ n ^ 17 - n := by\n    have h : n % 5 = 0 ∨ n % 5 = 1 ∨ n % 5 = 2 ∨ n % 5 = 3 ∨ n % 5 = 4 := by omega\n    rw [Int.dvd_iff_emod_eq_zero]\n    rcases h with h | h | h | h | h <;>\n      simp [h, pow_succ, Int.sub_emod, Int.mul_emod]\n  have h17 : (17:ℤ) ∣ n ^ 17 - n := by\n    have h : n % 17 = 0 ∨ n % 17 = 1 ∨ n % 17 = 2 ∨ n % 17 = 3 ∨ n % 17 = 4 ∨\n        n % 17 = 5 ∨ n % 17 = 6 ∨ n % 17 = 7 ∨ n % 17 = 8 ∨ n % 17 = 9 ∨\n        n % 17 = 10 ∨ n % 17 = 11 ∨ n % 17 = 12 ∨ n % 17 = 13 ∨ n % 17 = 14 ∨\n        n % 17 = 15 ∨ n % 17 = 16 := by omega\n    rw [Int.dvd_iff_emod_eq_zero]\n    rcases h with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;>\n      simp [h, pow_succ, Int.sub_emod, Int.mul_emod]\n  generalize n ^ 17 - n = x at h2 h3 h5 h17 ⊢\n  omega\n"
+    },
+    {
+      "name": "qsm_fermat_poly_2",
+      "template": "fermat_poly",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_fermat_poly_2 (n : ℤ) : 42 ∣ n ^ 7 - n := by\n  have h : ((n ^ 7 - n : ℤ) : ZMod 42) = 0 := by\n    push_cast\n    generalize (n : ZMod 42) = x\n    revert x\n    decide\n  exact_mod_cast (ZMod.intCast_zmod_eq_zero_iff_dvd _ 42).mp h\n"
+    },
+    {
+      "name": "qsm_mod_powers_0",
+      "template": "mod_powers",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\nlemma qsm_cube_mod9 (x : ℤ) : x ^ 3 % 9 = 0 ∨ x ^ 3 % 9 = 1 ∨ x ^ 3 % 9 = 8 := by\n  have h : x % 9 = 0 ∨ x % 9 = 1 ∨ x % 9 = 2 ∨ x % 9 = 3 ∨ x % 9 = 4 ∨\n      x % 9 = 5 ∨ x % 9 = 6 ∨ x % 9 = 7 ∨ x % 9 = 8 := by omega\n  rcases h with h | h | h | h | h | h | h | h | h <;>\n    simp [pow_succ, Int.mul_emod, h]\n\ntheorem qsm_mod_powers_0 (x y : ℤ) : (x ^ 3 + y ^ 3) % 9 ≠ 6 := by\n  have hx := qsm_cube_mod9 x\n  have hy := qsm_cube_mod9 y\n  generalize x ^ 3 = a at *\n  generalize y ^ 3 = b at *\n  omega\n"
+    },
+    {
+      "name": "qsm_mod_powers_1",
+      "template": "mod_powers",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\nlemma qsm_sq_mod_eight (x : ℤ) : x ^ 2 % 8 = 0 ∨ x ^ 2 % 8 = 1 ∨ x ^ 2 % 8 = 4 := by\n  have h : x % 8 = 0 ∨ x % 8 = 1 ∨ x % 8 = 2 ∨ x % 8 = 3 ∨ x % 8 = 4 ∨ x % 8 = 5 ∨ x % 8 = 6 ∨ x % 8 = 7 := by\n    omega\n  rcases h with h | h | h | h | h | h | h | h <;> simp [pow_two, Int.mul_emod, h]\n\ntheorem qsm_mod_powers_1 (x y z : ℤ) : (x ^ 2 + y ^ 2 + z ^ 2) % 8 ≠ 7 := by\n  have hx := qsm_sq_mod_eight x\n  have hy := qsm_sq_mod_eight y\n  have hz := qsm_sq_mod_eight z\n  generalize x ^ 2 = a at *\n  generalize y ^ 2 = b at *\n  generalize z ^ 2 = c at *\n  omega\n"
+    },
+    {
+      "name": "qsm_mod_powers_2",
+      "template": "mod_powers",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_mod_powers_2 (x y : ℤ) : (x ^ 3 + y ^ 3) % 9 ≠ 3 := by\n  have hx : x % 9 = 0 ∨ x % 9 = 1 ∨ x % 9 = 2 ∨ x % 9 = 3 ∨ x % 9 = 4 ∨\n      x % 9 = 5 ∨ x % 9 = 6 ∨ x % 9 = 7 ∨ x % 9 = 8 := by omega\n  have hy : y % 9 = 0 ∨ y % 9 = 1 ∨ y % 9 = 2 ∨ y % 9 = 3 ∨ y % 9 = 4 ∨\n      y % 9 = 5 ∨ y % 9 = 6 ∨ y % 9 = 7 ∨ y % 9 = 8 := by omega\n  rcases hx with h | h | h | h | h | h | h | h | h <;>\n  rcases hy with k | k | k | k | k | k | k | k | k <;>\n  simp [pow_succ, Int.add_emod, Int.mul_emod, h, k]\n"
+    },
+    {
+      "name": "qsm_ineq3_0",
+      "template": "ineq3",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\nlemma qsm_aux (x y : ℝ) (hy : 0 < y) : x ^ 2 / y ≥ 2 * x - y := by\n  rw [ge_iff_le, le_div_iff₀ hy]\n  nlinarith [sq_nonneg (x - y)]\n\ntheorem qsm_ineq3_0 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :\n    a ^ 2 / b + b ^ 2 / c + c ^ 2 / a ≥ a + b + c := by\n  have h1 := qsm_aux a b hb\n  have h2 := qsm_aux b c hc\n  have h3 := qsm_aux c a ha\n  linarith\n"
+    },
+    {
+      "name": "qsm_ineq3_1",
+      "template": "ineq3",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_ineq3_1 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :\n    (a + b + c) * (1 / a + 1 / b + 1 / c) ≥ 9 := by\n  have key : (a + b + c) * (1 / a + 1 / b + 1 / c) - 9\n      = ((a - b)^2 * c + (b - c)^2 * a + (a - c)^2 * b) / (a * b * c) := by\n    field_simp\n    ring\n  have h : 0 ≤ ((a - b)^2 * c + (b - c)^2 * a + (a - c)^2 * b) / (a * b * c) := by\n    positivity\n  linarith\n"
+    },
+    {
+      "name": "qsm_ineq3_2",
+      "template": "ineq3",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_ineq3_2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :\n    a / b + b / c + c / a ≥ 3 := by\n  rw [ge_iff_le, div_add_div _ _ hb.ne' hc.ne', div_add_div _ _ (mul_pos hb hc).ne' ha.ne', le_div_iff₀ (by positivity)]\n  rcases le_total a b with h1 | h1 <;> rcases le_total b c with h2 | h2 <;>\n    rcases le_total a c with h3 | h3 <;>\n    nlinarith [mul_nonneg (sub_nonneg.2 h1) (sub_nonneg.2 h2),\n      mul_nonneg (sub_nonneg.2 h1) (sub_nonneg.2 h3),\n      mul_nonneg (sub_nonneg.2 h2) (sub_nonneg.2 h3),\n      mul_pos ha hb, mul_pos hb hc, mul_pos ha hc,\n      sq_nonneg (a - b), sq_nonneg (b - c), sq_nonneg (a - c)]\n"
+    },
+    {
+      "name": "qsm_fib_identity_0",
+      "template": "fib_identity",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_fib_identity_0 (n : ℕ) :\n    ∑ i ∈ Finset.range n, Nat.fib i + 1 = Nat.fib (n + 1) := by\n  induction n with\n  | zero => simp\n  | succ n ih =>\n    rw [Finset.sum_range_succ, show n + 1 + 1 = n + 2 from rfl, Nat.fib_add_two]\n    omega\n"
+    },
+    {
+      "name": "qsm_fib_identity_1",
+      "template": "fib_identity",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_fib_identity_1 (n : ℕ) :\n    Nat.fib (2 * n + 1) = Nat.fib n ^ 2 + Nat.fib (n + 1) ^ 2 := by\n  have h := Nat.fib_add n n\n  have h2 : 2 * n + 1 = n + n + 1 := by omega\n  rw [h2, h]\n  ring\n"
+    },
+    {
+      "name": "qsm_fib_identity_2",
+      "template": "fib_identity",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_fib_identity_2 (n : ℕ) :\n    (Nat.fib (n + 2) : ℤ) * Nat.fib n - (Nat.fib (n + 1) : ℤ) ^ 2 = (-1) ^ (n + 1) := by\n  induction n with\n  | zero => norm_num [Nat.fib_add_two]\n  | succ k ih =>\n    have h2 : (Nat.fib (k+2) : ℤ) = Nat.fib k + Nat.fib (k+1) := by\n      exact_mod_cast Nat.fib_add_two\n    have h1 : (Nat.fib (k+1+2) : ℤ) = Nat.fib (k+1) + Nat.fib (k+2) := by\n      exact_mod_cast Nat.fib_add_two (n := k+1)\n    show (Nat.fib (k+1+2) : ℤ) * Nat.fib (k+1) - (Nat.fib (k+2) : ℤ) ^ 2 = (-1) ^ (k+1+1)\n    rw [h1, pow_succ]\n    linear_combination (-1 : ℤ) * ih - (Nat.fib (k+2) : ℤ) * h2\n"
+    },
+    {
+      "name": "qsm_gcd_linear_0",
+      "template": "gcd_linear",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_gcd_linear_0 (n : ℕ) : Nat.gcd (3 * n + 11) (14 * n + 51) = 1 := by\n  have ha : Nat.gcd (3 * n + 11) (14 * n + 51) ∣ 3 * n + 11 := Nat.gcd_dvd_left _ _\n  have hb : Nat.gcd (3 * n + 11) (14 * n + 51) ∣ 14 * n + 51 := Nat.gcd_dvd_right _ _\n  have h1 : Nat.gcd (3 * n + 11) (14 * n + 51) ∣ 14 * (3 * n + 11) :=\n    Dvd.dvd.mul_left ha 14\n  have h2 : Nat.gcd (3 * n + 11) (14 * n + 51) ∣ 3 * (14 * n + 51) :=\n    Dvd.dvd.mul_left hb 3\n  have h3 : 14 * (3 * n + 11) = 3 * (14 * n + 51) + 1 := by ring\n  rw [h3] at h1\n  have h4 := (Nat.dvd_add_right h2).mp h1\n  exact Nat.dvd_one.mp h4\n"
+    },
+    {
+      "name": "qsm_gcd_linear_1",
+      "template": "gcd_linear",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_gcd_linear_1 (n : ℕ) : Nat.gcd (5 * n + 12) (22 * n + 53) = 1 := by\n  have h : 5 * (22 * n + 53) = 22 * (5 * n + 12) + 1 := by ring\n  have h1 : Nat.gcd (5 * n + 12) (22 * n + 53) ∣ 22 * (5 * n + 12) + 1 := by\n    rw [← h]\n    exact Dvd.dvd.mul_left (Nat.gcd_dvd_right _ _) 5\n  have h2 : Nat.gcd (5 * n + 12) (22 * n + 53) ∣ 22 * (5 * n + 12) :=\n    Dvd.dvd.mul_left (Nat.gcd_dvd_left _ _) 22\n  have h3 := (Nat.dvd_add_right h2).mp h1\n  exact Nat.dvd_one.mp h3\n"
+    },
+    {
+      "name": "qsm_gcd_linear_2",
+      "template": "gcd_linear",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_gcd_linear_2 (n : ℕ) : Nat.gcd (4 * n + 7) (29 * n + 51) = 1 := by\n  have h1 : Nat.gcd (4 * n + 7) (29 * n + 51) ∣ 4 * n + 7 := Nat.gcd_dvd_left _ _\n  have h2 : Nat.gcd (4 * n + 7) (29 * n + 51) ∣ 29 * n + 51 := Nat.gcd_dvd_right _ _\n  have h3 : Nat.gcd (4 * n + 7) (29 * n + 51) ∣ 29 * (4 * n + 7) :=\n    Dvd.dvd.mul_left h1 29\n  have h4 : Nat.gcd (4 * n + 7) (29 * n + 51) ∣ 4 * (29 * n + 51) :=\n    Dvd.dvd.mul_left h2 4\n  have h5 : 4 * (29 * n + 51) = 29 * (4 * n + 7) + 1 := by ring\n  rw [h5] at h4\n  have h6 : Nat.gcd (4 * n + 7) (29 * n + 51) ∣ 1 := (Nat.dvd_add_right h3).mp h4\n  exact Nat.dvd_one.mp h6\n"
+    },
+    {
+      "name": "qsm_no_rational_root_0",
+      "template": "no_rational_root",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_no_rational_root_0 : ¬ ∃ q : ℚ, q ^ 3 = 13 := by\n  rintro ⟨q, hq⟩\n  have h1 : ((q:ℝ))^3 = ((13:ℤ):ℝ) := by\n    have : ((q^3 : ℚ):ℝ) = ((13:ℚ):ℝ) := by rw [hq]\n    push_cast at this ⊢\n    exact this\n  have h2 : ¬ ∃ y : ℤ, (q:ℝ) = y := by\n    rintro ⟨y, hy⟩\n    rw [hy] at h1\n    have h3 : y^3 = 13 := by exact_mod_cast h1\n    have h4 : y ≤ 2 ∨ 3 ≤ y := by omega\n    rcases h4 with h | h\n    · nlinarith [mul_nonneg (sub_nonneg.2 h) (add_nonneg (sq_nonneg (y+1)) (by norm_num : (0:ℤ) ≤ 3))]\n    · have h5 : 0 ≤ y^2 + 3*y + 9 := by nlinarith [sq_nonneg y]\n      nlinarith [mul_nonneg (sub_nonneg.2 h) h5]\n  exact Rat.not_irrational q (irrational_nrt_of_notint_nrt 3 13 h1 h2 (by norm_num))\n"
+    },
+    {
+      "name": "qsm_no_rational_root_1",
+      "template": "no_rational_root",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 2,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_no_rational_root_1 : ¬ ∃ q : ℚ, q ^ 2 = 48 := by\n  rintro ⟨q, hq⟩\n  have hr : (q / 4) ^ 2 = 3 := by\n    rw [div_pow, hq]; norm_num\n  have hr' : (((q / 4 : ℚ) : ℝ)) ^ 2 = 3 := by\n    exact_mod_cast hr\n  have hirr : Irrational (Real.sqrt ((3 : ℕ) : ℝ)) :=\n    Nat.Prime.irrational_sqrt (by norm_num)\n  have hirr' : Irrational (Real.sqrt (3 : ℝ)) := by\n    simpa using hirr\n  have h : (((|q / 4| : ℚ)) : ℝ) = Real.sqrt (3 : ℝ) := by\n    rw [Rat.cast_abs, ← Real.sqrt_sq_eq_abs, hr']\n  exact hirr' ⟨|q / 4|, h⟩\n"
+    },
+    {
+      "name": "qsm_no_rational_root_2",
+      "template": "no_rational_root",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_no_rational_root_2 : ¬ ∃ q : ℚ, q ^ 3 = 56 := by\n  rintro ⟨q, hq⟩\n  have h1 : ((q:ℝ))^3 = ((56:ℤ):ℝ) := by\n    have : ((q ^ 3 : ℚ) : ℝ) = ((56:ℚ):ℝ) := by rw [hq]\n    push_cast at this ⊢\n    exact this\n  have h2 : ¬∃ y : ℤ, (q:ℝ) = y := by\n    rintro ⟨y, hy⟩\n    rw [hy] at h1\n    have h3 : y^3 = 56 := by exact_mod_cast h1\n    have hlo : 0 ≤ y := by\n      by_contra hneg\n      have hle : y ≤ 0 := by omega\n      nlinarith [mul_nonneg (neg_nonneg.2 hle) (sq_nonneg y)]\n    have hhi : y < 4 := by\n      by_contra hge\n      have h4 : 4 ≤ y := by omega\n      have hsq : 16 ≤ y^2 := by nlinarith\n      nlinarith\n    interval_cases y <;> norm_num at h3\n  have := irrational_nrt_of_notint_nrt 3 56 h1 h2 (by norm_num)\n  exact this ⟨q, rfl⟩\n"
+    }
+  ],
+  "level": "olympiad"
+}

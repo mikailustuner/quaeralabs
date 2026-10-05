@@ -1,0 +1,97 @@
+{
+  "createdAt": "2026-10-04T13:48:50+00:00",
+  "complete": true,
+  "tasks": 5,
+  "correct": 5,
+  "correct_and_reproduced": 5,
+  "gate_min": 4,
+  "passed": true,
+  "spent_usd": 1.5974,
+  "rows": [
+    {
+      "id": "syn-01",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "Varsayılan ayarlarla (L2 düzenlileştirme, C=1.0, özellikler train setine göre standartlaştırılmış) /data/train.npz üzerinde eğitilen lojistik regresyon, /data/test.npz üzerinde %75'in üzerinde doğruluk elde eder."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3342,
+      "data_seed": 950242237,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T133417-syn-01"
+    },
+    {
+      "id": "syn-02",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "Sütun 2 çıkarıldığında test doğruluğu 1 puandan (0,01) fazla düşer. Deney şöyle kurulur: aynı model ailesi (ör. lojistik regresyon ve gradyan artırmalı ağaçlar) /data/train.npz üzerinde bir kez 3 özellikle, bir kez yalnızca sütun 0 ve 1 ile, aynı hiperparametre arama prosedürü ve en az 5 farklı tohumla eğitilir. Ardından her iki modelin /data/test.npz üzerindeki doğruluk farkı (tam − indirgenmiş) ölçülür."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3229,
+      "data_seed": 1951749224,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T133417-syn-02"
+    },
+    {
+      "id": "syn-03",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "/data/train.npz üzerinde eğitilen basit bir ikili sınıflandırıcı (örneğin lojistik regresyon), test_b bölümünde test_a bölümüne göre en fazla 5 puan daha düşük doğruluk elde eder; yani acc(test_a) − acc(test_b) ≤ 0,05."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3068,
+      "data_seed": 882870449,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T133417-syn-03"
+    },
+    {
+      "id": "syn-04",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "E[y|x] koşullu ortalama fonksiyonu monotondur. Train verisine artan ve azalan izotonik regresyon ayrı ayrı uydurulur ve doğrulama hatası daha düşük olan yön seçilir. Bu kısıtlı modelin test MSE'si, kısıtsız esnek bir modelin test MSE'sinden anlamlı biçimde kötü değildir. Kısıtsız model olarak çapraz doğrulamayla ayarlanmış kNN, spline ya da gradient boosting kullanılabilir."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.2933,
+      "data_seed": 1062468959,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T133417-syn-04"
+    },
+    {
+      "id": "syn-05",
+      "truth": "yes",
+      "answer": "yes",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "supported",
+        "statement": "Eğitim verisi x1 ≥ 0 ve x1 < 0 olarak iki alt kümeye bölünüp her birinde y ~ a + b·x0 + c·x1 doğrusal regresyonu ayrı ayrı uydurulduğunda, x0 katsayılarının (b+ ve b−) işaretleri birbirine zıttır ve her iki katsayının %95 güven aralığı sıfırı içermez."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3402,
+      "data_seed": 814932539,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T133417-syn-05"
+    }
+  ]
+}

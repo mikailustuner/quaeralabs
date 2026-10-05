@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:experiment",
+  "title": "Deney (E)",
+  "description": "Bir veya daha fazla hipotezi sınayan plan. Harcama yapılabilmesi için onaylı olmalı ve bir ön kayda bağlanmalıdır.",
+  "allOf": [
+    {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/base"
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "approved",
+              "running",
+              "completed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "approval",
+          "preregistrationId",
+          "noveltyCheck"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "domain": {
+            "const": "math"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "lean"
+        ]
+      }
+    }
+  ],
+  "required": [
+    "hypothesisIds",
+    "domain",
+    "method",
+    "status",
+    "budget"
+  ],
+  "properties": {
+    "id": {
+      "pattern": "^E-"
+    },
+    "type": {
+      "const": "experiment"
+    },
+    "hypothesisIds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "urn:quaeralabs:v1:common#/$defs/publicId"
+      }
+    },
+    "domain": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/domain"
+    },
+    "method": {
+      "type": "string",
+      "minLength": 10
+    },
+    "baselines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "direction"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "higher_is_better",
+              "lower_is_better",
+              "binary"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "code": {
+      "type": "object",
+      "required": [
+        "repo",
+        "commit"
+      ],
+      "properties": {
+        "repo": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "license": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "runtime": {
+          "type": "string"
+        },
+        "lockfileSha256": {
+          "$ref": "urn:quaeralabs:v1:common#/$defs/sha256"
+        },
+        "containerDigest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "lean": {
+      "type": "object",
+      "required": [
+        "toolchain",
+        "mathlibRev"
+      ],
+      "properties": {
+        "toolchain": {
+          "type": "string"
+        },
+        "mathlibRev": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "estimatedUsd"
+      ],
+      "properties": {
+        "estimatedUsd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "estimatedGpuHours": {
+          "type": "number",
+          "minimum": 0
+        },
+        "approvedUsd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pilotCalibratedUsd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Pilot çalıştırmadan sonra düzeltilmiş tahmin"
+        }
+      },
+      "additionalProperties": false
+    },
+    "noveltyCheck": {
+      "description": "Harcama onayından önce Literatür ajanının 'bu daha önce yapıldı mı?' raporu.",
+      "type": "object",
+      "required": [
+        "verdict",
+        "summary"
+      ],
+      "properties": {
+        "verdict": {
+          "enum": [
+            "novel",
+            "partially_done",
+            "already_done",
+            "unknown"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "priorWork": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "userChoice": {
+          "enum": [
+            "proceed",
+            "replicate",
+            "change_direction"
+          ]
+        },
+        "basis": {
+          "description": "Kararın dayanağı: doğrulanmış arama sonuçları mı, modelin kendi bilgisi mi (doğrulanmamış)?",
+          "enum": [
+            "search",
+            "model_knowledge",
+            "mixed"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "preregistrationId": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/publicId"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "awaiting_approval",
+        "approved",
+        "running",
+        "completed",
+        "cancelled"
+      ]
+    },
+    "approval": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/approval"
+    }
+  },
+  "unevaluatedProperties": false
+}

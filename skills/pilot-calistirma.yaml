@@ -1,0 +1,14 @@
+id: pilot-calistirma
+version: 0.1.0
+description: Tam çalıştırmadan önce deneyi küçük ölçekte (ör. verinin %1'i) çalıştırır
+  ve maliyet tahminini günceller.
+domains:
+- ml
+- math
+tools:
+- name: sandbox.exec
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeExecute: sandbox
+eval: pending

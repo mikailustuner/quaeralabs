@@ -1,0 +1,19 @@
+# Kaynak doğrulama seti v0.1
+# real: var olduğu bilinen yayınlar · fake: var olmayan (uydurma) kimlikler.
+# Kaynak doğrulayıcı gerçekleri kabul etmeli, uydurmaları reddetmelidir.
+version: 0.1.0
+cases:
+  - { id: cit-01, kind: arxiv, ref: "1706.03762", expected: real, note: "Attention Is All You Need" }
+  - { id: cit-02, kind: arxiv, ref: "1512.03385", expected: real, note: "Deep Residual Learning" }
+  - { id: cit-03, kind: arxiv, ref: "1412.6980", expected: real, note: "Adam" }
+  - { id: cit-04, kind: arxiv, ref: "1810.04805", expected: real, note: "BERT" }
+  - { id: cit-05, kind: arxiv, ref: "2005.14165", expected: real, note: "Language Models are Few-Shot Learners" }
+  - { id: cit-06, kind: doi, ref: "10.1038/nature14539", expected: real, note: "Deep learning (Nature, 2015)" }
+  - { id: cit-07, kind: doi, ref: "10.1038/nature16961", expected: real, note: "AlphaGo (Nature, 2016)" }
+  - { id: cit-08, kind: doi, ref: "10.1038/s41586-021-03819-2", expected: real, note: "AlphaFold 2 (Nature, 2021)" }
+  - { id: cit-09, kind: arxiv, ref: "1706.99999", expected: fake }
+  - { id: cit-10, kind: arxiv, ref: "2509.99999", expected: fake }
+  - { id: cit-11, kind: arxiv, ref: "2301.00000", expected: fake }
+  - { id: cit-12, kind: doi, ref: "10.1038/s41586-099-00000-0", expected: fake }
+  - { id: cit-13, kind: doi, ref: "10.9999/quaeralabs.fake.2026", expected: fake }
+  - { id: cit-14, kind: doi, ref: "10.1038/nature99999", expected: fake }

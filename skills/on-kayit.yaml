@@ -1,0 +1,12 @@
+id: on-kayit
+version: 0.1.0
+description: Hipotez, birincil metrik, başarı kriteri ve analiz planını kilitler ve
+  özetini (sha256) üretir.
+domains:
+- math
+- ml
+tools:
+- name: prereg.lock
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

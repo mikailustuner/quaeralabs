@@ -1,0 +1,12 @@
+import AxeBuilder from "@axe-core/playwright";
+import { chromium } from "playwright";
+import { readdirSync } from "node:fs";
+import { homedir } from "node:os";
+const dir = `${homedir()}/.cache/ms-playwright`; const shell = readdirSync(dir).find((d) => d.startsWith("chromium_headless_shell"));
+const b = await chromium.launch({ executablePath: `${dir}/${shell}/chrome-headless-shell-linux64/chrome-headless-shell` });
+const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: process.argv[3] || "light" });
+const p = await ctx.newPage();
+await p.goto(process.argv[2]); await p.waitForTimeout(3000);
+const r = await new AxeBuilder({ page: p }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+for (const v of r.violations) for (const n of v.nodes.slice(0, 8)) console.log(v.id, "|", n.target.join(" "), "|", (n.any[0]?.message || "").slice(0, 140));
+await b.close();

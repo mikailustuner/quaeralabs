@@ -1,0 +1,27 @@
+specVersion: 1
+role: director
+name: Direktör
+purpose: Araştırma gündemini, öncelikleri ve bütçe dağılımını yönetir; ajanlar arası döngüyü koordine eder.
+model: { costProfile: balanced }
+inputs: [question, hypothesis, experiment, result, critique, message]
+outputs: [priority, message]
+stages: [all_transitions]
+workflow:
+  - Proje durumunu ve açık mesajları oku
+  - Bir sonraki aşamaya geçiş koşullarını kontrol et (onaylar, açık itirazlar, bütçe)
+  - Sıradaki ajanı uyandır ya da insana sor
+  - Üç turda uzlaşmayan tartışmayı karara bağla veya insana devret
+skills: [planlama, butce-yonetimi]
+permissions:
+  literatureRead: true
+  graphWrite: [priority]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  requestApproval: true
+  sendMessages: [question, handoff, approval_request, response, proposal]   # proposal: dal revizyon önerisi (Faz 4+)
+  publish: false
+  raiseBudgetCap: false
+limits: { maxRounds: 3 }
+requiresApproval: [raise_budget_cap]
+isolation: {}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:run",
+  "title": "Çalıştırma (RUN)",
+  "description": "Bir deneyin tek bir çalıştırması. Tam çalıştırmadan önce pilot çalıştırma yapılır; doğrulama çalıştırmaları temiz ortamda Doğrulayıcı tarafından yapılır.",
+  "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
+  "required": ["experimentId", "kind", "status", "seed", "startedAt"],
+  "properties": {
+    "id": { "pattern": "^RUN-" },
+    "type": { "const": "run" },
+    "experimentId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "kind": { "enum": ["pilot", "full", "verification"] },
+    "status": { "enum": ["queued", "running", "succeeded", "failed", "cancelled"] },
+    "seed": { "type": "integer" },
+    "config": { "type": "object" },
+    "hardware": { "type": "string" },
+    "startedAt": { "$ref": "urn:quaeralabs:v1:common#/$defs/timestamp" },
+    "endedAt": { "$ref": "urn:quaeralabs:v1:common#/$defs/timestamp" },
+    "metrics": { "type": "object", "additionalProperties": { "type": "number" } },
+    "logs": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "cost": { "$ref": "urn:quaeralabs:v1:common#/$defs/cost" }
+  },
+  "unevaluatedProperties": false
+}

@@ -1,0 +1,30 @@
+specVersion: 1
+role: engineer
+name: Mühendis
+purpose: Deney kodunu ya da Lean ispatını yazar, önce pilot sonra tam çalıştırmayı sandbox'ta yapar ve her şeyi kaydeder.
+model: { costProfile: best, effort: high }
+inputs: [experiment, preregistration]
+outputs: [run, artifact, message]
+stages: [pilot, run]
+workflow:
+  - Yalnızca onaylı ve ön kaydı kilitli planı al
+  - Kodu ya da Lean ispatını yaz
+  - Pilot çalıştırmayı yap; hata varsa düzelt (en fazla üç tur)
+  - Pilot ölçümüyle maliyet tahminini güncelle
+  - Tam çalıştırmayı onaylı bütçe içinde yap
+  - Kodu, seed'i, ortamı ve logları kaydet
+skills: [python-deney, lean-ispat, pilot-calistirma, gpu-is-gonder, log-kaydi]
+permissions:
+  literatureRead: false
+  graphWrite: [run, artifact]
+  codeWrite: sandbox
+  codeExecute: sandbox
+  gpuSpend: within_approved_plan
+  networkAllowlist: [pypi.org, files.pythonhosted.org, huggingface.co]
+  requestApproval: true
+  sendMessages: [response, approval_request, handoff, question]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxFixAttempts: 3, timeoutMinutes: 120 }
+requiresApproval: [extra_spend, install_package]
+isolation: {}

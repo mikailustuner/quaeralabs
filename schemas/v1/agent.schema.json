@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:agent",
+  "title": "Ajan spesifikasyonu",
+  "description": "Bir ajan rolünün rol kartı, iş akışı, skill'leri ve izinleri. İzinler orkestratör ve model gateway tarafından kodda zorlanır; varsayılan her şey yasaktır.",
+  "type": "object",
+  "required": [
+    "role",
+    "name",
+    "purpose",
+    "model",
+    "inputs",
+    "outputs",
+    "stages",
+    "workflow",
+    "skills",
+    "permissions",
+    "limits",
+    "requiresApproval",
+    "isolation"
+  ],
+  "properties": {
+    "specVersion": {
+      "const": 1
+    },
+    "role": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/role"
+    },
+    "name": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 10
+    },
+    "model": {
+      "type": "object",
+      "required": [
+        "costProfile"
+      ],
+      "properties": {
+        "costProfile": {
+          "enum": [
+            "cheap",
+            "balanced",
+            "best"
+          ]
+        },
+        "mustDifferFrom": {
+          "description": "Çapraz model kuralı: bu rol, listedeki rollerin model ailesinden farklı bir ailede çalışmalıdır (mümkünse).",
+          "type": "array",
+          "items": {
+            "$ref": "urn:quaeralabs:v1:common#/$defs/role"
+          }
+        },
+        "effort": {
+          "description": "Akıl yürütme (düşünme) bütçesi. Zor adımlar (ispat, eleştiri, hipotez) yüksek, kolay adımlar düşük. Yoksa sağlayıcı varsayılanı.",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/objectType"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/objectType"
+      }
+    },
+    "stages": {
+      "description": "Araştırma döngüsünde ajanın uyandığı aşamalar.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "question",
+          "literature",
+          "novelty_check",
+          "hypothesis",
+          "design",
+          "preregistration",
+          "pilot",
+          "run",
+          "analysis",
+          "critique",
+          "verification",
+          "report",
+          "all_transitions"
+        ]
+      }
+    },
+    "workflow": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "string"
+      },
+      "description": "Sıralı adımlar"
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "uniqueItems": true
+    },
+    "permissions": {
+      "type": "object",
+      "required": [
+        "literatureRead",
+        "graphWrite",
+        "codeWrite",
+        "codeExecute",
+        "gpuSpend",
+        "requestApproval",
+        "sendMessages",
+        "publish",
+        "raiseBudgetCap"
+      ],
+      "properties": {
+        "literatureRead": {
+          "type": "boolean"
+        },
+        "graphWrite": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/objectType"
+          },
+          "uniqueItems": true
+        },
+        "codeWrite": {
+          "enum": [
+            "none",
+            "analysis_scripts",
+            "sandbox"
+          ]
+        },
+        "codeExecute": {
+          "enum": [
+            "none",
+            "readonly_checks",
+            "sandbox_no_gpu",
+            "sandbox",
+            "clean_sandbox"
+          ]
+        },
+        "gpuSpend": {
+          "enum": [
+            "none",
+            "within_approved_plan"
+          ]
+        },
+        "networkAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requestApproval": {
+          "type": "boolean"
+        },
+        "sendMessages": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "question",
+              "objection",
+              "proposal",
+              "handoff",
+              "approval_request",
+              "response"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "publish": {
+          "const": false,
+          "description": "Hiçbir ajan yayınlayamaz; yalnızca insan."
+        },
+        "raiseBudgetCap": {
+          "const": false,
+          "description": "Hiçbir ajan bütçe tavanını yükseltemez; yalnızca insan."
+        }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "maxRounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "maxRevisions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxFixAttempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxItemsPerTurn": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeoutMinutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "requiresApproval": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "accept_hypothesis",
+          "approve_experiment",
+          "extra_spend",
+          "install_package",
+          "publish",
+          "raise_budget_cap"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "isolation": {
+      "description": "Bilinçli yalıtım: bu ajanın okuyamayacağı içerik türleri ve okuma sırası.",
+      "type": "object",
+      "properties": {
+        "cannotRead": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "agent_rationales",
+              "messages_from_engineer",
+              "analyst_interpretation"
+            ]
+          }
+        },
+        "readOrder": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "objectType": {
+      "enum": [
+        "question",
+        "hypothesis",
+        "preregistration",
+        "experiment",
+        "run",
+        "result",
+        "critique",
+        "evidence_link",
+        "verification",
+        "artifact",
+        "message",
+        "report",
+        "priority"
+      ]
+    }
+  }
+}

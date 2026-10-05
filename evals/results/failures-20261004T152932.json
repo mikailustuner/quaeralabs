@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-10-04T16:09:45+00:00",
+  "cases": 2,
+  "ran": 2,
+  "passed": 2,
+  "all_passed": true,
+  "spent_usd": 1.1769,
+  "rows": [
+    {
+      "id": "fail-goldbach-scope",
+      "passed": true,
+      "problems": [],
+      "spent_usd": 0.8928,
+      "project": "/home/aurict/.quaera/projects/vaka-20261004T152932-fail-goldbach-scope"
+    },
+    {
+      "id": "fail-ml-no-hypothesis",
+      "passed": true,
+      "problems": [],
+      "spent_usd": 0.2841,
+      "project": "/home/aurict/.quaera/projects/vaka-20261004T152932-fail-ml-no-hypothesis"
+    }
+  ]
+}

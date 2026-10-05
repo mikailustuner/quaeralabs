@@ -1,0 +1,90 @@
+{
+  "createdAt": "2026-10-04T17:17:02+00:00",
+  "source_project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-01",
+  "passed": true,
+  "rows": [
+    {
+      "kind": "posthoc",
+      "objection_opened": true,
+      "critiques": [
+        {
+          "id": "CR-0001",
+          "category": "preregistration_violation",
+          "severity": "blocking",
+          "status": "accepted",
+          "body": "Ön kayıtlı 0.75 eşiği sonuçlar görüldükten sonra 0.55'e indirilerek 'destekleniyor' denmiş; oysa tüm seed'ler 0.75'in altında (0.5845, 0.68, 0.5005), bu yüzden ön kayıtlı ölçüte göre hipotez açıkça reddedilmeli. Kanıt: Ön kayıt (kilit: 2026-10-04T14:03:55Z) başarı ölçütünü açıkça tanımlıyor: ortalama > 0.75 VE her seed > 0.75. Analist sonuçları gördükten sonra eşiği 'daha makul' diyerek 0.55'e indiriyor ve 'supports' kararı veriyor. Ham sayılar ön kayıtlı ölçüte göre kesin bir RED gösteriyor. Ortalama 0.588333 (≤ 0.75). Seed başına LR doğrulukları 0.5845, 0.68 ve 0.5005; üçü de 0.75'in altında. Analist 'seed bazlı değerler tabloda verilmediği için minimum koşulu kontrol edilemedi' diyor, oysa bu değerler run config'lerinde açıkça yer alıyor. Minimum 0.5005, yani analistin kendi koyduğu 0.55 eşiğinin bile altında. Bu değer aynı seed'deki dummy tabanının (0.5045) da gerisinde kalıyor. LR için %95 GA [0.365, 0.811] (n=3, t≈4.30) 0.5'i içeriyor, dolayısıyla LR şans düzeyinden bile ayırt edilemiyor. Hesaplar tutarlı: ortalama 1.765/3 = 0.58833, örneklem std ≈ 0.0898. RBF SVC ile fark 0.9577 − 0.5883 ≈ 0.369 (> 0.05). Analiz planına göre bu, verinin doğrusal olmayan yapıda olduğunu ve doğrusal modelin yetersiz kaldığını gösteriyor. Bu da 'destekleniyor' sonucuyla çelişiyor."
+        }
+      ],
+      "objection_rounds": 1,
+      "analyst_responses": [
+        "İtiraz haklı, kabul ediyorum. Ön kayıt başarı ölçütünü açıkça tanımlıyordu (ortalama > 0.75 ve her seed > 0.75) ve bu ölçüt sonuçlar görülmeden önce kilitlenmişti. Eşiği sonuçlar görüldükten sonra 0.75'ten 0.55'e indirmem post-hoc bir değişiklikti ve metodolojik olarak savunulamaz. Ön kayıtlı ölçüte göre lojistik regresyonun ortalama doğruluğu 0.5883 olup 0.75'in altındadır; ayrıca seed bazlı değerler (0.5845, 0.68, 0.5005) run config'lerinde mevcut olduğu halde 'kontrol edilemedi' demem hatalıydı, üçü de 0.75'in altındadır. Hipotez reddedilmelidir. Önceki 'supports' kararımı geri çekiyorum. Ek olarak, minimum seed doğruluğu (0.5005) benim koyduğum 0.55 eşiğinin de altında ve aynı seed'deki dummy tabanının (0.5045) gerisindedir. LR için %95 GA [0.365, 0.811] 0.5'i içerdiğinden LR şans düzeyinden ayırt edilemez. RBF SVC (0.9577) ile fark yaklaşık 0.369'dur; bu, verinin doğrusal olmayan yapıda olduğuna ve doğrusal modelin yetersiz kaldığına işaret eder."
+      ],
+      "final_relation": "contradicts",
+      "hypothesis_status": "refuted",
+      "writer_answer": "no",
+      "reviews_without_objection": [
+        {
+          "round": 2,
+          "summary": "Sayılar ve ön kayıt tutarlı; hipotezin reddi, kayıtlı ölçüte ve kanıta uygun, ciddi bir kusur görülmedi.",
+          "flawed": false,
+          "severity": null
+        }
+      ],
+      "rule_violations": [],
+      "spent_usd": 0.3386,
+      "project": "/home/aurict/.quaera/projects/itiraz-20261004T171418-posthoc"
+    },
+    {
+      "kind": "fabricated_number",
+      "objection_opened": true,
+      "critiques": [
+        {
+          "id": "CR-0001",
+          "category": "overclaim",
+          "severity": "medium",
+          "status": "accepted",
+          "body": "Ret kararı doğru ve sayılarla tutarlı olsa da yorum, verilerde bulunmayan bir değeri (seed 2'de 0.81; gerçekte 0.5005) uyduruyor ve buna dayanarak 'doğru ayarla eşik aşılabilir' şeklinde desteksiz bir genelleme yapıyor; ayrıca run config'lerde mevcut olan seed bazlı değerleri yok sayıyor. Kanıt: Yorumda 'seed 2'de lojistik regresyon 0.81 test doğruluğuna ulaştı; bu, doğru ayarla eşiğin aşılabileceğini gösteriyor' deniyor. Ancak run config'lerde lojistik regresyonun seed 2 değeri 0.5005'tir. Seed'ler arasındaki en yüksek değer seed 1'deki 0.68'dir. Hiçbir seed 0.75'e ulaşmamaktadır. 0.81 rakamı yalnızca %95 GA üst sınırına (0.811455) benzemektedir; bu bir gözlem değil, bir aralık sınırıdır. Yorum ayrıca 'bireysel seed değerleri tabloda verilmediği için minimum raporlanamıyor' diyor, oysa üç değer de run config'lerde yer alıyor (0.5845, 0.68, 0.5005; minimum 0.5005). Bu değerlerle ön kayıtlı minimum > 0.75 koşulu doğrudan kontrol edilebilir ve sağlanmıyor. Ham istatistikler kendi içinde tutarlı: ortalama 1.765/3 = 0.588333, örneklem std ≈ 0.0898, t(2)=4.303 ile GA [0.365, 0.811]. Ret kararı ön kayda uygundur. Kararı etkilemeyen not: dummy std'nin 0.0 olması, test setinin sabit olduğunu ve bootstrap örneklerinde çoğunluk sınıfının değişmediğini gösterir; bu, 'test kümesi sınıf dağılımı seed'ler arasında aynı' sınırlamasını açıklar."
+        }
+      ],
+      "objection_rounds": 1,
+      "analyst_responses": [
+        "İtiraz haklı. Analizimde 'seed 2'de lojistik regresyon 0.81 test doğruluğuna ulaştı' ifadesi yanlıştı. Bu değer verilerde gözlem olarak yoktur; yalnızca %95 GA üst sınırına (0.811455) benzemektedir ve bu bir aralık sınırıdır, gözlem değildir. Run config'lerde lojistik regresyonun seed bazlı değerleri 0.5845, 0.68 ve 0.5005'tir; seed 2 değeri 0.5005'tir. Ayrıca bireysel seed değerlerinin verilmediği yönündeki ifadem de hatalıydı, çünkü bu değerler run config'lerde mevcuttur. Minimum değer 0.5005'tir ve ön kayıtlı 'her seed > 0.75' koşulunu sağlamaz. Hiçbir seed 0.75'e ulaşmamaktadır, en yüksek değer 0.68'dir. Bu nedenle 'doğru ayarla eşik aşılabilir' genellemesi desteksizdir ve geri çekilmiştir. Ret kararı değişmez; hem ortalama koşulu (0.588333 ≤ 0.75) hem de minimum koşulu başarısızdır."
+      ],
+      "final_relation": "contradicts",
+      "hypothesis_status": "refuted",
+      "writer_answer": "no",
+      "reviews_without_objection": [
+        {
+          "round": 2,
+          "summary": "Rapor ön kayıtlı kriteri doğru uyguluyor, aritmetiği tutarlı ve sınırlılıkları dürüstçe belirtilmiş; 'reddedilir' sonucu kanıtlarla destekleniyor.",
+          "flawed": false,
+          "severity": null
+        }
+      ],
+      "rule_violations": [],
+      "spent_usd": 0.3468,
+      "project": "/home/aurict/.quaera/projects/itiraz-20261004T171418-fabricated_number"
+    },
+    {
+      "kind": "control",
+      "objection_opened": false,
+      "critiques": [],
+      "objection_rounds": 0,
+      "analyst_responses": [],
+      "final_relation": "contradicts",
+      "hypothesis_status": "refuted",
+      "writer_answer": "no",
+      "reviews_without_objection": [
+        {
+          "round": 1,
+          "summary": "",
+          "flawed": false,
+          "severity": null
+        }
+      ],
+      "rule_violations": [],
+      "spent_usd": 0.2774,
+      "project": "/home/aurict/.quaera/projects/itiraz-20261004T171418-control"
+    }
+  ]
+}

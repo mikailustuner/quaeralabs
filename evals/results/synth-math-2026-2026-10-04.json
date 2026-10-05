@@ -1,0 +1,300 @@
+{
+  "createdAt": "2026-10-04T13:54:52+00:00",
+  "seed": 2026,
+  "problems": 30,
+  "statement_compile_ok": 29,
+  "attempted": 29,
+  "solved": 29,
+  "pass@2": 1.0,
+  "by_template": {
+    "amgm": "3/3",
+    "compose": "2/2",
+    "count": "3/3",
+    "divisible": "3/3",
+    "gcd": "3/3",
+    "linear": "3/3",
+    "powmod": "3/3",
+    "quad_pos": "3/3",
+    "recurrence": "3/3",
+    "sum": "3/3"
+  },
+  "models": [
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "spent_usd": 0.2433,
+  "budget_usd": 3.0,
+  "rows": [
+    {
+      "name": "qsm_linear_0",
+      "template": "linear",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_linear_0 (x y : ℝ) (h₀ : -6 * x + 1 * y = ((-101 : ℝ) / 2)) (h₁ : 7 * x + 7 * y = ((77 : ℝ) / 2)) :\n    x = (8 : ℝ) ∧ y = ((-5 : ℝ) / 2) := by\n  constructor <;> linarith\n"
+    },
+    {
+      "name": "qsm_linear_1",
+      "template": "linear",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_linear_1 (x y : ℝ) (h₀ : 9 * x + 8 * y = (-78 : ℝ)) (h₁ : 6 * x + 9 * y = (-96 : ℝ)) :\n    x = (2 : ℝ) ∧ y = (-12 : ℝ) := by\n  constructor <;> linarith\n"
+    },
+    {
+      "name": "qsm_linear_2",
+      "template": "linear",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_linear_2 (x y : ℝ) (h₀ : -6 * x + 0 * y = (24 : ℝ)) (h₁ : -6 * x + 5 * y = ((93 : ℝ) / 2)) :\n    x = (-4 : ℝ) ∧ y = ((9 : ℝ) / 2) := by\n  constructor\n  · linarith\n  · linarith\n"
+    },
+    {
+      "name": "qsm_powmod_0",
+      "template": "powmod",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_powmod_0 : (8 ^ 70) % 17 = 4 := by\n  norm_num\n"
+    },
+    {
+      "name": "qsm_powmod_1",
+      "template": "powmod",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_powmod_1 : (13 ^ 65) % 23 = 16 := by\n  norm_num\n"
+    },
+    {
+      "name": "qsm_powmod_2",
+      "template": "powmod",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_powmod_2 : (18 ^ 29) % 19 = 18 := by\n  norm_num\n"
+    },
+    {
+      "name": "qsm_quad_pos_0",
+      "template": "quad_pos",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_quad_pos_0 (x : ℝ) : 0 < 2 * x ^ 2 + 2 * x + 18 := by\n  nlinarith [sq_nonneg (x + 1/2)]\n"
+    },
+    {
+      "name": "qsm_quad_pos_1",
+      "template": "quad_pos",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_quad_pos_1 (x : ℝ) : 0 < 5 * x ^ 2 + -6 * x + 15 := by\n  nlinarith [sq_nonneg (5 * x - 3)]\n"
+    },
+    {
+      "name": "qsm_quad_pos_2",
+      "template": "quad_pos",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_quad_pos_2 (x : ℝ) : 0 < 3 * x ^ 2 + 13 * x + 21 := by\n  nlinarith [sq_nonneg (6 * x + 13)]\n"
+    },
+    {
+      "name": "qsm_sum_0",
+      "template": "sum",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_sum_0 (n : ℕ) :\n    2 * ∑ i ∈ Finset.range n, (5 * i + 0) + 5 * n = n * (5 * n + 0) := by\n  induction n with\n  | zero => simp\n  | succ k ih =>\n    rw [Finset.sum_range_succ]\n    nlinarith [ih]\n"
+    },
+    {
+      "name": "qsm_sum_1",
+      "template": "sum",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_sum_1 (n : ℕ) :\n    2 * ∑ i ∈ Finset.range n, (6 * i + 5) + 6 * n = n * (6 * n + 10) := by\n  induction n with\n  | zero => simp\n  | succ k ih =>\n    rw [Finset.sum_range_succ]\n    nlinarith [ih]\n"
+    },
+    {
+      "name": "qsm_sum_2",
+      "template": "sum",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_sum_2 (n : ℕ) :\n    2 * ∑ i ∈ Finset.range n, (8 * i + 6) + 8 * n = n * (8 * n + 12) := by\n  induction n with\n  | zero => simp\n  | succ k ih =>\n    rw [Finset.sum_range_succ]\n    nlinarith [ih]\n"
+    },
+    {
+      "name": "qsm_recurrence_0",
+      "template": "recurrence",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_recurrence_0 (u : ℕ → ℕ) (h₀ : u 0 = 4) (h₁ : ∀ n, u (n + 1) = 3 * u n + 3) :\n    u 4 = 444 := by\n  have e1 : u 1 = 3 * u 0 + 3 := h₁ 0\n  have e2 : u 2 = 3 * u 1 + 3 := h₁ 1\n  have e3 : u 3 = 3 * u 2 + 3 := h₁ 2\n  have e4 : u 4 = 3 * u 3 + 3 := h₁ 3\n  omega\n"
+    },
+    {
+      "name": "qsm_recurrence_1",
+      "template": "recurrence",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_recurrence_1 (u : ℕ → ℕ) (h₀ : u 0 = 4) (h₁ : ∀ n, u (n + 1) = 3 * u n + 3) :\n    u 4 = 444 := by\n  have e1 : u 1 = 15 := by\n    show u (0 + 1) = 15\n    rw [h₁ 0, h₀]\n  have e2 : u 2 = 48 := by\n    show u (1 + 1) = 48\n    rw [h₁ 1, e1]\n  have e3 : u 3 = 147 := by\n    show u (2 + 1) = 147\n    rw [h₁ 2, e2]\n  show u (3 + 1) = 444\n  rw [h₁ 3, e3]\n"
+    },
+    {
+      "name": "qsm_recurrence_2",
+      "template": "recurrence",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_recurrence_2 (u : ℕ → ℕ) (h₀ : u 0 = 2) (h₁ : ∀ n, u (n + 1) = 3 * u n + 4) :\n    u 7 = 8746 := by\n  have h1 : u 1 = 10 := by rw [h₁ 0, h₀]\n  have h2 : u 2 = 34 := by rw [h₁ 1, h1]\n  have h3 : u 3 = 106 := by rw [h₁ 2, h2]\n  have h4 : u 4 = 322 := by rw [h₁ 3, h3]\n  have h5 : u 5 = 970 := by rw [h₁ 4, h4]\n  have h6 : u 6 = 2914 := by rw [h₁ 5, h5]\n  rw [h₁ 6, h6]\n"
+    },
+    {
+      "name": "qsm_count_0",
+      "template": "count",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_count_0 : ((Finset.range 132).filter (fun n => n % 6 = 4)).card = 22 := by\n  decide +kernel\n"
+    },
+    {
+      "name": "qsm_count_1",
+      "template": "count",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_count_1 : ((Finset.range 126).filter (fun n => n % 9 = 0)).card = 14 := by\n  rfl\n"
+    },
+    {
+      "name": "qsm_count_2",
+      "template": "count",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\nset_option maxRecDepth 100000\n\nopen BigOperators Real Nat\n\ntheorem qsm_count_2 : ((Finset.range 133).filter (fun n => n % 4 = 1)).card = 33 := by\n  first\n    | decide\n    | rfl\n    | simp [Finset.card, Finset.filter, Finset.range, Multiset.range, List.range]\n"
+    },
+    {
+      "name": "qsm_amgm_0",
+      "template": "amgm",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_amgm_0 (x y : ℝ) (h₀ : x + y = 28) : x * y ≤ (196 : ℝ) := by\n  have hy : y = 28 - x := by linarith\n  subst hy\n  nlinarith [sq_nonneg (x - 14)]\n"
+    },
+    {
+      "name": "qsm_amgm_1",
+      "template": "amgm",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_amgm_1 (x y : ℝ) (h₀ : x + y = 3) : x * y ≤ ((9 : ℝ) / 4) := by\n  have hy : y = 3 - x := by linarith\n  subst hy\n  nlinarith [sq_nonneg (x - 3 / 2)]\n"
+    },
+    {
+      "name": "qsm_amgm_2",
+      "template": "amgm",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_amgm_2 (x y : ℝ) (h₀ : x + y = 24) : x * y ≤ (144 : ℝ) := by\n  have hy : y = 24 - x := by linarith\n  subst hy\n  nlinarith [sq_nonneg (x - 12)]\n"
+    },
+    {
+      "name": "qsm_gcd_0",
+      "template": "gcd",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_gcd_0 : Nat.gcd 27510 7175 = 35 := by\n  norm_num\n"
+    },
+    {
+      "name": "qsm_gcd_1",
+      "template": "gcd",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_gcd_1 : Nat.gcd 34639 25333 = 517 := by\n  norm_num\n"
+    },
+    {
+      "name": "qsm_gcd_2",
+      "template": "gcd",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_gcd_2 : Nat.gcd 7840 18976 = 32 := by\n  norm_num\n"
+    },
+    {
+      "name": "qsm_divisible_0",
+      "template": "divisible",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_divisible_0 (n : ℕ) : 2 ∣ (n + 0) * (n + 1) := by\n  have h := Nat.even_mul_succ_self n\n  simpa [even_iff_two_dvd] using h\n"
+    },
+    {
+      "name": "qsm_divisible_1",
+      "template": "divisible",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_divisible_1 (n : ℕ) : 6 ∣ (n + 5) * (n + 6) * (n + 7) * (n + 8) * (n + 9) * (n + 10) := by\n  apply Nat.dvd_of_mod_eq_zero\n  have h : n % 6 = 0 ∨ n % 6 = 1 ∨ n % 6 = 2 ∨ n % 6 = 3 ∨ n % 6 = 4 ∨ n % 6 = 5 := by omega\n  rcases h with h | h | h | h | h | h <;> simp [Nat.mul_mod, Nat.add_mod, h]\n"
+    },
+    {
+      "name": "qsm_divisible_2",
+      "template": "divisible",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_divisible_2 (n : ℕ) : 3 ∣ (n + 5) * (n + 6) * (n + 7) := by\n  have h : n % 3 = 0 ∨ n % 3 = 1 ∨ n % 3 = 2 := by omega\n  rcases h with h | h | h\n  · have h6 : 3 ∣ n + 6 := by omega\n    exact Dvd.dvd.mul_right (Dvd.dvd.mul_left h6 _) _\n  · have h5 : 3 ∣ n + 5 := by omega\n    exact Dvd.dvd.mul_right (Dvd.dvd.mul_right h5 _) _\n  · have h7 : 3 ∣ n + 7 := by omega\n    exact Dvd.dvd.mul_left h7 _\n"
+    },
+    {
+      "name": "qsm_compose_0",
+      "template": "compose",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_compose_0 (f g : ℝ → ℝ) (hf : ∀ x, f x = 1 * x + 8) (hg : ∀ x, g x = -2 * x + 8) :\n    f (g 1) = 14 := by\n  rw [hf, hg]\n  norm_num\n"
+    },
+    {
+      "name": "qsm_compose_1",
+      "template": "compose",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "clean_verified": true,
+      "proof": "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\ntheorem qsm_compose_1 (f g : ℝ → ℝ) (hf : ∀ x, f x = 4 * x + 0) (hg : ∀ x, g x = 2 * x + 7) :\n    f (g 2) = 44 := by\n  rw [hf, hg]\n  norm_num\n"
+    },
+    {
+      "name": "qsm_compose_2",
+      "template": "compose",
+      "pilot_ok": false,
+      "solved": false,
+      "attempts": 0,
+      "pilot_errors": [
+        "satır 8: failed to synthesize instance of type class\n  HSub (ℝ → ℝ) ℕ ℝ\n\nHint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.",
+        "satır 10: Unknown constant `qsm_compose_2`"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>QuaeraLabs — Gözlem Odası Modern</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#0A0B0D}
+a{color:#F5B83D}a:hover{color:#FFD688}
+button,a{cursor:pointer}
+button{transition:background-color .18s ease,border-color .18s ease,color .18s ease}
+button:focus-visible,a:focus-visible{outline:2px solid #F5B83D;outline-offset:2px}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.ghost:hover{background:rgba(255,255,255,0.06)}
+.pulse{animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,163,.55)}100%{box-shadow:0 0 0 8px rgba(74,222,163,0)}}
+@media (prefers-reduced-motion: reduce){.pulse{animation:none}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0A0B0D; color: #ECEEF1; font-family: 'Geist', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 28px; border-bottom: 1px solid rgba(255,255,255,0.06)">
+    <div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; letter-spacing: -0.01em">
+      <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 8px; background: #F5B83D; display: grid; place-items: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A0B0D" stroke-width="3"><circle cx="10" cy="10" r="6"></circle><path d="M15 15l5 5"></path></svg></span>
+      QuaeraLabs
+    </div>
+    <nav aria-label="Konum" style="display: flex; gap: 8px; align-items: center; font-size: 13px; color: #A1A7B0"><a href="#" style="color: #A1A7B0; text-decoration: none">Laboratuvarım</a><span aria-hidden="true">/</span><span style="color: #ECEEF1">Isınma çalışması</span></nav>
+    <button class="ghost" style="margin-left: auto; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; min-width: 240px; border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; background: rgba(255,255,255,0.03); color: #A1A7B0; font: inherit; font-size: 13px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      Ara veya ekibe komut ver
+      <span class="mono" style="margin-left: auto; font-size: 11px; padding: 2px 6px; border: 1px solid rgba(255,255,255,0.12); border-radius: 5px">⌘K</span>
+    </button>
+    <div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border: 1px solid rgba(255,255,255,0.09); border-radius: 10px">
+      <svg width="20" height="20" viewBox="0 0 36 36" role="img" aria-label="Bütçenin yüzde 34'ü kullanıldı"><circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="5"></circle><circle cx="18" cy="18" r="14" fill="none" stroke="#F5B83D" stroke-width="5" stroke-dasharray="30 88" stroke-linecap="round" transform="rotate(-90 18 18)"></circle></svg>
+      <span class="mono" style="font-size: 13px">$3.40 <span style="color: #8E959F">/ $10</span></span>
+    </div>
+    <span style="display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 999px; background: rgba(74,222,163,0.1); color: #4ADEA3; font-size: 12px; font-weight: 600"><span class="pulse" aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #4ADEA3"></span>Canlı</span>
+  </header>
+
+  <section style="padding: 28px 28px 8px; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px">
+      <span style="padding: 4px 10px; border-radius: 999px; background: rgba(125,170,255,0.12); color: #9DBEFF; font-weight: 500">AI / ML</span>
+      <span class="mono" style="padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.06); color: #B4BAC3">Q-0012</span>
+      <span style="padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.06); color: #B4BAC3">2 gün · 8 ajan</span>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-end; justify-content: space-between">
+      <h1 style="margin: 0; font-size: 30px; line-height: 1.2; font-weight: 600; letter-spacing: -0.025em; max-width: 780px; text-wrap: balance">Öğrenme oranı ısınması küçük transformer modellerinde gerçekten gerekli mi?</h1>
+      <div style="display: flex; gap: 8px">
+        <button class="ghost" style="height: 40px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: transparent; color: #ECEEF1; font: inherit; font-weight: 500">Duraklat</button>
+        <button class="ghost" style="height: 40px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: transparent; color: #ECEEF1; font: inherit; font-weight: 500">Paylaş</button>
+      </div>
+    </div>
+    <ol aria-label="Araştırma aşamaları: 7 aşamanın 4'ü, Deney" style="list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px">
+      <li style="display: flex; flex-direction: column; gap: 6px"><span style="height: 4px; border-radius: 2px; background: #F5B83D"></span><span style="font-size: 12px; color: #8E959F">Soru</span></li>
+      <li style="display: flex; flex-direction: column; gap: 6px"><span style="height: 4px; border-radius: 2px; background: #F5B83D"></span><span style="font-size: 12px; color: #8E959F">Literatür</span></li>
+      <li style="display: flex; flex-direction: column; gap: 6px"><span style="height: 4px; border-radius: 2px; background: #F5B83D"></span><span style="font-size: 12px; color: #8E959F">Hipotez</span></li>
+      <li aria-current="step" style="display: flex; flex-direction: column; gap: 6px"><span style="height: 4px; border-radius: 2px; background: linear-gradient(90deg, #F5B83D 45%, rgba(255,255,255,0.1) 45%)"></span><span style="font-size: 12px; color: #ECEEF1; font-weight: 600">Deney</span></li>
+      <li style="display: flex; flex-direction: column; gap: 6px"><span style="height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1)"></span><span style="font-size: 12px; color: #8E959F">Analiz</span></li>
+      <li style="display: flex; flex-direction: column; gap: 6px"><span style="height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1)"></span><span style="font-size: 12px; color: #8E959F">Eleştiri</span></li>
+      <li style="display: flex; flex-direction: column; gap: 6px"><span style="height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1)"></span><span style="font-size: 12px; color: #8E959F">Rapor</span></li>
+    </ol>
+  </section>
+
+  <main style="display: flex; flex-wrap: wrap; gap: 16px; padding: 20px 28px 40px; align-items: flex-start">
+
+    <aside aria-label="Ekip" style="flex: 1 1 260px; max-width: 300px; background: #121418; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 4px">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px"><h2 style="margin: 0; font-size: 14px; font-weight: 600">Araştırma ekibi</h2><span style="font-size: 12px; color: #8E959F">2 aktif · 6 boşta</span></div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="12" fill="#22252B"></rect><circle cx="22" cy="24" r="11" fill="#F2D3B3"></circle><path d="M10 23c-1-9 5-14 12-14s13 5 12 14c-2-5-6-7-12-7s-10 2-12 7z" fill="#E5E7EB"></path><circle cx="18.5" cy="24" r="1.6" fill="#1B1D21"></circle><circle cx="25.5" cy="24" r="1.6" fill="#1B1D21"></circle><path d="M19 28.5q3 2.2 6 0" stroke="#1B1D21" stroke-width="1.4" fill="none" stroke-linecap="round"></path><path d="M16 38l6-3 6 3v-6l-6 3-6-3z" fill="#F5B83D"></path></svg>
+        <div style="min-width: 0"><div style="font-weight: 500">Direktör</div><div style="font-size: 12px; color: #A1A7B0">Boşta · planı onayladı</div></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="12" fill="#1D2230"></rect><circle cx="22" cy="9" r="4.5" fill="#3B2A22"></circle><circle cx="22" cy="24" r="11" fill="#C98E62"></circle><path d="M11 22c0-7 5-11 11-11s11 4 11 11c-3-4-7-5-11-5s-8 1-11 5z" fill="#3B2A22"></path><circle cx="18.2" cy="24" r="3.4" fill="none" stroke="#9DBEFF" stroke-width="1.4"></circle><circle cx="25.8" cy="24" r="3.4" fill="none" stroke="#9DBEFF" stroke-width="1.4"></circle><path d="M21.6 24h0.8" stroke="#9DBEFF" stroke-width="1.4"></path><circle cx="18.2" cy="24" r="1.3" fill="#1B1D21"></circle><circle cx="25.8" cy="24" r="1.3" fill="#1B1D21"></circle><path d="M19.5 29q2.5 1.8 5 0" stroke="#1B1D21" stroke-width="1.4" fill="none" stroke-linecap="round"></path></svg>
+        <div style="min-width: 0"><div style="font-weight: 500">Literatür</div><div style="font-size: 12px; color: #A1A7B0">Tamamlandı · 14 kaynak</div></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="12" fill="#2A2618"></rect><circle cx="22" cy="25" r="11" fill="#8D5A3B"></circle><g fill="#1E1612"><circle cx="13" cy="20" r="4"></circle><circle cx="17" cy="15" r="4"></circle><circle cx="22" cy="13.5" r="4"></circle><circle cx="27" cy="15" r="4"></circle><circle cx="31" cy="20" r="4"></circle></g><circle cx="18.5" cy="25.5" r="1.6" fill="#1B1D21"></circle><circle cx="25.5" cy="25.5" r="1.6" fill="#1B1D21"></circle><path d="M19 29.5q3 2.6 6 0" stroke="#1B1D21" stroke-width="1.4" fill="none" stroke-linecap="round"></path><circle cx="35" cy="8" r="4" fill="#FFD866"></circle><rect x="33.6" y="11.5" width="2.8" height="2.4" rx="0.6" fill="#B4BAC3"></rect></svg>
+        <div style="min-width: 0"><div style="font-weight: 500">Hipotez</div><div style="font-size: 12px; color: #A1A7B0">Tamamlandı · 3 hipotez</div></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="12" fill="#1D2230"></rect><circle cx="22" cy="24" r="11" fill="#E8B98E"></circle><path d="M11 22c0-7 5-12 12-12 6 0 10 4 10 10-4-1-9-3-12-7-2 4-6 7-10 9z" fill="#7A4A2A"></path><circle cx="18.5" cy="24.5" r="1.6" fill="#1B1D21"></circle><circle cx="25.5" cy="24.5" r="1.6" fill="#1B1D21"></circle><path d="M19 28.5q3 2.2 6 0" stroke="#1B1D21" stroke-width="1.4" fill="none" stroke-linecap="round"></path><path d="M32 30h5M33 30v3l-2.5 5h8l-2.5-5v-3" fill="#7DAAFF" stroke="#7DAAFF" stroke-width="1.3" stroke-linejoin="round"></path></svg>
+        <div style="min-width: 0"><div style="font-weight: 500">Deney tasarımcısı</div><div style="font-size: 12px; color: #A1A7B0">Plan r2 hazır</div></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: rgba(74,222,163,0.07); border: 1px solid rgba(74,222,163,0.18)">
+        <span style="position: relative; flex: none; width: 44px; height: 44px">
+          <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="12" fill="#183A2E"></rect><circle cx="22" cy="24" r="11" fill="#F2D3B3"></circle><path d="M11 21c0-6 5-10 11-10s11 4 11 10z" fill="#C2410C"></path><rect x="10.5" y="20" width="23" height="3" rx="1.5" fill="#2F3540"></rect><rect x="14" y="20.5" width="7" height="6" rx="3" fill="#4ADEA3" fill-opacity="0.45" stroke="#2F3540" stroke-width="1.3"></rect><rect x="23" y="20.5" width="7" height="6" rx="3" fill="#4ADEA3" fill-opacity="0.45" stroke="#2F3540" stroke-width="1.3"></rect><circle cx="17.5" cy="23.5" r="1.3" fill="#1B1D21"></circle><circle cx="26.5" cy="23.5" r="1.3" fill="#1B1D21"></circle><path d="M19 29.5q3 2.2 6 0" stroke="#1B1D21" stroke-width="1.4" fill="none" stroke-linecap="round"></path></svg>
+          <span class="pulse" aria-hidden="true" style="position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; background: #4ADEA3; border: 2px solid #121418"></span>
+        </span>
+        <div style="flex: 1; min-width: 0"><div style="font-weight: 600">Mühendis</div><div style="font-size: 12px; color: #4ADEA3">Run 5/9 çalışıyor</div><div style="height: 3px; margin-top: 6px; border-radius: 2px; background: rgba(255,255,255,0.08)"><div style="width: 34%; height: 3px; border-radius: 2px; background: #4ADEA3"></div></div></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: rgba(245,184,61,0.07); border: 1px solid rgba(245,184,61,0.2)">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="12" fill="#3A2E14"></rect><path d="M30 14c6 2 6 12 3 16-1-5-2-9-3-16z" fill="#2B1B14"></path><circle cx="22" cy="24" r="11" fill="#C98E62"></circle><path d="M11 22c0-7 5-11 11-11s11 4 11 11c-4-4-8-5-11-5s-7 1-11 5z" fill="#2B1B14"></path><circle cx="18.5" cy="24.5" r="1.6" fill="#1B1D21"></circle><circle cx="25.5" cy="24.5" r="1.6" fill="#1B1D21"></circle><path d="M19 28.5q3 2.2 6 0" stroke="#1B1D21" stroke-width="1.4" fill="none" stroke-linecap="round"></path><rect x="30" y="29" width="11" height="11" rx="3" fill="#F5B83D"></rect><path d="M32.5 37v-2M35.5 37v-4M38.5 37v-6" stroke="#3A2E14" stroke-width="1.6" stroke-linecap="round"></path></svg>
+        <div style="min-width: 0"><div style="font-weight: 600">Analist</div><div style="font-size: 12px; color: #F5B83D">Onayınızı bekliyor</div></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="12" fill="#3A2318"></rect><circle cx="22" cy="24" r="11" fill="#E8B98E"></circle><path d="M11 21c0-6 5-10 11-10s11 4 11 10c-2-2-5-4-11-4s-9 2-11 4z" fill="#4B5563"></path><path d="M16 20.5l4.5-1" stroke="#1B1D21" stroke-width="1.4" stroke-linecap="round"></path><path d="M23.5 21.5h4.5" stroke="#1B1D21" stroke-width="1.4" stroke-linecap="round"></path><circle cx="18.5" cy="24" r="1.6" fill="#1B1D21"></circle><circle cx="25.5" cy="24" r="1.6" fill="#1B1D21"></circle><path d="M19 29h6" stroke="#1B1D21" stroke-width="1.4" stroke-linecap="round"></path><circle cx="34" cy="33" r="4.2" fill="none" stroke="#FF9B6A" stroke-width="1.8"></circle><path d="M37 36l3.5 3.5" stroke="#FF9B6A" stroke-width="2" stroke-linecap="round"></path></svg>
+        <div style="min-width: 0"><div style="font-weight: 500">Eleştirmen</div><div style="font-size: 12px; color: #FF9B6A">H2'ye itiraz etti</div></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="flex: none"><rect width="44" height="44" rx="12" fill="#2A1F2E"></rect><circle cx="22" cy="25" r="11" fill="#8D5A3B"></circle><path d="M12 22c1-3 4-5 10-5s9 2 10 5z" fill="#1E1612"></path><ellipse cx="21" cy="15" rx="11" ry="4.5" fill="#C084FC"></ellipse><circle cx="22" cy="10.5" r="1.6" fill="#C084FC"></circle><circle cx="18.5" cy="25.5" r="1.6" fill="#1B1D21"></circle><circle cx="25.5" cy="25.5" r="1.6" fill="#1B1D21"></circle><path d="M19 29.5q3 2.2 6 0" stroke="#1B1D21" stroke-width="1.4" fill="none" stroke-linecap="round"></path><path d="M33 39l1-4 6-6 3 3-6 6z" fill="#E9D5FF"></path></svg>
+        <div style="min-width: 0"><div style="font-weight: 500">Yazar</div><div style="font-size: 12px; color: #A1A7B0">Sırada · rapor bekliyor</div></div>
+      </div>
+
+      <button class="ghost" style="margin-top: 8px; height: 40px; border: 1px dashed rgba(255,255,255,0.14); border-radius: 10px; background: transparent; color: #B4BAC3; font: inherit; font-size: 13px">Ekibi düzenle</button>
+    </aside>
+
+    <section aria-label="Canlı çalışma" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+      <div style="background: #121418; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; align-items: baseline"><h2 style="margin: 0; font-size: 14px; font-weight: 600">Eğitim kaybı <span class="mono" style="font-weight: 400; color: #8E959F">· E-0031</span></h2><span style="font-size: 12px; color: #8E959F">Son güncelleme 8 sn önce</span></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 10px">
+          <div style="padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.03)"><div style="font-size: 12px; color: #8E959F">Güncel kayıp</div><div class="mono" style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em">2.47</div></div>
+          <div style="padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.03)"><div style="font-size: 12px; color: #8E959F">Adım</div><div class="mono" style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em">3.4k<span style="font-size: 14px; color: #8E959F"> / 10k</span></div></div>
+          <div style="padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.03)"><div style="font-size: 12px; color: #8E959F">Kalan süre</div><div class="mono" style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em">~18 dk</div></div>
+          <div style="padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.03)"><div style="font-size: 12px; color: #8E959F">Çalıştırma</div><div class="mono" style="font-size: 22px; font-weight: 500; letter-spacing: -0.02em">5<span style="font-size: 14px; color: #8E959F"> / 9</span></div></div>
+        </div>
+        <svg viewBox="0 0 600 170" width="100%" height="170" role="img" aria-label="Kayıp eğrileri: ısınmalı çalıştırmalar daha düşük kayba iniyor, yüksek oranlı ısınmasız çalıştırma 2.9'da takılıyor" preserveAspectRatio="none">
+          <defs><linearGradient id="b2fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DAAFF" stop-opacity="0.22"></stop><stop offset="1" stop-color="#7DAAFF" stop-opacity="0"></stop></linearGradient></defs>
+          <g stroke="rgba(255,255,255,0.06)" stroke-width="1"><line x1="0" y1="45" x2="600" y2="45"></line><line x1="0" y1="90" x2="600" y2="90"></line><line x1="0" y1="135" x2="600" y2="135"></line></g>
+          <path d="M0,20 C60,72 120,98 200,112 S400,128 600,134 L600,170 L0,170 Z" fill="url(#b2fill)"></path>
+          <path d="M0,20 C60,72 120,98 200,112 S400,128 600,134" fill="none" stroke="#7DAAFF" stroke-width="2.25"></path>
+          <path d="M0,22 C60,80 120,106 200,119 S400,134 600,140" fill="none" stroke="#7DAAFF" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="5 5"></path>
+          <path d="M0,18 C50,42 90,54 150,60 S300,64 600,64" fill="none" stroke="#FF9B6A" stroke-width="2.25"></path>
+          <path d="M0,20 C40,62 80,82 120,95 L204,107" fill="none" stroke="#4ADEA3" stroke-width="2.25"></path>
+          <circle cx="204" cy="107" r="5" fill="#4ADEA3" stroke="#121418" stroke-width="2"></circle>
+        </svg>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px">
+          <span style="display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.04); color: #C9CED5"><span style="width: 10px; height: 2px; background: #7DAAFF"></span>lr 1e-3 · ısınmalı</span>
+          <span style="display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.04); color: #C9CED5"><span style="width: 10px; height: 0; border-top: 2px dashed #7DAAFF"></span>lr 1e-3 · ısınmasız</span>
+          <span style="display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.04); color: #C9CED5"><span style="width: 10px; height: 2px; background: #FF9B6A"></span>lr 3e-3 · ısınmasız · takıldı</span>
+          <span style="display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.04); color: #C9CED5"><span style="width: 10px; height: 2px; background: #4ADEA3"></span>run 5 · canlı</span>
+        </div>
+      </div>
+
+      <sc-if value="{{ pending }}" hint-placeholder-val="{{ true }}">
+        <div style="border-radius: 16px; padding: 1px; background: linear-gradient(135deg, rgba(245,184,61,0.7), rgba(245,184,61,0.12))">
+          <div style="border-radius: 15px; background: #16140F; padding: 18px 20px; display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: center">
+            <span aria-hidden="true" style="width: 38px; height: 38px; flex: none; border-radius: 10px; background: #3A2E14; color: #F5B83D; display: grid; place-items: center; font-size: 12px; font-weight: 700">An</span>
+            <div style="flex: 1 1 300px; min-width: 0">
+              <div style="font-size: 12px; font-weight: 600; color: #F5B83D">Analist onayınızı istiyor</div>
+              <div style="font-size: 15px; margin-top: 2px">Isınma süresi ablasyonu ekleyelim mi? 0 / 100 / 500 / 2000 adım × 3 seed</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px" class="mono">
+                <span style="font-size: 12px; padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); color: #C9CED5">+12 run</span>
+                <span style="font-size: 12px; padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); color: #C9CED5">~$2.40</span>
+                <span style="font-size: 12px; padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); color: #C9CED5">~3 sa GPU</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <button onClick="{{ approve }}" style="height: 42px; padding: 0 18px; border: 0; border-radius: 10px; background: #F5B83D; color: #0A0B0D; font: inherit; font-weight: 600">Onayla</button>
+              <button class="ghost" style="height: 42px; padding: 0 16px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: transparent; color: #ECEEF1; font: inherit; font-weight: 500">Düzenle</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ approved }}" hint-placeholder-val="{{ false }}">
+        <div role="status" style="border-radius: 16px; border: 1px solid rgba(74,222,163,0.25); background: rgba(74,222,163,0.06); padding: 16px 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ADEA3" stroke-width="2.5" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+          <span>Ablasyon onaylandı · 12 çalıştırma kuyruğa eklendi</span>
+          <button onClick="{{ undo }}" class="ghost" style="margin-left: auto; height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #4ADEA3; font: inherit; font-weight: 600">Geri al</button>
+        </div>
+      </sc-if>
+
+      <div style="background: #121418; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px">
+        <h2 style="margin: 0 0 14px; font-size: 14px; font-weight: 600">Etkinlik</h2>
+        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+          <li style="display: flex; gap: 14px"><div style="display: flex; flex-direction: column; align-items: center"><span style="width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #4ADEA3"></span><span style="flex: 1; width: 1px; background: rgba(255,255,255,0.08)"></span></div><div style="padding-bottom: 16px; min-width: 0"><div style="font-size: 13px"><strong>Mühendis</strong> <span style="color: #8E959F">· 14:02</span></div><div style="color: #C9CED5">Run 4/9 bitti: <span class="mono" style="font-size: 13px">lr=3e-3 · ısınmasız</span>. Kayıp 2.91'de takıldı, ıraksama yok.</div><div style="display: flex; gap: 14px; margin-top: 4px; font-size: 13px"><a href="#">Kayıtlar</a><a href="#" class="mono">a3f9c2</a></div></div></li>
+          <li style="display: flex; gap: 14px"><div style="display: flex; flex-direction: column; align-items: center"><span style="width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #7DAAFF"></span><span style="flex: 1; width: 1px; background: rgba(255,255,255,0.08)"></span></div><div style="padding-bottom: 16px; min-width: 0"><div style="font-size: 13px"><strong>Deney tasarımcısı</strong> <span style="color: #8E959F">· 13:10</span></div><div style="color: #C9CED5">İtiraz kabul edildi. Plan 3 oran × 3 seed olarak güncellendi.</div></div></li>
+          <li style="display: flex; gap: 14px"><div style="display: flex; flex-direction: column; align-items: center"><span style="width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #FF9B6A"></span></div><div style="min-width: 0"><div style="font-size: 13px"><strong>Eleştirmen</strong> <span style="font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: rgba(255,155,106,0.14); color: #FF9B6A">İtiraz · H2</span> <span style="color: #8E959F">· 13:04</span></div><div style="color: #C9CED5">H2 tek bir öğrenme oranında test edilecek; sonuç orana bağlı olabilir. En az 3 oran denenmeli.</div></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <aside aria-label="Araştırma durumu" style="flex: 1 1 300px; max-width: 360px; display: flex; flex-direction: column; gap: 16px">
+      <div style="background: #121418; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-size: 14px; font-weight: 600">Hipotezler</h2>
+        <div style="padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="mono" style="font-size: 12px; color: #8E959F">H1</span><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(125,170,255,0.14); color: #9DBEFF">Test ediliyor</span></div>
+          <div>Küçük modellerde (≤50M) düşük oranlarda ısınma gereksizdir.</div>
+          <div role="img" aria-label="2 destekleyen, 0 çürüten deney" style="display: flex; gap: 3px"><span style="flex: 2; height: 6px; border-radius: 3px; background: #7DAAFF"></span><span style="flex: 7; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08)"></span></div>
+          <div style="font-size: 12px; color: #A1A7B0">2 destekleyen · 0 çürüten · 7 bekliyor</div>
+        </div>
+        <div style="padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="mono" style="font-size: 12px; color: #8E959F">H2</span><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(255,155,106,0.14); color: #FF9B6A">Eleştiri altında</span></div>
+          <div>Yüksek oranda ısınmasız eğitim ıraksar.</div>
+        </div>
+        <div style="padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="mono" style="font-size: 12px; color: #8E959F">H3</span><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.07); color: #B4BAC3">Sırada</span></div>
+          <div>Isınmanın etkisi Adam'ın β2 değeriyle açıklanabilir.</div>
+        </div>
+      </div>
+      <div style="background: #121418; border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 14px; font-weight: 600">Tekrar üretilebilirlik</h2>
+        <div style="display: flex; justify-content: space-between"><span style="color: #C9CED5">Kod sabitlendi</span><span class="mono" style="color: #4ADEA3; font-size: 13px">✓ a3f9c2</span></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #C9CED5">Seed'ler kayıtlı</span><span style="color: #4ADEA3">✓</span></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #C9CED5">Ortam kilitli</span><span style="color: #4ADEA3">✓</span></div>
+        <div style="display: flex; justify-content: space-between"><span style="color: #C9CED5">Bağımsız tekrar</span><span style="color: #8E959F">Henüz yok</span></div>
+      </div>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { approved: false };
+  }
+  renderVals() {
+    const approved = this.state.approved;
+    return {
+      pending: !approved,
+      approved: approved,
+      approve: () => this.setState({ approved: true }),
+      undo: () => this.setState({ approved: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

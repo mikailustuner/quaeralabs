@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "v1",
+  "title": "Dropout ve grokking (negatif sonuç)",
+  "note": "Örnek veri: sayılar temsilidir. Ön kayıtlı bir hipotezin doğrulanmış negatif sonuçla çürütülmesini gösterir.",
+  "objects": [
+    {
+      "id": "Q-0020",
+      "type": "question",
+      "revision": 1,
+      "createdAt": "2026-12-01T09:00:00Z",
+      "createdBy": {
+        "kind": "human",
+        "userId": "u-ornek"
+      },
+      "title": "Dropout, küçük algoritmik görevlerde grokking'i hızlandırır mı?",
+      "domain": "ml",
+      "scope": "Modüler toplama görevi, 2 katmanlı transformer"
+    },
+    {
+      "id": "H-0010",
+      "type": "hypothesis",
+      "revision": 1,
+      "createdAt": "2026-12-01T09:30:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "hypothesis",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "questionId": "Q-0020",
+      "statement": "Dropout 0.1, modüler toplamada genelleme adımını ısınmasız temel çizgiye göre en az %30 öne çeker.",
+      "falsifiabilityNote": "3 seed ortalamasında hızlanma %30'un altındaysa hipotez çürür.",
+      "status": "refuted",
+      "approval": {
+        "by": {
+          "kind": "human",
+          "userId": "u-ornek"
+        },
+        "at": "2026-12-01T09:40:00Z",
+        "decision": "approved",
+        "autonomyLevel": "manual"
+      }
+    },
+    {
+      "id": "PRE-0040",
+      "type": "preregistration",
+      "revision": 1,
+      "createdAt": "2026-12-01T10:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "hypothesisId": "H-0010",
+      "primaryMetric": "steps_to_generalize",
+      "successCriterion": "Dropout koşulunda medyan genelleme adımı temel çizginin ≤ %70'i.",
+      "analysisPlan": "3 seed; genelleme adımı doğrulama doğruluğunun %99'u ilk geçtiği adım.",
+      "seeds": 3,
+      "lockedAt": "2026-12-01T10:05:00Z",
+      "contentHash": "9bc3f178280634f5f8a6408702ab1050b12232dcbf372425b12ab302d00cb335"
+    },
+    {
+      "id": "E-0040",
+      "type": "experiment",
+      "revision": 1,
+      "createdAt": "2026-12-01T09:50:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "hypothesisIds": [
+        "H-0010"
+      ],
+      "domain": "ml",
+      "method": "Dropout 0 ve 0.1 ile modüler toplama (p=97), 3 seed, 50k adım.",
+      "metrics": [
+        {
+          "name": "steps_to_generalize",
+          "direction": "lower_is_better"
+        }
+      ],
+      "budget": {
+        "estimatedUsd": 1.1,
+        "approvedUsd": 1.5
+      },
+      "noveltyCheck": {
+        "verdict": "novel",
+        "summary": "Bu ayarda doğrudan karşılaştırma bulunamadı."
+      },
+      "preregistrationId": "PRE-0040",
+      "status": "completed",
+      "approval": {
+        "by": {
+          "kind": "human",
+          "userId": "u-ornek"
+        },
+        "at": "2026-12-01T10:06:00Z",
+        "decision": "approved",
+        "autonomyLevel": "auto_under_limit"
+      }
+    },
+    {
+      "id": "RUN-0040",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-12-01T10:10:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0040",
+      "kind": "pilot",
+      "status": "succeeded",
+      "seed": 0,
+      "startedAt": "2026-12-01T10:10:00Z"
+    },
+    {
+      "id": "RUN-0041",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-12-01T11:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0040",
+      "kind": "full",
+      "status": "succeeded",
+      "seed": 1,
+      "startedAt": "2026-12-01T11:00:00Z",
+      "metrics": {
+        "speedup_pct": 4.0
+      }
+    },
+    {
+      "id": "RES-0040",
+      "type": "result",
+      "revision": 1,
+      "createdAt": "2026-12-01T15:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0040",
+      "runIds": [
+        "RUN-0041"
+      ],
+      "summary": "Dropout 0.1 genelleme adımını yalnızca %4 öne çekti; ön kayıttaki %30 eşiğinin çok altında.",
+      "negative": true,
+      "limitations": [
+        "Tek görev ve tek model boyutu"
+      ]
+    },
+    {
+      "id": "RUN-0042",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-12-01T16:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "experimentId": "E-0040",
+      "kind": "verification",
+      "status": "succeeded",
+      "seed": 1,
+      "startedAt": "2026-12-01T16:00:00Z",
+      "metrics": {
+        "speedup_pct": 3.6
+      }
+    },
+    {
+      "id": "VER-0040",
+      "type": "verification",
+      "revision": 1,
+      "createdAt": "2026-12-01T17:00:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "resultId": "RES-0040",
+      "verificationRunIds": [
+        "RUN-0042"
+      ],
+      "reproduced": "yes",
+      "tolerance": "hızlanma ±%2",
+      "crossModel": true
+    },
+    {
+      "id": "EL-0040",
+      "type": "evidence_link",
+      "revision": 1,
+      "createdAt": "2026-12-01T15:05:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "resultId": "RES-0040",
+      "hypothesisId": "H-0010",
+      "relation": "contradicts",
+      "independence": "L1"
+    }
+  ]
+}

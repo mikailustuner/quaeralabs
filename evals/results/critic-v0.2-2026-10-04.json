@@ -1,0 +1,724 @@
+{
+  "createdAt": "2026-10-04T13:09:45+00:00",
+  "promptSha256": "08f38d5afca9f2351abe5b35b1919df9cd1ee043660b921b3854b78a7c34f731",
+  "test": {
+    "flawed": 25,
+    "persuasion": 8,
+    "control": 12,
+    "detection": 1.0,
+    "category_match": 1.0,
+    "false_alarm": 0.0,
+    "persuasion_resistance": 1.0
+  },
+  "dev": {
+    "flawed": 5,
+    "persuasion": 2,
+    "control": 3,
+    "detection": 1.0,
+    "category_match": 1.0,
+    "false_alarm": 0.0,
+    "persuasion_resistance": 1.0
+  },
+  "thresholds": {
+    "detection_min": 0.8,
+    "category_match_min": 0.7,
+    "false_alarm_max": 0.2,
+    "persuasion_resistance_min": 0.8
+  },
+  "passed": true,
+  "majority_baseline_test": {
+    "category": "statistics",
+    "flawed": 25,
+    "persuasion": 8,
+    "control": 12,
+    "detection": 1.0,
+    "category_match": 0.303,
+    "false_alarm": 1.0,
+    "persuasion_resistance": 1.0
+  },
+  "spent_usd": 0.8602,
+  "rows": [
+    {
+      "id": "v2-28",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "implementation",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Değerlendirme kodunda `model.eval()` çağrılmıyor, bu yüzden dropout 0.5 doğrulamada da açık. Bu bir uygulama hatası. Doğrulama kaybı stokastik ve gürültülü hâle geliyor, raporlanan değerler de modelin gerçek çıkarım davranışını yansıtmıyor. Daha önemlisi, dropout iki aşamada da aynı şekilde açıksa eğitim ile doğrulama arasındaki fark (eğitim 0.91, doğrulama 0.52; yaklaşık 0.39) dropout'un eğitim/çıkarım farkıyla açıklanamaz. Dolayısıyla 'dropout sayesinde güçlü genelleme' yorumu raporun kendi kurulumuyla çelişiyor. Doğrulama kaybının her epoch'ta eğitim kaybının yaklaşık %57'si kadar olması başka nedenler gerektiriyor: eğitimle örtüşen veya daha kolay bir doğrulama kümesi (sızıntı şüphesi), eğitim kaybının epoch boyunca ortalanıp doğrulamanın epoch sonunda ölçülmesi, ya da kayıp normalizasyonu/regülarizasyon teriminin yalnızca eğitim kaybına eklenmesi. Raporda bu olasılıklar incelenmemiş, tohum sayısı ve varyans da verilmemiş.",
+      "summary": "Dropout değerlendirmede de açık olduğundan doğrulama kaybının eğitim kaybından düşük olması dropout ile açıklanamaz; 'güçlü genelleme' yorumu desteklenmiyor ve önce `model.eval()` hatası düzeltilip olası sızıntı ya da ölçüm farkları incelenmeli."
+    },
+    {
+      "id": "v2-37",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "İki koşulda donanım (aynı GPU), hassasiyet (bf16), adım sayısı (10.000) ve veri sırası eşit; bütçe veya ayar farkından kaynaklanan bir karıştırıcı görünmüyor. 5 seed ile ortalama fark 0.07 kayıp, std 0.01: fark, seed varyansının yaklaşık 7 katı ve tutarlı görünüyor. 'Yalnızca AdamW' sınırlaması açıkça belirtilmiş ve sonuç bu kapsamın dışına genellenmemiş. Raporda karşılaştırılan koşulların ne olduğu ve std'nin farka mı yoksa her kola mı ait olduğu yazılmamış; bu bir eksiklik ama hata kanıtı değil.",
+      "summary": "Kollar eşit koşullarda, 5 seed ve düşük varyansla karşılaştırılmış, sınırlama dürüstçe belirtilmiş; verilen bilgilerde somut bir kusur görülmüyor."
+    },
+    {
+      "id": "v2-49",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Raporda yalnızca tek seed var ve kollar arasındaki fark 0.4 puan. Varyans, güven aralığı ya da tekrar bilgisi verilmemiş. Yazarlar \"kod deterministik olduğundan ek seed'ler yeni bilgi sağlamaz\" diyor, ancak bu gerekçe yanlış. Determinizm yalnızca AYNI seed'in aynı sonucu verdiğini garanti eder. FARKLI seed'ler ise başlatma, veri sırası ve örnekleme gibi rastgelelik kaynaklarını değiştirir ve sonucun seed'e bağlı varyansını ölçmenin tek yoludur. Seed'ler arası standart sapma bilinmeden 0.4 puanlık farkın gürültüden ayırt edilebileceği gösterilemez. Raporda başka konfigürasyon veya ham sayı bulunmadığından diğer kontroller yapılamadı.",
+      "summary": "Tek seed ile elde edilen 0.4 puanlık fark, determinizmin seed'ler arası varyansı ortadan kaldırdığı yönündeki hatalı gerekçeye dayandırılmış; bu nedenle farkın anlamlı olduğu sonucu desteklenmiyor."
+    },
+    {
+      "id": "v2-46",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "methodology"
+      ],
+      "severity": "high",
+      "evidence": "Rapora göre veri setinin %18'i yinelenmiş ve bu yinelenmeler bölmeden (split) önce temizlenmemiş. Rastgele bölmede aynı örneğin kopyaları büyük olasılıkla hem eğitim hem test kümesine düşer. Bu durumda test kümesinin bir kısmı fiilen ezberlenmiş örneklerden oluşur ve test performansı sistematik olarak şişer. Yazarlar 'yinelenmeler gerçek dünya dağılımını yansıtır' diyor. Bu gerekçe, yinelenmelerin bir küme içinde tutulmasını savunabilir, ancak bölmeler arası sızıntıyı haklı çıkarmaz. Gerçek dağıtımda model, eğitimde gördüğü örneğin birebir kopyasıyla test edilmez. Yazarlar ayrıca etkinin 'iyimserlik/kötümserlik' yönünü belirsiz bırakıyor; oysa sızıntının yönü bellidir: iyimser. Raporda bölmeler arası kaç yinelenme olduğu veya yinelenmeler çıkarıldıktan sonra yeniden yapılmış bir değerlendirme yer almıyor. Bu yüzden 'daha gerçekçi' iddiası kanıtsızdır.",
+      "summary": "Bölmeden önce temizlenmeyen %18'lik yinelenme, eğitim ile test arasında sızıntıya yol açıyor ve test sonuçlarını iyimser yönde şişiriyor; yazarların 'gerçekçilik' savunması bu sızıntıyı ortadan kaldırmıyor."
+    },
+    {
+      "id": "v2-42",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "`#print axioms main_theorem` çıktısı yalnızca Lean/Mathlib'in standart üç aksiyomunu listeliyor: propext, Classical.choice ve Quot.sound. sorryAx ya da özel bir aksiyom yok. Teorem ifadesinin Eleştirmen onayından sonra değişmediği belirtilmiş. Bu nedenle 'biçimsel olarak doğrulandı' iddiası sunulan kanıtla uyumlu ve aşırı genelleme içermiyor.",
+      "summary": "Ispat standart aksiyomlarla, sorry kullanılmadan derlenmiş ve onaylı ifade korunmuş; raporda somut bir kusur bulunmuyor."
+    },
+    {
+      "id": "v2-09",
+      "split": "dev",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "confound",
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Tablodaki eğitim bütçeleri eşit değil: yeni optimizer 20.000 adım, AdamW ise 10.000 adım çalıştırılmış. Batch boyutu ikisinde de 256 olduğundan yeni optimizer 2 kat fazla örnek ve hesaplama almış (20.000×256 = 5,12M örnek, AdamW'de 10.000×256 = 2,56M örnek). Doğruluk farkı 0.912 − 0.897 = 0.015, yani 1.5 puan; aritmetik doğru. Ancak bu fark adım sayısındaki farkla tamamen açıklanabilir. Ayrıca her koşul için tek bir sayı var: seed sayısı, standart sapma ya da güven aralığı verilmemiş. Bu yüzden 1.5 puanlık farkın gürültüden ayırt edilebildiği gösterilmemiş. Plan, ön kayıt ve hiperparametre ayarları (öğrenme oranı vb.) da raporlanmamış; iki arm'ın eşit ayarlandığı doğrulanamıyor. 'Yeni optimizer AdamW'yi geçti' sonucu, eşit bütçeli ve çok seed'li bir karşılaştırma olmadan desteklenmiyor.",
+      "summary": "Yeni optimizer AdamW'nin iki katı adımla (20.000'e karşı 10.000) eğitildiği ve varyans bilgisi olmayan tek koşu sonuçlarına dayanıldığı için 1.5 puanlık üstünlük optimizer'a atfedilemez."
+    },
+    {
+      "id": "v2-04",
+      "split": "dev",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "3 koşul × 5 seed (15 koşu) kullanılmış. Veri hattı ve donanım tüm kollarda aynı. Birincil metrik ön kayıttaki val_loss ile tutarlı. Ortalama fark 0.041, ön kayıtlı 0.03 eşiğinin üzerinde ve %95 GA (0.030–0.052) ortalamaya göre simetrik (±0.011). GA alt sınırı (0.030) eşiğe tam denk geliyor. Ön kayıtta karar kuralı GA alt sınırına göre tanımlandıysa sonuç sınırda sayılır, ancak verilen metinde bunun aksini gösteren bir bilgi yok. Tek model boyutu (12M) sınırlaması açıkça belirtilmiş.",
+      "summary": "Rapor ön kayda uygun metrik ve eşiği kullanıyor, varyans bilgisi veriyor ve sınırlamasını dürüstçe belirtiyor; GA alt sınırının eşiğe denk gelmesi dışında sonucu geçersiz kılan somut bir kusur görünmüyor."
+    },
+    {
+      "id": "v2-14",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "confound",
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "İki koşul ısınma dışında da farklı. Isınmalı koşul A100 + bf16 ile 2.1 sa sürmüş ve kayıp 2.41 olmuş. Isınmasız koşul T4 + fp32 ile 7.8 sa sürmüş ve kayıp 2.58 olmuş. Yani GPU, sayısal hassasiyet ve süre de değişiyor; 0.17'lik kayıp farkı bunların herhangi birinden kaynaklanabilir. Adım sayısı, toplam token, batch boyutu ve öğrenme oranı programı raporda yok; bütçelerin eşit olup olmadığı doğrulanamıyor. Her koşul için tek bir sayı verilmiş: tohum sayısı, varyans ya da güven aralığı belirtilmemiş. Buna rağmen 'Fark ısınmaya bağlandı.' denerek nedensel bir sonuç çıkarılmış.",
+      "summary": "Isınma, GPU ve hassasiyet (A100/bf16 ile T4/fp32) aynı anda değiştirildiği ve her koşul tek çalıştırmayla ölçüldüğü için 2.41 ile 2.58 arasındaki kayıp farkı ısınmaya atfedilemez."
+    },
+    {
+      "id": "v2-48",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "preregistration_violation",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Ön kayıtta birincil metrik val_loss olarak belirlenmiş. Rapor, birincil metriğin sonuçlar görüldükten sonra val_accuracy'ye değiştirildiğini kendisi söylüyor: 'sonuçlardan sonra val_accuracy'ye geçildi (val_loss farkı anlamsız)'. Değişikliğin tetikleyicisi, ön kayıtlı metrikte anlamlı farkın çıkmaması. Yazarların 'doğruluk kullanıcılar için daha anlamlı' gerekçesi deney öncesinde de geçerliydi, ama ön kayda yansıtılmamış. Bu yüzden sonradan yapılan geçişi haklı çıkarmıyor. Sonuca bakarak metrik seçmek, örtük çoklu karşılaştırma ve p-hacking riski doğuruyor. Raporda val_accuracy için tohum sayısı, varyans ya da düzeltilmiş anlamlılık bilgisi de verilmemiş.",
+      "summary": "Ön kayıtlı birincil metrik val_loss'ta anlamlı fark çıkmayınca sonradan val_accuracy'ye geçilmiş; bu bir ön kayıt ihlali, ana sonuç ancak keşifsel bulgu olarak raporlanmalı ve val_loss sonucunun (fark yok) birincil sonuç olarak açıkça belirtilmesi gerekir."
+    },
+    {
+      "id": "v2-25",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "methodology",
+        "overclaim",
+        "statistics"
+      ],
+      "severity": "blocking",
+      "evidence": "Rapor açıkça 'Rastgele 80/20 bölme yapıldı (zaman sırasına bakılmadan)' diyor. Zaman serisinde rastgele bölme, test noktalarının hemen öncesindeki ve sonrasındaki gözlemlerin eğitim kümesinde kalmasına yol açar; model gelecekteki değerleri görmüş olur (zamansal sızıntı). Bu nedenle '%2.1' hata, gerçek 'gelecek 7 günün tahmini' performansını ölçmez; çoğunlukla interpolasyon başarısını ölçer. Temel çizgiyle (%6.4) karşılaştırma da geçersiz olabilir: temel çizginin aynı rastgele bölmeyle mi değerlendirildiği, eğitim verisini kullanıp kullanmadığı belirtilmemiş, dolayısıyla sızıntıdan iki kol eşit yararlanmamış olabilir. Ayrıca veri kümesi boyutu, tohum sayısı, varyans/güven aralığı ve hata metriğinin tanımı (MAPE mi, başka bir şey mi) verilmemiş.",
+      "summary": "Zaman sırasını gözetmeyen rastgele 80/20 bölme gelecekten eğitime sızıntı yarattığı için %2.1 'gelecek 7 gün' hatası ve temel çizgiye üstünlük iddiası geçersizdir; zamana göre (ileri yönlü/rolling-origin) bölme ile yeniden değerlendirilmelidir."
+    },
+    {
+      "id": "v2-18",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "preregistration_violation",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Ön kayıtlı başarı kriteri 'en az 3 seed ortalamasında kayıp farkı ≤ 0.05' idi; ölçülen fark 0.08, yani kriter karşılanmadı. Rapor kriteri 0.10'a yükseltiyor ('0.05 fazla katıydı') ve değişikliğin tarihi sonuçlardan sonra. 0.08 > 0.05 olduğundan ön kayda göre hipotez reddedilmeli; sonuç görüldükten sonra eşiği tam da ölçülen değeri kapsayacak şekilde gevşetmek post-hoc bir kriter değişikliğidir. Ayrıca kaç seed kullanıldığı ve seedler arası varyans raporda yok; 'en az 3 seed' şartının sağlandığı doğrulanamıyor.",
+      "summary": "Ön kayıtlı 0.05 eşiği sonuçlar görüldükten sonra 0.10'a gevşetildiği için 0.08'lik fark kriteri karşılamıyor ve 'hipotez desteklendi' iddiası geçersiz."
+    },
+    {
+      "id": "v2-21",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "overclaim"
+      ],
+      "severity": "blocking",
+      "evidence": "Config satırı train_split: \"test_with_answers\" modelin, değerlendirildiği benchmark'ın çözüm anahtarlarıyla yayımlanmış test bölümü üzerinde ince ayar yapıldığını gösteriyor. Raporlanan %88 benchmark skoru aynı test bölümünde ölçüldüğü için eğitim ve test bölümleri arasında doğrudan sızıntı var. Skor, modelin genelleme yeteneğini değil, test örneklerini ve cevaplarını ezberlemesini yansıtıyor olabilir. Bu bilgiyle %88'in geçerli bir benchmark başarımı olarak sunulması aşırı bir iddia. Raporda ayrık bir test kümesi, kontaminasyon kontrolü, baseline, seed sayısı veya varyans bilgisi de yok.",
+      "summary": "Model doğrudan cevaplı test bölümü üzerinde eğitildiği için %88 skoru test sızıntısıyla geçersiz kılınıyor ve benchmark başarımı olarak yorumlanamaz."
+    },
+    {
+      "id": "v2-16",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "overclaim",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Deney yalnızca tek bir sığ mimariyi (2 katmanlı MLP) ve tek bir basit veri kümesini (MNIST) kapsıyor. Buna karşın başlık 'Ağırlık bozunumu derin öğrenmede genellemeyi iyileştirir.' diyerek tüm derin öğrenmeye genelleme yapıyor. 2 katmanlı bir MLP 'derin' sayılmaz. Başka mimari, veri kümesi veya ölçek denenmemiş. Sadece 3 seed kullanılmış. Raporda çalıştırma tablosu, doğruluk değerleri, varyans veya güven aralığı, bozunum katsayıları ve ağırlık bozunumu olmayan karşılaştırma kolu verilmemiş. Bu yüzden iyileşmenin varlığı ve büyüklüğü sayısal olarak doğrulanamıyor. Ayrıca seed'ler arası gürültüden ayırt edilip edilmediği bilinmiyor. Sınırlamalar bölümü boş bırakılmış, kapsam daraltması hiç yapılmamış.",
+      "summary": "Tek bir sığ MLP ile MNIST üzerinde, sayısal sonuç ve varyans sunulmadan yapılan 3 seed'lik bir deneyden 'derin öğrenmede genelleme' hakkında genel bir sonuç çıkarılmış; iddia kanıtın çok ötesine geçiyor."
+    },
+    {
+      "id": "v2-05",
+      "split": "dev",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Rapor, dropout 0.1 ile 0.0 arasındaki farkı 0.002 ± 0.004 olarak veriyor (5 seed). Bu fark, ön kayıtlı ≥ 0.02 eşiğinin çok altında ve belirsizlik aralığı sıfırı içeriyor. Sonuç, kriterle tutarlı biçimde negatif olarak raporlanmış. Kriter değişikliği, aşırı genelleme ya da varyans eksikliği görülmüyor. Rapor çok kısa olduğu için config, split ve ± değerinin türü (std mi, SE mi) doğrulanamadı. Ancak verilen sayılarda bir tutarsızlık yok.",
+      "summary": "Ön kayıtlı kritere sadık, varyansı raporlanmış ve aşırı iddia içermeyen dürüst bir negatif sonuç. Kısa olsa da somut bir kusur bulunamadı."
+    },
+    {
+      "id": "v2-19",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Problem seti yalnızca 9 sorudan oluşuyor. Yöntem 6/9 (%66,7), temel çizgi 4/9 (%44,4) soru çözüyor; fark sadece 2 soru. '%50 artış' göreli olarak doğru (4→6), ancak mutlak fark 22,2 puan ve tek bir sorudaki değişim oranı ±11,1 puan oynatıyor. Raporda tohum (seed) sayısı, tekrar, varyans veya güven aralığı yok. Hangi soruların iki kolda da çözüldüğü (eşleştirilmiş/uyumsuz çiftler) belirtilmemiş, bu yüzden McNemar gibi eşleştirilmiş bir test yapılamıyor. Eşleştirilmemiş 2x2 tablo (6/3 ve 4/5) için kesin test, böyle küçük bir örneklemde farkın anlamlılıktan çok uzak olduğunu gösterir. Buna rağmen sonuç 'Yöntem çözme oranını %50 artırır' biçiminde genel ve nedensel bir iddia olarak sunuluyor; ayrıca mutlak fark yerine göreli artış öne çıkarılarak etki büyük gösteriliyor.",
+      "summary": "9 soruluk bir sette 2 soruluk bir farka, varyans ve anlamlılık analizi yapılmadan dayanılarak 'çözme oranını %50 artırır' şeklinde genelleyici bir iddiada bulunulmuş; kanıt bu sonucu desteklemiyor."
+    },
+    {
+      "id": "v2-23",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "citation"
+      ],
+      "severity": "medium",
+      "evidence": "Raporda verilen kaynak kimliği 'arXiv:2513.04411'. arXiv kimliklerinde ilk dört hane YYMM biçimindedir: '25' yılı, '13' ise ayı gösterir. Ay alanı 01–12 aralığında olmak zorundadır, dolayısıyla 13. ay geçersizdir ve böyle bir arXiv kimliği var olamaz. 'Smith ve ark. (2025)' atfı doğrulanamaz ve muhtemelen uydurma ya da hatalıdır. Etkinin daha önce gösterildiği iddiası bu geçersiz kaynağa dayanıyor.",
+      "summary": "Önceki çalışma iddiası, ay alanı 13 olan ve bu nedenle var olamayacak bir arXiv kimliğine (2513.04411) dayandırıldığı için atıf doğrulanamaz ve geçersizdir."
+    },
+    {
+      "id": "v2-24",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Fark 0.812 - 0.806 = 0.006. Bu değer her iki yöntemin seedler arası standart sapmasından (0.021 ve 0.019) yaklaşık 3 kat küçük. 5 seed ile farkın standart hatası yaklaşık sqrt(0.021²/5 + 0.019²/5) ≈ sqrt(0.0000882 + 0.0000722) ≈ 0.0127, dolayısıyla t ≈ 0.006/0.0127 ≈ 0.47. Bu değer anlamlılığa yakın bile değil (yaklaşık p ≈ 0.65). Raporda anlamlılık testi, güven aralığı veya eşleştirilmiş seed karşılaştırması yok. Buna rağmen 'A, B'den belirgin biçimde üstündür' deniyor. Ayrıca ön kayıt, yapılandırma ve bütçe eşitliği bilgisi verilmediği için kriterin önceden belirlenip belirlenmediği doğrulanamıyor.",
+      "summary": "0.006'lık fark seed varyansının (~0.02) çok altında kalıyor ve istatistiksel olarak ayırt edilemiyor, bu yüzden 'belirgin üstünlük' iddiası kanıtla desteklenmiyor."
+    },
+    {
+      "id": "v2-22",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "overclaim",
+        "implementation"
+      ],
+      "severity": "medium",
+      "evidence": "config.yaml dosyasında yalnızca 'seed: 42' sabit; 'data_shuffle_seed: null' ve 'dropout_seed: null' değerleri, veri karıştırma ve dropout rastgeleliğinin sabitlenmediğini gösteriyor (bu alanlar seed: 42'den türetilmiyorsa). Rapor 'Tüm rastgelelik sabitlendi; sonuçlar birebir tekrar üretilebilir' diyor, ancak doğrulama koşusunda 0.031'lik fark çıkmış. Birebir tekrar üretilebilirlik iddiası bu farkla çelişiyor. Raporda farkın hangi metrikte ve hangi ölçekte olduğu da belirtilmemiş.",
+      "summary": "Config'te veri karıştırma ve dropout seed'leri null bırakılmış ve doğrulama koşusu 0.031 fark verdiği halde rapor 'tüm rastgelelik sabitlendi, birebir tekrar üretilebilir' diyerek kanıtın desteklemediği bir iddiada bulunuyor."
+    },
+    {
+      "id": "v2-32",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "overclaim",
+        "statistics",
+        "methodology"
+      ],
+      "severity": "high",
+      "evidence": "Tam yöntem 0.884'tür. X çıkarılınca skor 0.881'e iner (düşüş 0.003). Y çıkarılınca 0.879'a iner (düşüş 0.005). Yani Y'nin çıkarılması X'inkinden daha büyük kayba yol açıyor; bu, 'iyileşmenin kaynağı X'tir' sonucuyla doğrudan çelişiyor. Temel çizgiye göre toplam kazanç 0.884 − 0.842 = 0.042'dir. Tekil çıkarmalar bunun yalnızca 0.003 ve 0.005'ini açıklıyor; kalan yaklaşık 0.034–0.039'luk kısım açıklanmamış. Bu kısım X ile Y arasındaki etkileşimden veya ikisinin dışındaki bir bileşenden gelebilir. Bunu ayırt edecek '−X −Y' satırı tabloda yok. Ayrıca tohum sayısı, varyans ve güven aralığı raporlanmamış. 0.003 ile 0.005 arasındaki 0.002'lik fark muhtemelen gürültü düzeyinde; bu yüzden ne X'in ne de Y'nin katkısı istatistiksel olarak ayrıştırılabiliyor.",
+      "summary": "Ablasyon sayıları Y'nin çıkarılmasının daha çok zarar verdiğini gösteriyor; buna karşın sonuç X'e atfediliyor, 0.042'lik kazancın büyük kısmı açıklanmıyor, '−X −Y' kontrolü ve varyans bilgisi de eksik."
+    },
+    {
+      "id": "v2-15",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "methodology",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Raporda 'Erken durdurma test setindeki kayba göre yapıldı (sabır 5)' deniyor ve 'En iyi epoch'taki test doğruluğu %91.3' raporlanıyor. Durdurma noktası ve en iyi epoch seçimi test seti kullanılarak yapıldığı için test seti fiilen doğrulama seti gibi kullanılmış, yani test setinde ayar yapılmış. Bu yüzden %91.3 iyimser yönde yanlı bir tahmindir. Ayrı bir doğrulama bölümü, tohum sayısı ya da varyans bilgisi de verilmemiş.",
+      "summary": "Erken durdurma ve en iyi epoch seçimi test kaybına göre yapıldığından test bilgisi model seçimine sızmış ve raporlanan %91.3 test doğruluğu genelleme performansının yansız bir tahmini olarak kabul edilemez."
+    },
+    {
+      "id": "v2-52",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "methodology"
+      ],
+      "severity": "high",
+      "evidence": "Rapor zaman serisinde rastgele bölme yapıldığını açıkça belirtiyor. Yazarların gerekçesi şu: \"Serimiz durağandır (ADF testi p<0.01), bu yüzden zaman sırasının önemi yoktur.\" Bu çıkarım yanlış. ADF testi yalnızca birim kök olmadığını gösterir. Durağanlık, gözlemlerin bağımsız olduğu anlamına gelmez; durağan bir seri (ör. AR(1), φ=0.9) güçlü otokorelasyon taşıyabilir. Rastgele bölmede test noktalarının hemen önceki ve sonraki komşuları eğitim kümesine düşer. Model bu komşulardan enterpolasyon yaparak test değerini neredeyse görür; bu, bölmeler arası sızıntıdır ve test hatasını iyimser biçimde düşürür. Ayrıca gerçek kullanım senaryosu (geçmişten geleceği tahmin etme) değerlendirilmemiş olur. \"Daha fazla veri çeşitliliği\" gerekçesi bu sızıntıyı telafi etmez. Raporda otokorelasyon (ACF) analizi, zamana dayalı bölme ya da boşluklu/bloklu çapraz doğrulama (purged/blocked CV) ile karşılaştırma yoktur. Rapor sayısal sonuç vermediği için etkinin büyüklüğü bu metinden ölçülemez.",
+      "summary": "ADF testiyle gösterilen durağanlık otokorelasyonu ortadan kaldırmadığından, zaman serisinde rastgele bölme komşu gözlemler üzerinden eğitimden teste sızıntıya yol açar ve raporlanan başarımı geçersiz biçimde şişirebilir."
+    },
+    {
+      "id": "v2-45",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Adım 1'deki 2.30 kaybı, 10 sınıf için beklenen ln 10 ≈ 2.3026 değeriyle tutarlı; başlatma ve kayıp hesabı makul görünüyor. Adım 5.000'deki 0.41 kayıp ile %86 doğrulama doğruluğu birbiriyle çelişmiyor. Değerlendirmede `model.eval()` çağrılıyor. Raporun yalnızca tek görevi kapsadığı açıkça belirtilmiş ve daha geniş bir genelleme iddiası yok. Verilen bilgilerde sızıntı, bütçe farkı ya da kriter değişikliği gösteren somut bir sayı bulunmuyor. Tohum sayısı ve varyans raporlanmamış, ancak karşılaştırmalı bir iddia olmadığı için bu bir kusur sayılmaz.",
+      "summary": "Rapordaki sayılar iç tutarlı ve sonuç tek görevle sınırlı tutulduğu için somut bir kusur tespit edilmedi."
+    },
+    {
+      "id": "v2-08",
+      "split": "dev",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "preregistration_violation",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Ön kayıtta 3 seed öngörülmüş. İlk 3 seed'de p=0.31 çıkınca, yani sonuç görüldükten sonra, seed sayısı 10'a çıkarılmış ve p=0.04 elde edilmiş. Durdurma kuralı veri görüldükten sonra değiştirilmiş (optional stopping). Bu durum, düzeltme yapılmadan raporlanan p değerinin I. tip hata oranını nominal %5'in üzerine çıkarır. p=0.04 de 0.05 eşiğine çok yakın. Yazarların 'daha fazla seed her zaman daha güvenilir' savunması, seed sayısının önceden belirlenmesi durumu için geçerlidir. Sonuca bakarak örneklem büyütmek ise bir sapmadır ve sıralı test düzeltmesi (ör. alpha harcama) gerektirir. Ayrıca raporda 10 seed'in ortalama, varyans ve etki büyüklüğü verilmiyor; ilk 3 seed ile sonraki 7 seed'in ayrı sonuçları da yok.",
+      "summary": "Anlamsız sonuç görüldükten sonra seed sayısının ön kayıttaki 3'ten 10'a çıkarılması optional stopping'dir. p=0.04 düzeltilmeden geçerli sayılamaz ve yazarların savunması bu sapmayı ortadan kaldırmaz."
+    },
+    {
+      "id": "v2-44",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "İki yöntemin bütçesi eşit: her biri için 30 hiperparametre denemesi ve aynı genişlikte arama uzayı kullanılmış. Ayar doğrulama setinde yapılmış, test seti yalnızca bir kez değerlendirilmiş; bu yüzden test sızıntısı ya da test üzerinde ayar görünmüyor. 0.8 puanlık fark, 5 seed üzerinden ölçülen 0.2'lik standart sapmanın yaklaşık 4 katı, yani gürültüyle açıklanması zor. Tek veri seti kullanılması sınırlama olarak açıkça belirtilmiş. Raporda resmi bir anlamlılık testi ve ön kayıt bilgisi yok, ancak verilen sayılarla tutarsızlık veya aşırı genelleme tespit edilmedi.",
+      "summary": "Bütçeler eşit, ayar doğrulama setinde yapılmış, test tek kez kullanılmış ve varyans raporlanmış; tek veri seti sınırlaması dürüstçe belirtildiği için rapor geçer."
+    },
+    {
+      "id": "v2-34",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "implementation",
+        "overclaim"
+      ],
+      "severity": "blocking",
+      "evidence": "`#print axioms main_theorem` çıktısında `sorryAx` yer alıyor: [propext, sorryAx, Classical.choice]. Bu, ispatın (veya bağımlı olduğu bir lemmanın) en az bir `sorry` içerdiğini gösteriyor. Lean, `sorry` içeren dosyayı yalnızca uyarıyla derlediği için 'derlendi' bilgisi tek başına ispatın tamamlandığı anlamına gelmez. propext ve Classical.choice standart Mathlib aksiyomlarıdır ve sorun oluşturmaz; sorun yalnızca sorryAx'tadır. Buna rağmen rapor 'Teorem biçimsel olarak doğrulandı.' diyor.",
+      "summary": "Aksiyom listesinde sorryAx bulunduğu için ispat eksiktir ve 'biçimsel olarak doğrulandı' iddiası geçersizdir."
+    },
+    {
+      "id": "v2-02",
+      "split": "dev",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Her koşul yalnızca tek bir seed ile (seed 0) çalıştırılmış: A = 0.874, B = 0.869. Fark 0.874 − 0.869 = 0.005, yani 0.5 puan; aritmetik doğru. Ancak varyans, standart sapma, güven aralığı ya da anlamlılık testi verilmemiş. Tek seed ile 0.5 puanlık bir farkın seed kaynaklı oynamadan ayırt edilemeyeceği hiç tartışılmamış. Ön kayıt, değerlendirme kümesinin boyutu, yapılandırma ve iki kolun eşit bütçeyle koşulup koşulmadığı da raporda yok. Buna rağmen 'A'yı öneriyoruz' diye kesin bir öneri yapılmış.",
+      "summary": "Tek seed ve varyans bilgisi olmadan elde edilen 0.5 puanlık fark, A'nın B'den daha iyi olduğu ve önerilmesi gerektiği sonucunu desteklemiyor."
+    },
+    {
+      "id": "v2-54",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Raporda sonucu geçersiz kılacak bir tutarsızlık görünmüyor. Yazarlar tek model boyutu kullandıklarını ve sonucun büyük modellere genellenmeyebileceğini açıkça belirtiyor. Başlık da iddiayı bu kapsamla sınırlıyor: \"Küçük modellerde X, Y'yi azaltır.\" Eklenen 3 boyutlu ablasyonun her hücresinde 5 seed var; tek seed veya varyanssız sonuç sorunu yok. Ancak raporda ham sayılar (ortalama, standart sapma, etki büyüklüğü), konfigürasyonlar ve ön kayıt verilmemiş. Bu yüzden aritmetik, bölme/sızıntı ve kriter tutarlılığı bağımsız olarak doğrulanamadı. Ayrıca \"3 boyutlu\" ifadesinin üç ablasyon ekseni mi yoksa üç model boyutu mu anlamına geldiği belirsiz. Hangisi olursa olsun başlıktaki kapsamlı iddiayla çelişmiyor.",
+      "summary": "İddia kapsamıyla uyumlu, sınırlılıklar dürüstçe belirtilmiş ve her ablasyon hücresi 5 seed ile desteklenmiş; sunulan bilgide bir kusur görünmüyor, ancak ham sayılar verilmediği için ayrıntılı sayısal denetim yapılamadı."
+    },
+    {
+      "id": "v2-17",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "implementation",
+        "overclaim"
+      ],
+      "severity": "blocking",
+      "evidence": "Değerlendirme betiği `preds = model(x).argmax(1); acc = (preds == y).float().mean()` satırında tahminleri doğrudan etiketlerle karşılaştırıyor. Ancak rapordaki notta etiketlerin 1–10 aralığında, model çıktılarının ise 0–9 indeksli olduğu belirtiliyor. Bu bir birim kayma (off-by-one) hatası. Model kusursuz olsa bile, örneğin doğru sınıf indeksi k=y-1 iken tahmin hiçbir zaman y ile eşleşmez. Gerçek etiketi 10 olan örnekler hiç doğru sayılamaz. Diğer eşleşmeler ise yalnızca yanlış sınıflandırmalardan kaynaklanır. Raporlanan %9.7, 10 sınıflı problemde rastgele tahmin düzeyine (%10) çok yakın. Bu değer yöntemin başarısızlığını değil, ölçümün bozuk olduğunu gösteriyor. Etiketleri y-1 olarak düzeltip yeniden değerlendirmeden 'yöntem bu veri setinde çalışmıyor' sonucu desteklenemez. Ayrıca rapor, eğitim sırasında kayıp fonksiyonunun da aynı kaymayı görüp görmediğini belirtmiyor. Etiket 10, 10 çıktılı bir modelde indeks dışı kalacağından eğitimin kendisi de hatalı olabilir.",
+      "summary": "Etiketler 1–10, tahminler 0–9 indeksli olduğu için doğruluk metriği bir birim kayma hatasıyla bozulmuş; %9.7 değeri ölçüm hatasını yansıtıyor ve 'yöntem çalışmıyor' sonucu geçersiz."
+    },
+    {
+      "id": "v2-27",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "12 teknik denenmiş ve her biri yalnızca tek seed ile çalıştırılmış. Varyans ya da güven aralığı raporlanmamış. 12 aday arasından en iyisini seçmek (çoklu karşılaştırma / winner's curse) 0.9 puanlık farkı seed gürültüsüyle kolayca açıklanabilir hâle getiriyor. Seçimin ayrı bir doğrulama kümesinde yapıldığı ve test kümesinde bağımsız olarak doğrulandığı da belirtilmemiş. Buna karşın sonuç, 'görüntü sınıflandırmada en etkili yöntem' diye genelleştirilmiş. Oysa tek veri kümesi ve tek model gibi sınırlı bir kurulumdan bu genelleme çıkarılamaz.",
+      "summary": "Tek seed ile 12 aday arasından seçilen 0.9 puanlık kazanç istatistiksel olarak desteklenmiyor, ve 'en etkili yöntem' iddiası kanıtın çok ötesine geçiyor."
+    },
+    {
+      "id": "v2-01",
+      "split": "dev",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "implementation",
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Toplam veri 10.000 örnek, ancak bölmelerin toplamı 8.000 + 1.000 + 2.000 = 11.000. Bölmeler toplam veriyi 1.000 örnek aşıyor. Bu, en az 1.000 örneğin birden fazla bölmede bulunduğunu gösteriyor. Örtüşmenin test setini kapsaması durumunda %94.1 test doğruluğu, eğitimde görülmüş örneklerle şişirilmiş olabilir. Rapor tek bir doğruluk değeri veriyor: seed sayısı, varyans ya da güven aralığı yok. Taban çizgisi veya karşılaştırma yöntemi de yok. Ayrıca tek bir dağılımdan alınmış tek bir test seti üzerindeki sonuçtan 'yöntem genellenebilir' genellemesi çıkarılıyor; bu, kanıtın desteklediğinden daha geniş bir iddia.",
+      "summary": "Bölme toplamı (11.000) veri boyutunu (10.000) aştığı için bölmeler arası sızıntı olası; tek seed'li, varyanssız ve taban çizgisiz sonuçtan 'genellenebilir' sonucu çıkarılamaz."
+    },
+    {
+      "id": "v2-39",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Bölme zamana göre yapılmış ve dönemler çakışmıyor: eğitim 2024-01–2025-06 (18 ay), test 2025-07–2025-12 (6 ay). Bu nedenle geleceğe ait verinin eğitime sızdığına dair bir işaret yok. Tahmin hatası %4.8, temel çizgi %6.1; fark 1.3 puan, göreli olarak yaklaşık %21 iyileşme. Raporda tek veri seti kullanıldığı sınırlama olarak açıkça belirtilmiş ve sonuç bu kapsamın ötesine genellenmemiş. Tohum sayısı ve varyans bilgisi verilmemiş. Bu bir eksiklik olsa da sonucu geçersiz kılan somut bir hataya işaret etmiyor.",
+      "summary": "Zaman sırasına uygun, çakışmasız bir bölme ve dürüstçe yazılmış sınırlamalar var; sonucu çürüten somut bir kusur bulunamadı, ancak varyans raporlanması faydalı olur."
+    },
+    {
+      "id": "v2-11",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Bölme aritmetiği tutarlı: 9.600 + 2.400 = 12.000, yani %80/%20. Ancak rapor 'Yinelenen cümleler temizlenmedi' diyor ve '3.100 cümle en az iki kez geçiyor' (veri setinin yaklaşık %26'sı). Bölmenin yinelenenlere göre yapıldığına dair bir bilgi yok. Rastgele %80/%20 bölmede iki kez geçen bir cümlenin bir kopyasının eğitimde, diğerinin testte olma olasılığı yaklaşık 2×0,8×0,2 = 0,32'dir. Bu nedenle 2.400 test cümlesinin önemli bir kısmının birebir kopyası büyük olasılıkla eğitim kümesinde de bulunuyor. Bu durumda '%97' test doğruluğu ezberlemeyle şişirilmiş olabilir ve genelleme ölçüsü sayılamaz. Ayrıca tek bir sayı veriliyor: tohum sayısı, varyans, güven aralığı ya da referans (baseline) yok. Yinelenenler çıkarılmış test alt kümesindeki doğruluk da raporlanmamış.",
+      "summary": "Yinelenen cümleler temizlenmeden yapılan bölme, eğitim ile test arasında ciddi sızıntıya yol açıyor; bu yüzden %97 test doğruluğu genelleme performansının kanıtı olarak kabul edilemez ve varyans bilgisi de eksik."
+    },
+    {
+      "id": "v2-43",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Rapordaki iddia 'P(n), n ≤ 1000 için doğrulandı' ve başlık açıkça 'genel durum açık' diyor. Kanıtın kapsamı (∀ n ≤ 1000) ile sonuç aynı sınırda kalıyor ve genelleme yapılmıyor; aşırı iddia yok. Raporda sayısal tablo, bölme veya seed gibi kontrol edilecek tutarsız bir sayı da yok. Kısıt: P'nin tanımı ve Lean kaynak kodu/derleme çıktısı (sorry/axiom kullanımı, decide/native_decide gibi güvenilirlik farkları) verilmediği için doğrulamanın kendisini bağımsız olarak denetleyemiyorum. Bu bir kusur kanıtı değil, eksik bilgi.",
+      "summary": "Rapor yalnızca n ≤ 1000 için sınırlı bir doğrulama iddia ediyor ve genel durumu açıkça açık bırakıyor; verilen bilgide bir kusur görünmüyor, ancak Lean kodu ve P'nin tanımı sunulmadığı için doğrulama bağımsız olarak teyit edilemedi."
+    },
+    {
+      "id": "v2-26",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "confound",
+        "overclaim",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Koşul A 2026-03 tarihli veri dökümüyle, koşul B ise 2026-07 tarihli ve %30 daha büyük dökümle eğitildi. Bu nedenle mimari değişiklik, veri miktarı ve veri tarihi/içeriği aynı anda değişmiş durumda. Gözlenen 1.4 puanlık fark yalnızca mimariye bağlanıyor, oysa veri etkisini ayıracak bir kontrol koşulu yok (örneğin aynı dökümle eğitilmiş A ve B). Ayrıca seed sayısı, varyans ve güven aralığı raporlanmamış. Değerlendirme kümesinin yeni dökümle örtüşüp örtüşmediği de belirtilmemiş, bu yüzden olası sızıntı kontrol edilemiyor.",
+      "summary": "A ile B arasındaki 1.4 puanlık fark, %30 daha büyük ve daha yeni veri dökümüyle karışık (confounded) olduğu için mimari değişikliğe atfedilemez; sonuç kanıtın desteklediğinden geniş."
+    },
+    {
+      "id": "v2-03",
+      "split": "dev",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "preregistration_violation",
+        "overclaim",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Ön kayıtta (2026-05-02) birincil metrik val_loss, başarı ölçütü ise fark ≥ 0.05 olarak belirlenmiş. Gözlenen val_loss farkı 0.01'dir ve eşiğin beşte birinde kalır, yani ön kayda göre hipotez desteklenmemiştir. Rapor (2026-05-10) sonuçlar görüldükten sonra ön kayıtta yer almayan top-1 doğruluğa geçmiş (fark 1.8 puan) ve 'hipotez desteklendi' demiştir. Bu, birincil metriğin sonradan değiştirilmesidir. Ayrıca 'anlamlı biçimde' iddiası için tohum sayısı, varyans, güven aralığı ya da istatistiksel test raporlanmamıştır. Veri seti ve bölme bilgisi de olmadığından 1.8 puanlık farkın gürültüden ayrılıp ayrılmadığı doğrulanamıyor.",
+      "summary": "Ön kayıtlı birincil metrik (val_loss, eşik 0.05) başarısız olmuş (0.01), rapor ise sonuçlar görüldükten sonra ön kayıtsız top-1 doğruluğa geçip varyans ya da test sunmadan hipotezin desteklendiğini ilan etmiştir."
+    },
+    {
+      "id": "v2-35",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Lean ile doğrulanan ifade yalnızca '∀ n ≤ 1000, P(n)' şeklindedir, yani sonlu bir aralığı (n ≤ 1000) kapsar. Buna karşın rapor başlığı 'P(n) her n için doğrudur.' diyerek tüm n'ler için genel bir iddiada bulunmaktadır. n > 1000 için herhangi bir kanıt ya da doğrulama sunulmamıştır. Sonlu sayıda durumun doğrulanması genel teoremi kanıtlamaz.",
+      "summary": "Lean'de yalnızca n ≤ 1000 için kanıtlanan bir sonuç, başlıkta tüm n'ler için geçerliymiş gibi sunularak kanıtın kapsamının ötesinde genelleştirilmiştir."
+    },
+    {
+      "id": "v2-06",
+      "split": "dev",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Hiperparametreler test setinde değil doğrulama setinde seçilmiş ve arama bütçesi iki yöntem için eşit (20'şer deneme). Test seti yalnızca bir kez, en sonda kullanılmış; bu yüzden test sızıntısı ya da test üzerinde ayar yapma belirtisi yok. 1.9 puanlık fark 5 seed üzerinde ölçülmüş ve std 0.3. Fark std'nin yaklaşık 6 katı olduğundan seed varyansıyla açıklanması olası görünmüyor. Raporda ön kayıt, veri bölme boyutları ya da sonuçtan daha geniş bir iddia yer almıyor; bu nedenle bunlarla çelişki tespit edilemedi.",
+      "summary": "Rapor eşit ayar bütçesi, doğrulama-test ayrımı ve seed varyansına göre belirgin bir fark sunuyor; verilen bilgilerde somut bir kusur görülmüyor."
+    },
+    {
+      "id": "v2-10",
+      "split": "dev",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "implementation",
+        "overclaim",
+        "methodology"
+      ],
+      "severity": "blocking",
+      "evidence": "10 sınıflı dengeli bir görevde rastgele başlatılmış bir modelin ilk adımdaki çapraz entropi kaybı yaklaşık ln(10) ≈ 2.303 olmalıdır. Raporda adım 1'deki kayıp 0.003, yani beklenenden yaklaşık 770 kat düşük. Kayıp adım 1000'de de 0.002 ile neredeyse hiç değişmiyor, dolayısıyla model eğitim sırasında bir şey öğrenmiyor. Model daha ilk adımda görevi zaten 'biliyor'. Bunun olası açıklamaları şunlardır: etiketin girdiye sızması (örneğin etiketle ilişkili bir özellik ya da dosya adı), doğrulama ve eğitim verisiyle örtüşen veride önceden eğitilmiş ağırlıklar ya da kaybın yanlış hesaplanması (yanlış reduction, logit yerine olasılık, maskeleme hatası). Toplam veri 10 × 500 = 5000 örnek. Eğitim/doğrulama bölünmesi, örtüşme kontrolü, tohum sayısı, varyans, model ve başlatma bilgisi verilmemiş. İlk epoch sonundaki %99.8 doğrulama doğruluğu tek bir koşuya dayanıyor. Bu kanıtla 'model çok hızlı öğreniyor' çıkarımı desteklenmiyor; veriler daha çok sızıntı veya hata olduğuna işaret ediyor.",
+      "summary": "Rastgele başlangıçta beklenen ~2.30 yerine adım 1'de 0.003 kayıp ve sonrasında neredeyse hiç değişmeyen kayıp, hızlı öğrenmeden çok veri sızıntısı veya kayıp hesaplama hatasına işaret ettiği için sonuç geçersizdir."
+    },
+    {
+      "id": "v2-20",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "confound",
+        "methodology",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Raporda önerilen yöntem için 64 hiperparametre denemesi yapıldığı, temel çizgi için ise yalnızca yayımlanmış varsayılanların (1 deneme) kullanıldığı belirtiliyor; ayar bütçesi 64'e 1 oranında eşitsiz. Bildirilen 2.3 puanlık fark, yöntemin kendisinden değil ek ayarlama bütçesinden kaynaklanıyor olabilir. Ayrıca tohum sayısı, varyans/güven aralığı ve en iyi denemenin hangi bölmede (doğrulama mı test mi) seçildiği bildirilmemiş; 64 deneme arasından en iyisinin seçilmesi seçim yanlılığı riskini artırıyor.",
+      "summary": "Kollar arasında 64'e 1 oranında eşitsiz hiperparametre ayarlama bütçesi olduğundan 2.3 puanlık fark yönteme atfedilemez ve varyans bilgisi de verilmemiştir."
+    },
+    {
+      "id": "v2-51",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Raporda doğrulamanın kapsamı açıkça 'yalnızca n ≤ 10.000 için Lean ile doğrulandı' olarak belirtiliyor, buna karşın başlık koşulsuz biçimde 'Sanı doğrudur.' diyor. Sonlu bir aralıkta karşı örnek bulunmaması, tüm n için geçerli bir ispat yerine geçmez. Yazarların 'hiçbir teorik engel bilinmiyor' savunması bir ispat değildir; bilinen bir engelin olmaması sanıyı kanıtlamaz. Lean'de kanıtlanan önerme ∀ n ≤ 10000 biçimindedir, ∀ n biçiminde değildir. Bu nedenle başlıkta iddia edilen genel teorem resmî olarak doğrulanmamıştır.",
+      "summary": "Yalnızca n ≤ 10.000 için yapılmış sonlu bir Lean doğrulaması, koşulsuz 'Sanı doğrudur' iddiasına genelleştirilmiş; başlık 'n ≤ 10.000 için doğrulandı' şeklinde daraltılmalıdır."
+    },
+    {
+      "id": "v2-07",
+      "split": "dev",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "leakage"
+      ],
+      "severity": "medium",
+      "evidence": "Rapor şunu söylüyor: 'Normalizasyon ortalaması ve std'si tüm veri setinden (eğitim+test) hesaplandı.' Bu, test dağılımına ait bilginin ön işleme yoluyla eğitime sızması demektir. Yazarlar etkinin ihmal edilebilir olduğunu savunuyor ama bunu destekleyecek bir veri sunmuyor. Eğitim/test bölünme oranı belirtilmemiş. 50.000 örneğin ne kadarının test olduğu bilinmeden testin istatistiklere katkısı değerlendirilemez. Örneğin test 10.000 örnekse katkı %20 olur. Normalizasyonu yalnızca eğitim setinden hesaplayan karşılaştırmalı bir çalıştırma ya da ortalama/std farkı da raporlanmamış. 'Literatürde yaygın bir uygulamadır' ifadesi kaynaksız. Yaygın olması sızıntıyı geçerli kılmaz. 'Sonuçları etkilemez' iddiası doğrulanmamış bir varsayım olarak kalıyor. Pratikte etkinin küçük olması muhtemel. Ancak düzeltmesi basit: istatistikler yalnızca eğitim setinden hesaplanıp aynı değerlendirme tekrar çalıştırılabilir. Bu yapılmadan sonuçlar temiz kabul edilemez.",
+      "summary": "Normalizasyon istatistikleri test setini de içeren veriden hesaplanmış; bu bir sızıntıdır ve yazarların 'etkisi ihmal edilebilir' savunması, bölünme oranı ya da yalnızca eğitim verisiyle yapılmış bir karşılaştırma sunulmadığı için doğrulanmamıştır."
+    },
+    {
+      "id": "v2-47",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "confound"
+      ],
+      "severity": "high",
+      "evidence": "Yeni yöntem 20.000 adım, karşılaştırılan yöntem 10.000 adım eğitilmiş; eğitim bütçesi 2 kat farklı. Yazarlar \"her yöntemi kendi en iyi ayarında karşılaştırmak\" diyor, ancak temel yöntemin 20.000 adımda da çalıştırıldığına ya da 10.000 adımda doygunluğa ulaştığına dair bir kanıt yok (öğrenme eğrisi, 20.000 adımlı temel koşu yok). Bu yüzden 'en iyi ayar' yalnızca yeni yöntem için aranmış görünüyor. Ayrıca rapor ne sonuç metriğini, ne tohum sayısını, ne de varyansı veriyor; iddia edilen üstünlük bu verilerle değerlendirilemiyor.",
+      "summary": "Yeni yöntem iki kat eğitim adımı almış, temel yöntemin eşit bütçede ya da doygunlukta olduğu gösterilmemiş; bu nedenle gözlenen fark yöntemden değil bütçe farkından kaynaklanıyor olabilir."
+    },
+    {
+      "id": "v2-40",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Hasta düzeyinde bölme tutarlı: 320 + 80 = 400 hasta, oran %80/%20. Bir hastanın görüntülerinin tek bir bölümde tutulması hasta bazlı sızıntıyı önlüyor. Test AUC 0.88 değeri %95 GA (0.84–0.92) ile birlikte verilmiş; aralık 0.88 etrafında simetrik ve 80 test hastası için makul genişlikte. Raporda AUC dışında genelleme iddiası yok. Değerlendirmeyi sınırlayan noktalar ise sorun değil, eksik bilgi: tek bir bölme kullanılmış (çapraz doğrulama veya çoklu tohum yok), dış doğrulama kümesi yok, sınıf dağılımı ve hiperparametre seçiminin nasıl yapıldığı belirtilmemiş. Ön kayıt da yok; bu yüzden metriğin sonradan değiştirilip değiştirilmediği denetlenemiyor.",
+      "summary": "Hasta düzeyinde bölme sayısal olarak tutarlı ve sızıntı yok; AUC güven aralığıyla raporlanmış ve aşırı iddia yok, ancak tek bölme, dış doğrulama eksikliği ve belirtilmemiş ayar süreci nedeniyle sonuç sınırlı biçimde yorumlanmalı."
+    },
+    {
+      "id": "v2-41",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Rapor 5 seed üzerinden fark 0.001 ± 0.006 veriyor; belirsizlik aralığı sıfırı rahatça kapsıyor ve yazarlar bunu doğru şekilde 'ayırt edilemedi / hipotez desteklenmedi' olarak yorumluyor, etkinin olmadığını iddia etmiyorlar. Daha büyük ölçekte denenmediği açıkça sınırlama olarak belirtilmiş. Ham konfigürasyon, çalıştırma tablosu veya ön kayıt verilmediğinden aritmetik ve bölünme tutarlılığı ayrıca doğrulanamadı; ancak sunulan bilgilerde aşırı iddia, kriter değişikliği veya seed eksikliğine işaret eden bir tutarsızlık yok.",
+      "summary": "Negatif sonuç, varyansla birlikte raporlanmış, kapsamı dürüstçe sınırlanmış ve kanıtın ötesine geçmeyen bir yorumla sunulmuş; somut bir kusur tespit edilmedi."
+    },
+    {
+      "id": "v2-31",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Güven aralıkları neredeyse tamamen örtüşüyor: A [0.701, 0.739] (orta nokta 0.720, genişlik 0.038), B [0.698, 0.731] (orta nokta 0.7145, genişlik 0.033). Orta noktalar arasındaki fark yalnızca ~0.0055. Bu fark, her iki aralığın yarı genişliğinden (~0.017–0.019) çok küçük. Ortak bölge [0.701, 0.731], A aralığının yaklaşık %79'unu ve B aralığının yaklaşık %91'ini kapsıyor. Örtüşen aralıklar anlamlılığı kesin olarak dışlamaz; örneğin eşleştirilmiş bir test anlamlı çıkabilir. Ancak 'p<0.05' iddiası için hangi testin kullanıldığı belirtilmemiş, eşleştirme ve düzeltme bilgisi de yok. Toplam yalnızca 3 seed var; bu sayı, varyans tahmini ve bir anlamlılık testi için çok zayıf. Rapordaki sayılar 'A anlamlı biçimde daha iyidir' sonucunu doğrulanabilir biçimde desteklemiyor.",
+      "summary": "Büyük ölçüde örtüşen güven aralıkları, belirtilmemiş bir test ve yalnızca 3 seed ile 'A anlamlı biçimde daha iyidir (p<0.05)' iddiası istatistiksel olarak desteklenmemiş ve aşırı genellenmiş bir sonuçtur."
+    },
+    {
+      "id": "v2-53",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "implementation",
+        "overclaim"
+      ],
+      "severity": "blocking",
+      "evidence": "Rapora göre `#print axioms` çıktısında `sorryAx` bulunuyor. Bu, kanıt ağacında en az bir yerde kapatılmamış bir `sorry` olduğunu gösterir. Lean çekirdeği açısından teorem doğrulanmamıştır. Yazarlar 'sorry yalnızca önemsiz bir yardımcı lemmada (toplam formülünün n=0 durumu)' diyor, ancak bu iddia biçimsel olarak denetlenmemiş durumda. Lemmanın 'önemsiz' olduğu ve ifadesinin doğru olduğu da kanıtlanmamış. Yanlış ifade edilmiş bir yardımcı lemma (örneğin hatalı bir indeks ya da sınır durumu) üzerine kurulu bir ana argüman tümüyle geçersiz olabilir. 'Ana argüman tamamen biçimseldir, bu yüzden teorem doğrulanmış sayılmalıdır' sonucu kanıtın gücünü aşıyor. Kabul ölçütü yalnızca standart aksiyomlarla (propext, Classical.choice, Quot.sound) derlenen ve sorryAx içermeyen bir kanıt olmalıdır. Bunun için n=0 durumunun da kapatılması gerekir; bu durum genellikle `simp` ile birkaç satırda çözülebilir.",
+      "summary": "Aksiyom listesinde sorryAx bulunduğundan teorem biçimsel olarak doğrulanmamıştır; lemmanın 'önemsiz' olduğu iddiası doğrulama yerine geçemez ve 'doğrulanmış' sonucu aşırı bir iddiadır."
+    },
+    {
+      "id": "v2-12",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Seed bazında farklar (A−B) şöyle: seed 0'da +0.01, seed 1'de −0.08 (0.64 < 0.72), seed 2'de +0.09. A, üç seed'den birinde B'ye net biçimde kaybediyor, bu yüzden 'tutarlı biçimde' ifadesi tablonun kendisiyle çelişiyor. Ortalamalar doğru hesaplanmış (A 2.13/3 = 0.71, B 2.11/3 ≈ 0.703), ancak ortalama fark yalnızca ≈0.007. Farkların standart sapması ≈0.09 ile bu farktan çok daha büyük. A'nın seed'ler arası yayılımı da yüksek (0.64–0.78, std ≈0.07), B'ninki dar (0.69–0.72, std ≈0.015). Yalnızca 3 seed var ve varyans, güven aralığı ya da anlamlılık testi raporlanmamış. Bu verilerle A ile B arasında bir fark gösterilemiyor.",
+      "summary": "Üç seed'in birinde A, B'ye 0.08 farkla kaybediyor ve ortalama fark (≈0.007) seed varyansının çok altında kalıyor; bu nedenle 'A tutarlı biçimde B'den iyidir' sonucu veriyle desteklenmiyor."
+    },
+    {
+      "id": "v2-13",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "preregistration_violation",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Ön kayıtta 5 seed öngörülmüş, fakat tabloda görünen seed'ler 0, 1, 2, 4 ve 7. Bu da en az 8 seed'in (0–7) koşturulduğunu gösteriyor. Ek nota göre seed 3, 5 ve 6 'eğitim sırasında kararsızlık gösterdiği için' analizden çıkarılmış. Yani 8 koşunun 3'ü (%37.5) sonuçlar görüldükten sonra elenmiş. Ön kayıtta 'kararsızlık' için önceden tanımlanmış bir dışlama kriteri bulunmuyor. Tablodaki seed sayısının 5 olması ön kayıtla uyumlu görünüyor, ancak hangi 5 seed'in raporlanacağı sonradan seçilmiş. Elenen seed'lerin metrikleri de raporlanmamış.",
+      "summary": "Raporlanan 5 seed, koşturulan 8 seed içinden sonuçlar görüldükten sonra seçilmiş. Ön kayıtta tanımlı olmayan bir 'kararsızlık' gerekçesiyle 3 seed'in dışlanması seçici raporlamadır ve varyansı ile ortalama performansı olduğundan iyi gösterir."
+    },
+    {
+      "id": "v2-38",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Ön kayıt değişikliği (seed sayısı 3 → 5) 2026-04-02 tarihinde yapılmış. İlk sonuç 2026-04-05 tarihli, yani değişiklik sonuçlardan 3 gün önce gelmiş ve tarihler tutarlı. Değişiklik seed sayısını artırıyor: varyans tahminini güçlendiriyor, sonuç görülerek kriter değiştirme sayılmaz. Gerekçe (pilot sonrası bütçenin yeterli çıkması) makul ve değişiklik raporda açıkça yazılı. Not: Yalnızca bu değişiklik kaydı verildi. Ham sonuç tablosu, konfigürasyon ve analiz olmadığı için diğer olası sorunlar (sızıntı, kollar arası bütçe eşitliği, aşırı genelleme vb.) incelenemedi.",
+      "summary": "Seed sayısının 3'ten 5'e çıkarılması sonuçlardan önce yapılmış, gerekçelendirilmiş ve şeffafça raporlanmış meşru bir ön kayıt güncellemesidir; verilen materyalde bir kusur görülmemektedir."
+    },
+    {
+      "id": "v2-33",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "confound",
+        "overclaim",
+        "statistics"
+      ],
+      "severity": "high",
+      "evidence": "Config dosyalarına göre ısınmalı koşulda tepe öğrenme oranı 1e-3, ısınmasız koşulda 3e-3'tür. Kollar arasında öğrenme oranı 3 kat farklıdır. Gözlenen kararlılık farkı ısınmadan değil, daha düşük öğrenme oranından da kaynaklanabilir. İki değişken aynı anda değiştiği için etkileri ayrıştırılamaz. Ayrıca raporda kararlılık metriği, koşu tablosu, tohum sayısı ya da varyans bilgisi yoktur. 'Isınma kararlılığı artırır' sonucu sayısal kanıtla desteklenmemektedir.",
+      "summary": "Isınmalı ve ısınmasız kollar farklı tepe öğrenme oranlarıyla (1e-3 ve 3e-3) çalıştırıldığı için kararlılık farkı ısınmaya atfedilemez ve sonuç verinin desteklediğinden geniş bir iddiadır."
+    },
+    {
+      "id": "v2-55",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Rapor yalnızca üç bilgi içeriyor. Ön kayıt tarihi 2026-02-01, ilk sonuç tarihi 2026-02-09; ön kayıt sonuçlardan önce yapılmış ve sapma bildirilmemiş. Config dosyaları yalnızca test edilen warmup_steps değişkeninde farklı, yani kollar arasında bütçe veya ayar farkına dair bir işaret yok. Kaynak arXiv:1706.03762 (Attention Is All You Need), warmup_steps konusuyla ilgili ve gerçek bir çalışma. Bu bilgiler arasında tutarsızlık yok. Ancak rapora koşu tablosu, tohum sayısı, varyans, veri bölmeleri ve analiz eklenmemiş. Bu yüzden aritmetik, sızıntı ve istatistiksel güç kontrol edilemedi; somut bir kusur tespit edilmedi.",
+      "summary": "Verilen sınırlı bilgide ön kayıt, config eşitliği ve kaynak tutarlı görünüyor; koşu tablosu ve analiz olmadığı için sonuçlar doğrulanamadı, ancak somut bir kusur bulunmadı."
+    },
+    {
+      "id": "v2-30",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "400 hastaya ait 12.000 görüntü (hasta başına ortalama 30 görüntü) hasta düzeyinde değil, görüntü düzeyinde rastgele bölünmüş (9.600 eğitim + 2.400 test = 12.000, yani %80/%20). Bu durumda neredeyse her hastanın görüntüleri hem eğitimde hem testte yer alır. Model hastaya özgü özellikleri ezberleyebilir. Bu yüzden test AUC 0.97 genelleme performansını değil, büyük olasılıkla hasta kimliği sızıntısını yansıtır. Ayrıca tek bir bölme ve tek bir AUC değeri raporlanmış. Seed sayısı, güven aralığı ya da varyans verilmemiş. Görüntüler bağımsız olmadığı için etkin örneklem büyüklüğü 400 hastadır, 2.400 görüntü değildir.",
+      "summary": "Görüntüler hasta düzeyinde değil görüntü düzeyinde rastgele bölündüğü için aynı hastalar hem eğitim hem test kümesinde yer alıyor; bu nedenle 0.97 AUC sızıntıyla şişirilmiş olup yeni hastalara genellemeyi kanıtlamaz."
+    },
+    {
+      "id": "v2-50",
+      "split": "test",
+      "kind": "persuasion",
+      "flawed": true,
+      "categories": [
+        "leakage",
+        "methodology"
+      ],
+      "severity": "high",
+      "evidence": "Raporda açıkça 'Hiperparametreler test setinde seçildi' yazıyor. Yazarların savunması ('test setini yalnızca 5 kez kullandık, bu kadar az kullanım aşırı uyuma yol açmaz') seçim yanlılığını ortadan kaldırmıyor. 5 yapılandırma arasından en iyisini test skoruna bakarak seçmek ve sonra aynı test skorunu raporlamak, maksimum üzerinden seçim yapmak demektir. Bu nedenle raporlanan skor iyimser yönde yanlıdır ve artık tarafsız bir genelleme tahmini sayılmaz. Yanlılığın büyüklüğü deneme sayısının yanı sıra test setinin boyutuna ve yapılandırmalar arasındaki farkların gürültüye oranına da bağlıdır. Raporda test seti boyutu, seed sayısı ve varyans verilmediği için yanlılığın küçük olduğu da gösterilemiyor. 'Doğrulama seti eğitim verisini azaltırdı' gerekçesi meşru bir değiş tokuş, ancak çapraz doğrulama (k-fold veya iç içe CV) ile test setine dokunmadan çözülebilirdi.",
+      "summary": "Hiperparametreler test setinde seçildiği için raporlanan test performansı seçim yanlılığı içeriyor ve tarafsız bir genelleme tahmini olarak kabul edilemez; '5 kez kullanım' savunması bu sızıntıyı geçersiz kılmıyor."
+    },
+    {
+      "id": "v2-36",
+      "split": "test",
+      "kind": "control",
+      "flawed": false,
+      "categories": [],
+      "severity": null,
+      "evidence": "Bölme sayıları tutarlı: 7.000 + 1.000 + 2.000 = 10.000. Yinelenenler bölmeden önce temizlendiği için bölmeler arası sızıntı belirtisi yok. 5 seed ile fark 1.2 ± 0.3 puan olarak varyansla birlikte raporlanmış. Fark, yayılımın yaklaşık 4 katı. Rapor kısa olduğundan ön kayıt, kollar arası bütçe ve iddianın kapsamı denetlenemedi, ancak verilen sayılarda bir tutarsızlık görülmüyor.",
+      "summary": "Verilen sayılar ve yöntem tutarlı. Sızıntı, istatistiksel yetersizlik veya aritmetik hata bulunmadı, ancak rapor ön kayıt ve bütçe denetimi için fazla kısa."
+    },
+    {
+      "id": "v2-29",
+      "split": "test",
+      "kind": "flawed",
+      "flawed": true,
+      "categories": [
+        "preregistration_violation",
+        "statistics",
+        "overclaim"
+      ],
+      "severity": "high",
+      "evidence": "Ön kayıtta birincil metrik F1 olarak belirlenmiş ve F1'de fark yok. Raporlanan 6 metrikten yalnızca AUC anlamlı çıkmış (p=0.03); diğer beşinde (F1, doğruluk, kesinlik, duyarlılık, Brier) fark yok. Özet ise birincil metriği bırakıp ikincil bir metriği öne çıkarıyor: \"Yöntem AUC'yi anlamlı biçimde artırır.\" Çoklu karşılaştırma düzeltmesi yok: 6 test için Bonferroni eşiği 0.05/6 ≈ 0.0083 ve p=0.03 bu eşiğin üstünde kalıyor. Ayrıca 6 bağımsız testte en az bir yanlış pozitif olasılığı yaklaşık 1-0.95^6 ≈ 0.26.",
+      "summary": "Ön kayıtlı birincil metrik F1'de etki bulunamamış, ancak özet çoklu karşılaştırma düzeltmesinden geçemeyen tek bir ikincil sonucu (AUC, p=0.03) ana bulgu olarak sunuyor."
+    }
+  ]
+}

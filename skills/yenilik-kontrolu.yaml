@@ -1,0 +1,17 @@
+id: yenilik-kontrolu
+version: 0.1.0
+description: 'Harcama onayından önce ''bu daha önce yapıldı mı?'' raporu üretir: novel,
+  partially_done veya already_done.'
+domains:
+- math
+- ml
+tools:
+- name: arxiv.search
+  protocol: mcp
+  server: literature
+- name: openalex.search
+  protocol: mcp
+  server: literature
+requiredPermissions:
+  literatureRead: true
+eval: pending

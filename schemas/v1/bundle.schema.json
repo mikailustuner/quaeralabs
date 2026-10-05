@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:bundle",
+  "title": "Araştırma paketi",
+  "description": "Bir araştırmanın tüm nesnelerini taşıyan dışa aktarım. Her nesne kendi türünün şemasıyla ayrıca doğrulanır.",
+  "type": "object",
+  "required": ["schemaVersion", "title", "objects"],
+  "properties": {
+    "schemaVersion": { "const": "v1" },
+    "title": { "type": "string" },
+    "note": { "type": "string" },
+    "objects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["question", "hypothesis", "preregistration", "experiment", "run", "result", "critique", "evidence_link", "verification", "artifact", "message"] }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

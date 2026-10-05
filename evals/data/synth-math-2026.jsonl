@@ -1,0 +1,30 @@
+{"name": "qsm_linear_0", "template": "linear", "formal_statement": "theorem qsm_linear_0 (x y : ℝ) (h₀ : -6 * x + 1 * y = ((-101 : ℝ) / 2)) (h₁ : 7 * x + 7 * y = ((77 : ℝ) / 2)) :\n    x = (8 : ℝ) ∧ y = ((-5 : ℝ) / 2) := by\n"}
+{"name": "qsm_linear_1", "template": "linear", "formal_statement": "theorem qsm_linear_1 (x y : ℝ) (h₀ : 9 * x + 8 * y = (-78 : ℝ)) (h₁ : 6 * x + 9 * y = (-96 : ℝ)) :\n    x = (2 : ℝ) ∧ y = (-12 : ℝ) := by\n"}
+{"name": "qsm_linear_2", "template": "linear", "formal_statement": "theorem qsm_linear_2 (x y : ℝ) (h₀ : -6 * x + 0 * y = (24 : ℝ)) (h₁ : -6 * x + 5 * y = ((93 : ℝ) / 2)) :\n    x = (-4 : ℝ) ∧ y = ((9 : ℝ) / 2) := by\n"}
+{"name": "qsm_powmod_0", "template": "powmod", "formal_statement": "theorem qsm_powmod_0 : (8 ^ 70) % 17 = 4 := by\n"}
+{"name": "qsm_powmod_1", "template": "powmod", "formal_statement": "theorem qsm_powmod_1 : (13 ^ 65) % 23 = 16 := by\n"}
+{"name": "qsm_powmod_2", "template": "powmod", "formal_statement": "theorem qsm_powmod_2 : (18 ^ 29) % 19 = 18 := by\n"}
+{"name": "qsm_quad_pos_0", "template": "quad_pos", "formal_statement": "theorem qsm_quad_pos_0 (x : ℝ) : 0 < 2 * x ^ 2 + 2 * x + 18 := by\n"}
+{"name": "qsm_quad_pos_1", "template": "quad_pos", "formal_statement": "theorem qsm_quad_pos_1 (x : ℝ) : 0 < 5 * x ^ 2 + -6 * x + 15 := by\n"}
+{"name": "qsm_quad_pos_2", "template": "quad_pos", "formal_statement": "theorem qsm_quad_pos_2 (x : ℝ) : 0 < 3 * x ^ 2 + 13 * x + 21 := by\n"}
+{"name": "qsm_sum_0", "template": "sum", "formal_statement": "theorem qsm_sum_0 (n : ℕ) :\n    2 * ∑ i ∈ Finset.range n, (5 * i + 0) + 5 * n = n * (5 * n + 0) := by\n"}
+{"name": "qsm_sum_1", "template": "sum", "formal_statement": "theorem qsm_sum_1 (n : ℕ) :\n    2 * ∑ i ∈ Finset.range n, (6 * i + 5) + 6 * n = n * (6 * n + 10) := by\n"}
+{"name": "qsm_sum_2", "template": "sum", "formal_statement": "theorem qsm_sum_2 (n : ℕ) :\n    2 * ∑ i ∈ Finset.range n, (8 * i + 6) + 8 * n = n * (8 * n + 12) := by\n"}
+{"name": "qsm_recurrence_0", "template": "recurrence", "formal_statement": "theorem qsm_recurrence_0 (u : ℕ → ℕ) (h₀ : u 0 = 4) (h₁ : ∀ n, u (n + 1) = 3 * u n + 3) :\n    u 4 = 444 := by\n"}
+{"name": "qsm_recurrence_1", "template": "recurrence", "formal_statement": "theorem qsm_recurrence_1 (u : ℕ → ℕ) (h₀ : u 0 = 4) (h₁ : ∀ n, u (n + 1) = 3 * u n + 3) :\n    u 4 = 444 := by\n"}
+{"name": "qsm_recurrence_2", "template": "recurrence", "formal_statement": "theorem qsm_recurrence_2 (u : ℕ → ℕ) (h₀ : u 0 = 2) (h₁ : ∀ n, u (n + 1) = 3 * u n + 4) :\n    u 7 = 8746 := by\n"}
+{"name": "qsm_count_0", "template": "count", "formal_statement": "theorem qsm_count_0 : ((Finset.range 132).filter (fun n => n % 6 = 4)).card = 22 := by\n"}
+{"name": "qsm_count_1", "template": "count", "formal_statement": "theorem qsm_count_1 : ((Finset.range 126).filter (fun n => n % 9 = 0)).card = 14 := by\n"}
+{"name": "qsm_count_2", "template": "count", "formal_statement": "theorem qsm_count_2 : ((Finset.range 133).filter (fun n => n % 4 = 1)).card = 33 := by\n"}
+{"name": "qsm_amgm_0", "template": "amgm", "formal_statement": "theorem qsm_amgm_0 (x y : ℝ) (h₀ : x + y = 28) : x * y ≤ (196 : ℝ) := by\n"}
+{"name": "qsm_amgm_1", "template": "amgm", "formal_statement": "theorem qsm_amgm_1 (x y : ℝ) (h₀ : x + y = 3) : x * y ≤ ((9 : ℝ) / 4) := by\n"}
+{"name": "qsm_amgm_2", "template": "amgm", "formal_statement": "theorem qsm_amgm_2 (x y : ℝ) (h₀ : x + y = 24) : x * y ≤ (144 : ℝ) := by\n"}
+{"name": "qsm_gcd_0", "template": "gcd", "formal_statement": "theorem qsm_gcd_0 : Nat.gcd 27510 7175 = 35 := by\n"}
+{"name": "qsm_gcd_1", "template": "gcd", "formal_statement": "theorem qsm_gcd_1 : Nat.gcd 34639 25333 = 517 := by\n"}
+{"name": "qsm_gcd_2", "template": "gcd", "formal_statement": "theorem qsm_gcd_2 : Nat.gcd 7840 18976 = 32 := by\n"}
+{"name": "qsm_divisible_0", "template": "divisible", "formal_statement": "theorem qsm_divisible_0 (n : ℕ) : 2 ∣ (n + 0) * (n + 1) := by\n"}
+{"name": "qsm_divisible_1", "template": "divisible", "formal_statement": "theorem qsm_divisible_1 (n : ℕ) : 6 ∣ (n + 5) * (n + 6) * (n + 7) * (n + 8) * (n + 9) * (n + 10) := by\n"}
+{"name": "qsm_divisible_2", "template": "divisible", "formal_statement": "theorem qsm_divisible_2 (n : ℕ) : 3 ∣ (n + 5) * (n + 6) * (n + 7) := by\n"}
+{"name": "qsm_compose_0", "template": "compose", "formal_statement": "theorem qsm_compose_0 (f g : ℝ → ℝ) (hf : ∀ x, f x = 1 * x + 8) (hg : ∀ x, g x = -2 * x + 8) :\n    f (g (1)) = 14 := by\n"}
+{"name": "qsm_compose_1", "template": "compose", "formal_statement": "theorem qsm_compose_1 (f g : ℝ → ℝ) (hf : ∀ x, f x = 4 * x + 0) (hg : ∀ x, g x = 2 * x + 7) :\n    f (g (2)) = 44 := by\n"}
+{"name": "qsm_compose_2", "template": "compose", "formal_statement": "theorem qsm_compose_2 (f g : ℝ → ℝ) (hf : ∀ x, f x = 6 * x + 3) (hg : ∀ x, g x = 0 * x + -3) :\n    f (g (-1)) = -15 := by\n"}

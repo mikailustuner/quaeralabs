@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:preregistration",
+  "title": "Ön kayıt (PRE)",
+  "description": "Deney çalışmadan önce kilitlenen analiz planı. contentHash, kilitlenen alanların kanonik JSON özetidir; sonradan yapılan her değişiklik bir değişiklik kaydı olarak eklenir ve raporda görünür.",
+  "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
+  "required": ["hypothesisId", "primaryMetric", "successCriterion", "analysisPlan", "lockedAt", "contentHash"],
+  "properties": {
+    "id": { "pattern": "^PRE-" },
+    "type": { "const": "preregistration" },
+    "hypothesisId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "primaryMetric": { "type": "string", "minLength": 1 },
+    "successCriterion": { "type": "string", "minLength": 5, "description": "Hipotezi destekleyen ya da çürüten sonucun önceden yazılmış tanımı" },
+    "analysisPlan": { "type": "string", "minLength": 10 },
+    "seeds": { "type": "integer", "minimum": 1 },
+    "lockedAt": { "$ref": "urn:quaeralabs:v1:common#/$defs/timestamp" },
+    "contentHash": { "$ref": "urn:quaeralabs:v1:common#/$defs/sha256" },
+    "amendments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at", "reason", "by", "change"],
+        "properties": {
+          "at": { "$ref": "urn:quaeralabs:v1:common#/$defs/timestamp" },
+          "reason": { "type": "string", "minLength": 5 },
+          "change": { "type": "string", "minLength": 3 },
+          "by": { "$ref": "urn:quaeralabs:v1:common#/$defs/actor" },
+          "afterResultsSeen": { "type": "boolean", "description": "Değişiklik sonuçlar görüldükten sonra mı yapıldı? true ise raporda uyarı olarak gösterilir." }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "unevaluatedProperties": false
+}

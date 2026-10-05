@@ -1,0 +1,188 @@
+{
+  "createdAt": "2026-10-04T14:47:38+00:00",
+  "complete": true,
+  "tasks": 10,
+  "correct": 10,
+  "correct_and_reproduced": 10,
+  "per_class_correct_and_reproduced": {
+    "yes": 5,
+    "no": 5
+  },
+  "always_no_baseline": 5,
+  "gate_min": 8,
+  "gate_min_per_class": 4,
+  "passed": true,
+  "spent_usd": 3.3013,
+  "rows": [
+    {
+      "id": "syn-01",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "/data/train.npz üzerinde varsayılan ayarlarla (L2 düzenlileştirme, C=1.0, özellikler standartlaştırılmış) eğitilen lojistik regresyon, /data/test.npz üzerinde %75'ten yüksek doğruluk elde eder."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.2666,
+      "data_seed": 819091965,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-01"
+    },
+    {
+      "id": "syn-02",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "Aynı sınıflandırıcı (ör. lojistik regresyon ve gradyan artırmalı ağaçlar, sabit hiperparametreler) /data/train.npz üzerinde önce üç özellikle, sonra sütun 2 çıkarılarak (yalnızca sütun 0 ve 1 ile) eğitilip /data/test.npz üzerinde değerlendirildiğinde, test doğruluğu 1 yüzde puanından fazla düşer. Düşüş, birden çok tohumda tutarlı biçimde görülür ve bootstrap güven aralığının alt sınırı 1 puanın üzerindedir."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.388,
+      "data_seed": 269931359,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-02"
+    },
+    {
+      "id": "syn-03",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "Eğitim setinde eğitilen standart bir ikili sınıflandırıcı (ör. lojistik regresyon), test_b üzerinde test_a'ya göre en fazla 5 yüzde puan daha düşük doğruluk elde eder; yani acc(test_a) − acc(test_b) ≤ 5 puandır."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.4032,
+      "data_seed": 545300865,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-03"
+    },
+    {
+      "id": "syn-04",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "refuted",
+        "statement": "Hedef y, x'in monoton bir fonksiyonudur: train verisinde artan ve azalan izotonik regresyon uydurulduğunda, iki yönden en az biri test kümesinde kısıtsız esnek bir regresöre (ör. k-NN veya gradyan artırmalı ağaç) yakın hata verir; yani monotonluk kısıtı açıklanabilir varyansı anlamlı ölçüde düşürmez."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3097,
+      "data_seed": 463889217,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-04"
+    },
+    {
+      "id": "syn-05",
+      "truth": "yes",
+      "answer": "yes",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "supported",
+        "statement": "Eğitim verisi sütun 1'in işaretine göre iki alt kümeye (x1 > 0 ve x1 < 0) ayrılıp her alt kümede y ~ x0 doğrusal regresyonu (kesişim dahil) ayrı ayrı uydurulduğunda, x0 eğim katsayılarının işaretleri zıt olur ve her iki eğimin bootstrap %95 güven aralığı sıfırı içermez."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3749,
+      "data_seed": 258348209,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-05"
+    },
+    {
+      "id": "syn-06",
+      "truth": "yes",
+      "answer": "yes",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "supported",
+        "statement": "Aynı eğitim/test ayrımında (/data/train.npz ile eğitim, /data/test.npz ile değerlendirme), tek gizli katmanlı bir MLP'nin test doğruluğu, lojistik regresyonun test doğruluğunu en az 10 yüzde puanı aşar. MLP için küçük bir gizli katman genişliği ızgarası (ör. 8, 16, 32, 64 nöron) kullanılır. Bu ızgara ve düzenlileştirme seçimi yalnızca eğitim kümesi içinde çapraz doğrulama ile yapılır. Sonuç birden fazla rastgele tohumla (ör. 10 tohum) raporlanır."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3438,
+      "data_seed": 864394561,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-06"
+    },
+    {
+      "id": "syn-07",
+      "truth": "yes",
+      "answer": "yes",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "supported",
+        "statement": "Aynı model sınıfı ve aynı hiperparametrelerle (ör. lojistik regresyon ve gradyan artırmalı ağaçlar, sabit tohumlarla) eğitildiğinde, sütun 0 çıkarılarak yalnızca sütun 1 ve 2 ile eğitilen modelin /data/test.npz üzerindeki test doğruluğu, üç özelliğin tamamıyla eğitilen modele göre 5 yüzde puanından fazla düşer."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.2885,
+      "data_seed": 551490281,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-07"
+    },
+    {
+      "id": "syn-08",
+      "truth": "yes",
+      "answer": "yes",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "supported",
+        "statement": "Eğitim setinde (/data/train.npz) en sık görülen sınıf c* olsun. Her örnek için sabit olarak c* tahmin eden modelin test setindeki (/data/test.npz) doğruluğu, test etiketlerinde c*'nin oranına eşittir. Hipotez: bu oran 0.80'den büyüktür, yani mean(y_test == c*) > 0.80."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.2803,
+      "data_seed": 936941533,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-08"
+    },
+    {
+      "id": "syn-09",
+      "truth": "yes",
+      "answer": "yes",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "supported",
+        "statement": "/data/train.npz üzerinde eğitilen tek gizli katmanlı bir MLP (ör. 32 gizli birim, ReLU, Adam, erken durdurma; gizli birim sayısı ve öğrenme oranı yalnızca eğitim verisinden ayrılan doğrulama kümesiyle seçilir), /data/test.npz üzerinde en küçük kareler doğrusal regresyonundan daha düşük test MSE elde eder. Bu fark, en az 10 farklı rastgele tohumla tekrarlanan eğitimlerin ortalamasında görülür."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3601,
+      "data_seed": 221102706,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-09"
+    },
+    {
+      "id": "syn-10",
+      "truth": "no",
+      "answer": "no",
+      "correct": true,
+      "reproduced": true,
+      "counts": true,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "supported",
+        "statement": "Aynı hiperparametreler ve aynı random_state ile eğitilen karar ağacında, özellikleri standartlaştırmak (ortalama ve varyans yalnızca eğitim setinden hesaplanır) test doğruluğunu 1 puandan fazla değiştirmez. Beklenen fark |Δdoğruluk| ≈ 0'dır. Gerekçe şudur: standartlaştırma her özelliğe ayrı ayrı uygulanan, artan bir afin dönüşümdür (pozitif ölçekle çarpma ve kaydırma). Bu dönüşüm her özellikteki örnek sıralamasını korur. Bu nedenle olası bölünmelerin kümesi ve her bölünmenin saflık kazancı değişmez."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.2862,
+      "data_seed": 752366883,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-10"
+    }
+  ]
+}

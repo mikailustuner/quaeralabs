@@ -1,0 +1,17 @@
+id: temiz-ortam-kurulumu
+version: 0.1.0
+description: Kaydedilmiş ortamdan (lockfile, container özeti) sıfırdan temiz bir sandbox
+  kurar.
+domains:
+- math
+- ml
+tools:
+- name: sandbox.create_clean
+  protocol: mcp
+  server: sandbox
+- name: sandbox.exec
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeExecute: clean_sandbox
+eval: pending

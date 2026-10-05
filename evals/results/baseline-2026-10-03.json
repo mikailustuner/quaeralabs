@@ -1,0 +1,413 @@
+{
+  "createdAt": "2026-10-03T21:43:30+00:00",
+  "results": {
+    "critic-majority": {
+      "runner": "critic-majority (LLM değil; alt sınır)",
+      "majority_category": "statistics",
+      "category_counts": {
+        "leakage": 3,
+        "statistics": 6,
+        "preregistration_violation": 3,
+        "confound": 4,
+        "methodology": 5,
+        "overclaim": 4,
+        "implementation": 4,
+        "citation": 1
+      },
+      "flawed_cases": 30,
+      "caught": 6,
+      "catch_rate": 0.2,
+      "control_cases": 6,
+      "false_alarms": 6,
+      "false_alarm_rate": 1.0
+    },
+    "citations": {
+      "runner": "tools/citations.py (canlı arXiv + Crossref)",
+      "cases": 14,
+      "correct": 14,
+      "accuracy": 1.0,
+      "fake_accepted": 0,
+      "unknown": 0,
+      "rows": [
+        {
+          "id": "cit-01",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-02",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-03",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-04",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-05",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-06",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-07",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-08",
+          "expected": "real",
+          "got": "real"
+        },
+        {
+          "id": "cit-09",
+          "expected": "fake",
+          "got": "fake"
+        },
+        {
+          "id": "cit-10",
+          "expected": "fake",
+          "got": "fake"
+        },
+        {
+          "id": "cit-11",
+          "expected": "fake",
+          "got": "fake"
+        },
+        {
+          "id": "cit-12",
+          "expected": "fake",
+          "got": "fake"
+        },
+        {
+          "id": "cit-13",
+          "expected": "fake",
+          "got": "fake"
+        },
+        {
+          "id": "cit-14",
+          "expected": "fake",
+          "got": "fake"
+        }
+      ]
+    },
+    "critic-llm": {
+      "runner": "LLM Eleştirmen (claude-opus-5-5, Claude Code alt ajanı, kör, tek deneme, varsayılan prompt; QuaeraLabs promptu değil)",
+      "flawed_cases": 30,
+      "detected": 30,
+      "detection_rate": 1.0,
+      "category_match": 26,
+      "category_match_rate": 0.867,
+      "control_cases": 6,
+      "false_alarms": 0,
+      "false_alarm_rate": 0.0,
+      "missed": [],
+      "category_mismatches": [
+        "ct-07: beklenen implementation, verilen leakage",
+        "ct-15: beklenen overclaim, verilen statistics",
+        "ct-18: beklenen statistics, verilen leakage",
+        "ct-30: beklenen methodology, verilen leakage"
+      ],
+      "rows": [
+        {
+          "id": "cc-01",
+          "kind": "control",
+          "expected": null,
+          "flagged": false,
+          "got": null,
+          "reason": "Controlled setup, preregistered metric, effect clearly exceeds variance, limitations stated."
+        },
+        {
+          "id": "cc-02",
+          "kind": "control",
+          "expected": null,
+          "flagged": false,
+          "got": null,
+          "reason": "Sorry-free compilation independently reproduced in a clean environment."
+        },
+        {
+          "id": "cc-03",
+          "kind": "control",
+          "expected": null,
+          "flagged": false,
+          "got": null,
+          "reason": "Negative result honestly reported with adequate seeds."
+        },
+        {
+          "id": "cc-04",
+          "kind": "control",
+          "expected": null,
+          "flagged": false,
+          "got": null,
+          "reason": "Preregistration change made before results, documented and justified."
+        },
+        {
+          "id": "cc-05",
+          "kind": "control",
+          "expected": null,
+          "flagged": false,
+          "got": null,
+          "reason": "Equal tuning budget, selection on validation, reported on test."
+        },
+        {
+          "id": "cc-06",
+          "kind": "control",
+          "expected": null,
+          "flagged": false,
+          "got": null,
+          "reason": "Fully pinned randomness and environment, reproduced across two model families."
+        },
+        {
+          "id": "ct-01",
+          "kind": "flawed",
+          "expected": "leakage",
+          "flagged": true,
+          "got": "leakage",
+          "reason": "Validation overlaps with training sentences, inflating the 98%."
+        },
+        {
+          "id": "ct-02",
+          "kind": "flawed",
+          "expected": "statistics",
+          "flagged": true,
+          "got": "statistics",
+          "reason": "Single-seed 0.006 difference cannot establish superiority."
+        },
+        {
+          "id": "ct-03",
+          "kind": "flawed",
+          "expected": "preregistration_violation",
+          "flagged": true,
+          "got": "preregistration_violation",
+          "reason": "Switched primary metric from accuracy to F1 after a null result."
+        },
+        {
+          "id": "ct-04",
+          "kind": "flawed",
+          "expected": "confound",
+          "flagged": true,
+          "got": "confound",
+          "reason": "New optimizer trained twice as long, confounding the comparison."
+        },
+        {
+          "id": "ct-05",
+          "kind": "flawed",
+          "expected": "methodology",
+          "flagged": true,
+          "got": "methodology",
+          "reason": "Hyperparameters tuned on the test set and best test score reported."
+        },
+        {
+          "id": "ct-06",
+          "kind": "flawed",
+          "expected": "overclaim",
+          "flagged": true,
+          "got": "overclaim",
+          "reason": "A single 20M model cannot support a claim about all language models."
+        },
+        {
+          "id": "ct-07",
+          "kind": "flawed",
+          "expected": "implementation",
+          "flagged": true,
+          "got": "leakage",
+          "reason": "Labels appear in the input tensor, explaining the near-zero loss."
+        },
+        {
+          "id": "ct-08",
+          "kind": "flawed",
+          "expected": "statistics",
+          "flagged": true,
+          "got": "statistics",
+          "reason": "p=0.04 among 12 metrics without multiple-comparison correction."
+        },
+        {
+          "id": "ct-09",
+          "kind": "flawed",
+          "expected": "methodology",
+          "flagged": true,
+          "got": "methodology",
+          "reason": "Untuned old baseline vs 40-trial tuned method is an unfair comparison."
+        },
+        {
+          "id": "ct-10",
+          "kind": "flawed",
+          "expected": "citation",
+          "flagged": true,
+          "got": "citation",
+          "reason": "Cited arXiv ID does not resolve and looks fabricated."
+        },
+        {
+          "id": "ct-11",
+          "kind": "flawed",
+          "expected": "statistics",
+          "flagged": true,
+          "got": "statistics",
+          "reason": "Reporting the best 3 of 5 seeds is cherry-picking."
+        },
+        {
+          "id": "ct-12",
+          "kind": "flawed",
+          "expected": "leakage",
+          "flagged": true,
+          "got": "leakage",
+          "reason": "Possible pretraining contamination unchecked yet attributed to reasoning."
+        },
+        {
+          "id": "ct-13",
+          "kind": "flawed",
+          "expected": "confound",
+          "flagged": true,
+          "got": "confound",
+          "reason": "Data loader differs between conditions, so the effect cannot be attributed to warmup."
+        },
+        {
+          "id": "ct-14",
+          "kind": "flawed",
+          "expected": "preregistration_violation",
+          "flagged": true,
+          "got": "preregistration_violation",
+          "reason": "Seed count raised after seeing results and not disclosed."
+        },
+        {
+          "id": "ct-15",
+          "kind": "flawed",
+          "expected": "overclaim",
+          "flagged": true,
+          "got": "statistics",
+          "reason": "A 0.003 gain with std 0.01 over 3 seeds is within noise, not a clear improvement."
+        },
+        {
+          "id": "ct-16",
+          "kind": "flawed",
+          "expected": "implementation",
+          "flagged": true,
+          "got": "implementation",
+          "reason": "Eval script uses only the first 100 examples but is reported as the full test set."
+        },
+        {
+          "id": "ct-17",
+          "kind": "flawed",
+          "expected": "methodology",
+          "flagged": true,
+          "got": "methodology",
+          "reason": "Without ablation, the gain cannot be attributed to the second change."
+        },
+        {
+          "id": "ct-18",
+          "kind": "flawed",
+          "expected": "statistics",
+          "flagged": true,
+          "got": "leakage",
+          "reason": "Same validation set used for early stopping and as the final reported result."
+        },
+        {
+          "id": "ct-19",
+          "kind": "flawed",
+          "expected": "confound",
+          "flagged": true,
+          "got": "confound",
+          "reason": "Different hardware and precision between conditions confound speed and loss."
+        },
+        {
+          "id": "ct-20",
+          "kind": "flawed",
+          "expected": "overclaim",
+          "flagged": true,
+          "got": "overclaim",
+          "reason": "Proof relies on sorry lemmas, so it is not formally verified."
+        },
+        {
+          "id": "ct-21",
+          "kind": "flawed",
+          "expected": "implementation",
+          "flagged": true,
+          "got": "implementation",
+          "reason": "Unseeded shuffle RNG means exact reproducibility claim is false."
+        },
+        {
+          "id": "ct-22",
+          "kind": "flawed",
+          "expected": "methodology",
+          "flagged": true,
+          "got": "methodology",
+          "reason": "Baseline copied from a paper with a different split and tokenizer is incomparable."
+        },
+        {
+          "id": "ct-23",
+          "kind": "flawed",
+          "expected": "statistics",
+          "flagged": true,
+          "got": "statistics",
+          "reason": "Heavily overlapping confidence intervals do not support superiority."
+        },
+        {
+          "id": "ct-24",
+          "kind": "flawed",
+          "expected": "leakage",
+          "flagged": true,
+          "got": "leakage",
+          "reason": "Normalization statistics computed including the test set."
+        },
+        {
+          "id": "ct-25",
+          "kind": "flawed",
+          "expected": "overclaim",
+          "flagged": true,
+          "got": "overclaim",
+          "reason": "Perfect score on a synthetic toy task does not show general mathematical reasoning."
+        },
+        {
+          "id": "ct-26",
+          "kind": "flawed",
+          "expected": "preregistration_violation",
+          "flagged": true,
+          "got": "preregistration_violation",
+          "reason": "Success threshold loosened after seeing the result."
+        },
+        {
+          "id": "ct-27",
+          "kind": "flawed",
+          "expected": "confound",
+          "flagged": true,
+          "got": "confound",
+          "reason": "Conditions differ in library version and run day."
+        },
+        {
+          "id": "ct-28",
+          "kind": "flawed",
+          "expected": "implementation",
+          "flagged": true,
+          "got": "implementation",
+          "reason": "Case-sensitive exact-match metric marks correct answers wrong."
+        },
+        {
+          "id": "ct-29",
+          "kind": "flawed",
+          "expected": "statistics",
+          "flagged": true,
+          "got": "statistics",
+          "reason": "5 vs 4 out of 8 problems cannot be significant."
+        },
+        {
+          "id": "ct-30",
+          "kind": "flawed",
+          "expected": "methodology",
+          "flagged": true,
+          "got": "leakage",
+          "reason": "Fine-tuned on the benchmark's own solutions, so the score is not generalization."
+        }
+      ]
+    }
+  }
+}

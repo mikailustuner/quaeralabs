@@ -1,0 +1,21 @@
+{"name": "qsm_ind_div_0", "template": "ind_div", "formal_statement": "theorem qsm_ind_div_0 (n : ℕ) : 14 ∣ 5 ^ (2 * n + 1) + 11 ^ (n + 2) := by\n"}
+{"name": "qsm_ind_div_1", "template": "ind_div", "formal_statement": "theorem qsm_ind_div_1 (n : ℕ) : 27 ∣ 8 ^ (2 * n + 1) + 10 ^ (n + 2) := by\n"}
+{"name": "qsm_ind_div_2", "template": "ind_div", "formal_statement": "theorem qsm_ind_div_2 (n : ℕ) : 12 ∣ 11 ^ (2 * n + 1) + 13 ^ (n + 2) := by\n"}
+{"name": "qsm_fermat_poly_0", "template": "fermat_poly", "formal_statement": "theorem qsm_fermat_poly_0 (n : ℤ) : 30 ∣ n ^ 9 - n := by\n"}
+{"name": "qsm_fermat_poly_1", "template": "fermat_poly", "formal_statement": "theorem qsm_fermat_poly_1 (n : ℤ) : 510 ∣ n ^ 17 - n := by\n"}
+{"name": "qsm_fermat_poly_2", "template": "fermat_poly", "formal_statement": "theorem qsm_fermat_poly_2 (n : ℤ) : 42 ∣ n ^ 7 - n := by\n"}
+{"name": "qsm_mod_powers_0", "template": "mod_powers", "formal_statement": "theorem qsm_mod_powers_0 (x y : ℤ) : (x ^ 3 + y ^ 3) % 9 ≠ 6 := by\n"}
+{"name": "qsm_mod_powers_1", "template": "mod_powers", "formal_statement": "theorem qsm_mod_powers_1 (x y z : ℤ) : (x ^ 2 + y ^ 2 + z ^ 2) % 8 ≠ 7 := by\n"}
+{"name": "qsm_mod_powers_2", "template": "mod_powers", "formal_statement": "theorem qsm_mod_powers_2 (x y : ℤ) : (x ^ 3 + y ^ 3) % 9 ≠ 3 := by\n"}
+{"name": "qsm_ineq3_0", "template": "ineq3", "formal_statement": "theorem qsm_ineq3_0 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :\n    a ^ 2 / b + b ^ 2 / c + c ^ 2 / a ≥ a + b + c := by\n"}
+{"name": "qsm_ineq3_1", "template": "ineq3", "formal_statement": "theorem qsm_ineq3_1 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :\n    (a + b + c) * (1 / a + 1 / b + 1 / c) ≥ 9 := by\n"}
+{"name": "qsm_ineq3_2", "template": "ineq3", "formal_statement": "theorem qsm_ineq3_2 (a b c : ℝ) (ha : 0 < a) (hb : 0 < b) (hc : 0 < c) :\n    a / b + b / c + c / a ≥ 3 := by\n"}
+{"name": "qsm_fib_identity_0", "template": "fib_identity", "formal_statement": "theorem qsm_fib_identity_0 (n : ℕ) :\n    ∑ i ∈ Finset.range n, Nat.fib i + 1 = Nat.fib (n + 1) := by\n"}
+{"name": "qsm_fib_identity_1", "template": "fib_identity", "formal_statement": "theorem qsm_fib_identity_1 (n : ℕ) :\n    Nat.fib (2 * n + 1) = Nat.fib n ^ 2 + Nat.fib (n + 1) ^ 2 := by\n"}
+{"name": "qsm_fib_identity_2", "template": "fib_identity", "formal_statement": "theorem qsm_fib_identity_2 (n : ℕ) :\n    (Nat.fib (n + 2) : ℤ) * Nat.fib n - (Nat.fib (n + 1) : ℤ) ^ 2 = (-1) ^ (n + 1) := by\n"}
+{"name": "qsm_gcd_linear_0", "template": "gcd_linear", "formal_statement": "theorem qsm_gcd_linear_0 (n : ℕ) : Nat.gcd (3 * n + 11) (14 * n + 51) = 1 := by\n"}
+{"name": "qsm_gcd_linear_1", "template": "gcd_linear", "formal_statement": "theorem qsm_gcd_linear_1 (n : ℕ) : Nat.gcd (5 * n + 12) (22 * n + 53) = 1 := by\n"}
+{"name": "qsm_gcd_linear_2", "template": "gcd_linear", "formal_statement": "theorem qsm_gcd_linear_2 (n : ℕ) : Nat.gcd (4 * n + 7) (29 * n + 51) = 1 := by\n"}
+{"name": "qsm_no_rational_root_0", "template": "no_rational_root", "formal_statement": "theorem qsm_no_rational_root_0 : ¬ ∃ q : ℚ, q ^ 3 = 13 := by\n"}
+{"name": "qsm_no_rational_root_1", "template": "no_rational_root", "formal_statement": "theorem qsm_no_rational_root_1 : ¬ ∃ q : ℚ, q ^ 2 = 48 := by\n"}
+{"name": "qsm_no_rational_root_2", "template": "no_rational_root", "formal_statement": "theorem qsm_no_rational_root_2 : ¬ ∃ q : ℚ, q ^ 3 = 56 := by\n"}

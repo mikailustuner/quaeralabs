@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:common",
+  "title": "QuaeraLabs ortak tanımlar",
+  "description": "Tüm araştırma nesnelerinin paylaştığı kimlik, aktör, revizyon ve onay tanımları.",
+  "$defs": {
+    "publicId": {
+      "description": "İnsan tarafından okunabilir kalıcı kimlik. Önek nesne türünü belirtir; URL değişse de kimlik değişmez.",
+      "type": "string",
+      "pattern": "^(Q|H|PRE|E|RUN|RES|CR|EL|VER|ART|MSG)-[0-9]{4,}$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "domain": { "enum": ["math", "ml"] },
+    "role": {
+      "enum": ["director", "literature", "hypothesis", "experiment_designer", "engineer", "analyst", "critic", "verifier", "writer", "manager"]
+    },
+    "actor": {
+      "description": "Bir nesneyi ya da mesajı kimin ürettiği. Ajanlarda rol ve model, insanlarda kullanıcı kimliği zorunludur.",
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["agent", "human"] },
+        "role": { "$ref": "#/$defs/role" },
+        "model": { "type": "string", "minLength": 1, "description": "Sağlayıcı/model kimliği, ör. anthropic/claude-opus-5-5" },
+        "modelFamily": { "type": "string", "minLength": 1, "description": "Çapraz model kontrolü için model ailesi, ör. anthropic" },
+        "userId": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "agent" } } },
+          "then": { "required": ["role", "model", "modelFamily"], "not": { "required": ["userId"] } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "human" } } },
+          "then": { "required": ["userId"], "not": { "anyOf": [{ "required": ["role"] }, { "required": ["model"] }] } }
+        }
+      ]
+    },
+    "humanActor": {
+      "allOf": [
+        { "$ref": "#/$defs/actor" },
+        { "properties": { "kind": { "const": "human" } } }
+      ]
+    },
+    "approval": {
+      "description": "İnsan onayı kaydı. Onay her zaman bir insana aittir.",
+      "type": "object",
+      "required": ["by", "at", "decision"],
+      "properties": {
+        "by": { "$ref": "#/$defs/humanActor" },
+        "at": { "$ref": "#/$defs/timestamp" },
+        "decision": { "enum": ["approved", "rejected"] },
+        "autonomyLevel": {
+          "description": "Onayın hangi otonomi modunda verildiği. auto_under_limit modunda insan, limiti önceden onaylamıştır.",
+          "enum": ["manual", "auto_under_limit", "auto_to_budget_cap"]
+        },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "cost": {
+      "type": "object",
+      "properties": {
+        "tokensIn": { "type": "integer", "minimum": 0 },
+        "tokensOut": { "type": "integer", "minimum": 0 },
+        "usd": { "type": "number", "minimum": 0 },
+        "gpuHours": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "base": {
+      "description": "Her araştırma nesnesinin taşıdığı alanlar. Yayınlanmış bir revizyon değiştirilemez; değişiklik yeni revizyon açar.",
+      "type": "object",
+      "required": ["id", "type", "revision", "createdAt", "createdBy"],
+      "properties": {
+        "id": { "$ref": "#/$defs/publicId" },
+        "uuid": { "$ref": "#/$defs/uuid" },
+        "type": { "type": "string" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "createdAt": { "$ref": "#/$defs/timestamp" },
+        "createdBy": { "$ref": "#/$defs/actor" },
+        "branchOf": {
+          "description": "Dallanma: bu nesnenin çatallandığı kaynak nesne ve revizyon.",
+          "type": "object",
+          "required": ["id", "revision"],
+          "properties": { "id": { "$ref": "#/$defs/publicId" }, "revision": { "type": "integer", "minimum": 1 } },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}

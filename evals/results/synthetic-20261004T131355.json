@@ -1,0 +1,28 @@
+{
+  "createdAt": "2026-10-04T13:16:39+00:00",
+  "tasks": 1,
+  "correct": 0,
+  "correct_and_reproduced": 0,
+  "gate_min": 4,
+  "passed": false,
+  "spent_usd": 0.3688,
+  "rows": [
+    {
+      "id": "syn-01",
+      "truth": "no",
+      "answer": "unclear",
+      "correct": false,
+      "reproduced": false,
+      "counts": false,
+      "hypothesis": {
+        "id": "H-0001",
+        "status": "accepted",
+        "statement": "/data/train.npz üzerinde eğitilen standart lojistik regresyon (iki ham özellik, doğrusal karar sınırı, varsayılan L2 düzenlileştirme), /data/test.npz üzerinde %75'ten yüksek doğruluk elde eder."
+      },
+      "rule_violations": [],
+      "spent_usd": 0.3688,
+      "data_seed": 496260724,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T131355-syn-01"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+specVersion: 1
+role: literature
+name: Literatür
+purpose: Ne bilindiğini ve ne denendiğini çıkarır; harcamadan önce yenilik kontrolü yapar ve her kaynağı doğrulayarak alıntılar.
+model: { costProfile: cheap, effort: low }
+inputs: [question, hypothesis, experiment]
+outputs: [artifact, message]
+stages: [literature, novelty_check]
+workflow:
+  - Sorudan arama sorguları üret
+  - arXiv, Semantic Scholar, OpenAlex ve Mathlib'de ara
+  - Her kaynağı DOI veya arXiv kimliğiyle doğrula
+  - Kaynak başına bir özet yaz ve grafa ekle
+  - Deney planı onaya gitmeden önce yenilik raporu üret
+skills: [literatur-arama, kaynak-alintilama, mathlib-arama, yenilik-kontrolu]
+permissions:
+  literatureRead: true
+  graphWrite: [artifact]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  networkAllowlist: [export.arxiv.org, api.openalex.org, api.crossref.org]
+  requestApproval: false
+  sendMessages: [response, handoff]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxItemsPerTurn: 40, timeoutMinutes: 30 }
+requiresApproval: []
+isolation: {}

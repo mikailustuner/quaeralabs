@@ -1,0 +1,19 @@
+# "Bilinen bulgular" seti — seçim protokolü v0.1
+# Amaç: ajan ekibinin yayımlanmış bir ML bulgusunu sonucu bilmeden yeniden keşfedip edemediğini ölçmek.
+# Ezberden cevap vermeyi önlemek için bulgular, kullanılan TÜM modellerin bilgi kesim tarihinden
+# SONRA yayımlanmış makalelerden seçilir ve her model güncellemesinde set yenilenir.
+version: 0.1.0
+selection_rules:
+  - Makale, değerlendirilen en yeni modelin bilgi kesim tarihinden sonra arXiv'e yüklenmiş olmalı.
+  - Bulgu, tek GPU ile 24 saatten kısa sürede test edilebilir olmalı (≤50M parametre veya eşdeğeri).
+  - Makalede açık kod ve sabitlenmiş veri seti bulunmalı (Doğrulayıcı'nın referans sonucu üretebilmesi için).
+  - Bulgunun yönü tek cümleyle ifade edilebilmeli (ör. "X, Y koşulunda Z metriğini düşürür").
+  - Setin en az üçte biri negatif ya da beklenmedik sonuçlardan oluşmalı.
+grading:
+  - Ajan ekibine yalnızca soru ve ortam verilir; makale ve sonuç verilmez.
+  - "doğru": raporun ana bulgusu makalenin yönüyle aynı ve Doğrulayıcı'dan geçmiş.
+  - "yanlış": ters yön ya da Doğrulayıcı'dan geçmemiş iddia.
+  - "belirsiz": ekip kanıtın yetersiz olduğunu açıkça söylemiş (yanlıştan iyi, doğrudan kötü sayılır).
+target_size: 20
+curation_status: pending   # Faz 0 kapısı için alan danışmanı tarafından doldurulacak
+cases: []

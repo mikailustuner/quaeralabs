@@ -1,0 +1,31 @@
+{
+  "createdAt": "2026-10-04T14:01:22+00:00",
+  "complete": false,
+  "tasks": 1,
+  "correct": 0,
+  "correct_and_reproduced": 0,
+  "per_class_correct_and_reproduced": {
+    "yes": 0,
+    "no": 0
+  },
+  "always_no_baseline": 1,
+  "gate_min": 8,
+  "gate_min_per_class": 4,
+  "passed": false,
+  "spent_usd": 0.0045,
+  "rows": [
+    {
+      "id": "syn-01",
+      "truth": "no",
+      "answer": "unclear",
+      "correct": false,
+      "reproduced": false,
+      "counts": false,
+      "hypothesis": null,
+      "rule_violations": [],
+      "spent_usd": 0.0045,
+      "data_seed": 1676646004,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T140045-syn-01"
+    }
+  ]
+}

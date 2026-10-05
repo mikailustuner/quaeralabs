@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:artifact",
+  "title": "Artefakt (ART)",
+  "description": "Kod, log, veri, ispat çıktısı veya makale referansı. Mümkün olan her artefakt içerik özetiyle sabitlenir.",
+  "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
+  "required": ["kind", "uri"],
+  "properties": {
+    "id": { "pattern": "^ART-" },
+    "type": { "const": "artifact" },
+    "kind": { "enum": ["code", "log", "dataset", "model", "lean_output", "figure", "paper", "report"] },
+    "uri": { "type": "string", "minLength": 3 },
+    "provider": { "enum": ["local", "github", "huggingface", "arxiv", "doi", "zenodo", "other"] },
+    "sha256": { "$ref": "urn:quaeralabs:v1:common#/$defs/sha256" },
+    "mediaType": { "type": "string" },
+    "license": { "type": "string" },
+    "citationVerified": { "type": "boolean", "description": "DOI/arXiv kimliği otomatik olarak doğrulandı mı?" }
+  },
+  "unevaluatedProperties": false
+}

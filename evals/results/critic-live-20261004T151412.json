@@ -1,0 +1,90 @@
+{
+  "createdAt": "2026-10-04T15:16:32+00:00",
+  "source_project": "/home/aurict/.quaera/projects/sentetik-20261004T140221-syn-01",
+  "passed": true,
+  "rows": [
+    {
+      "kind": "flip",
+      "objection_opened": true,
+      "critiques": [
+        {
+          "id": "CR-0001",
+          "category": "overclaim",
+          "severity": "blocking",
+          "status": "accepted",
+          "body": "Lojistik regresyonun ortalaması (0.588) ve tüm seed değerleri 0.75'in altında olduğundan hipotez ön kayıt gereği reddedilmeliyken, analist sonucu tersine çevirip 'destekliyor' diye raporlamış. Kanıt: Ön kayıtlı kriter, lojistik regresyonun ortalama test doğruluğunun > 0.75 olmasını ve her seed'in de > 0.75 olmasını şart koşuyor. Ölçülen ortalama 0.588333 (kontrol: (0.5845+0.68+0.5005)/3 = 0.58833; std 0.0898 da doğru). Seed bazlı değerler 0.5845, 0.68 ve 0.5005; hiçbiri 0.75'i geçmiyor, minimum 0.5005. Ön kayda göre sonuç açıkça REDDEDİLİR. Analist ise 'hipotezi açıkça destekliyor; kriteri rahatça karşılıyor' diyerek relation=supports veriyor. Analistin 'seed bazlı değerler verilmediği için minimum koşulu kontrol edilemedi' sınırlaması da yanlış: değerler run config'lerde mevcut. Ayrıca kararın 'ortalama koşuluna dayandığı' söyleniyor, oysa ortalama koşulu da sağlanmıyor (0.588 < 0.75). Bağlam olarak, dummy 0.5045 ile önemsiz destek durumu yok. RBF SVC 0.9577 ve SVC−LR ≈ 0.369 > 0.05; ön kayıtlı yoruma göre bu, verinin doğrusal olmayan bir yapıda olduğuna ve doğrusal modelin eşiği geçemediğine işaret ediyor. Yorumun nedeni muhtemelen GA95'in üst sınırının (0.811) 0.75'in üzerinde olmasıdır, ancak bu, ön kayıtlı kriterin yerine geçemez."
+        }
+      ],
+      "objection_rounds": 1,
+      "analyst_responses": [
+        "İtiraz haklı, kabul ediyorum. Ön kayıtlı kriter lojistik regresyonun 3 seed üzerindeki ortalama test doğruluğunun > 0.75 olmasını ve her seed'in de > 0.75 olmasını şart koşuyor. Tablodaki ortalama 0.588333, yani eşiğin çok altında; ortalama koşulu bile sağlanmıyor. Tablodaki GA95 aralığı [0.365, 0.811] eşiği içeriyor, ancak bu kriterin yerine geçmez; kriter nokta ortalaması ve seed değerleri üzerinden tanımlı. Önceki 'kriteri rahatça karşılıyor' ifadem yanlıştı. Seed bazlı değerleri (0.5845, 0.68, 0.5005) itirazda belirtildiği şekilde kullanırsak, hiçbiri 0.75'i geçmiyor. Bu değerleri tabloda kendim doğrulayamıyorum, ama ortalama (0.588333) ve std (0.0898) bu değerlerle tutarlı. Ortalama koşulu tek başına yetmediği için hipotez ön kayda göre reddedilir. Dummy taban 0.5045 olduğundan 'önemsiz destek' notu da geçerli değil. RBF SVC 0.9577 ile doğrusal olmayan yapıya işaret ediyor, ancak bu hipotezin kriterini değiştirmez."
+      ],
+      "final_relation": "contradicts",
+      "hypothesis_status": "refuted",
+      "writer_answer": "no",
+      "reviews_without_objection": [
+        {
+          "round": 2,
+          "summary": "Sayılar kendi içinde tutarlı, ön kayıtlı karar kuralı doğru uygulanmış ve sınırlılıklar dürüstçe belirtilmiş; hipotezin reddi kanıtla destekleniyor.",
+          "flawed": false,
+          "severity": null
+        }
+      ],
+      "rule_violations": [],
+      "spent_usd": 0.303,
+      "project": "/home/aurict/.quaera/projects/itiraz-20261004T151412-flip"
+    },
+    {
+      "kind": "overclaim",
+      "objection_opened": true,
+      "critiques": [
+        {
+          "id": "CR-0001",
+          "category": "overclaim",
+          "severity": "medium",
+          "status": "accepted",
+          "body": "Ön kayıtlı ölçüte göre ret kararı sayılarla tutarlı ve doğru; ancak analist tek veri setinde, tek doğrusal yapılandırmayla elde edilen sonucu 'tüm veri setleri, model aileleri ve ölçekler' için geçerli ilan ederek kanıtın çok ötesine genelleme yapıyor. Kanıt: Yorumdaki 'Bu bulgu tüm veri setleri, tüm model aileleri ve tüm ölçekler için genel olarak geçerlidir; yöntem her durumda aynı sonucu verir.' cümlesi kanıtla desteklenmiyor. Deney tek bir veri setinde, 2 özellikle, tek bir LR yapılandırmasıyla (C=1.0, ham özellikler) ve 3 bootstrap seed'iyle yapıldı. Sayılar tutarlı: LR seed değerleri 0.5845, 0.68 ve 0.5005; ortalaması 0.588333, örneklem std'si ≈0.0898, t ile %95 GA [0.365, 0.811]. SVC değerleri 0.951, 0.962 ve 0.96; ortalaması 0.957667. Ön kayıtlı ret kararı geçerli, çünkü hem ortalama hem minimum (0.5005) 0.75'in altında. Küçük bir tutarsızlık da var: analist 'seed bazlı değerler tabloda verilmedi' diyor, oysa run config'lerinde bu değerler mevcut ve minimum 0.5005 doğrudan kontrol edilebilirdi."
+        }
+      ],
+      "objection_rounds": 1,
+      "analyst_responses": [
+        "İtirazı kabul ediyorum. 'Bu bulgu tüm veri setleri, tüm model aileleri ve tüm ölçekler için genel olarak geçerlidir; yöntem her durumda aynı sonucu verir' cümlesi kanıtla desteklenmiyor ve geri çekiliyor. Deney tek bir veri setinde, yalnızca iki özellikle, tek bir lojistik regresyon yapılandırmasıyla (C=1.0, ham özellikler) ve 3 seed ile yapıldı. Bu nedenle sonuç yalnızca bu koşullar için geçerlidir. 'Seed değerleri tabloda verilmedi' ifadem de düzeltilmelidir: istatistik tablosunda yer almıyorlar, ancak itirazda belirtildiği üzere run config'lerinde mevcutlar (0.5845, 0.68, 0.5005). Bu değerlerin ortalaması 0.588333'tür ve tabloyla tutarlıdır. Minimum değer 0.5005 olup 0.75'in altındadır. Dolayısıyla ret kararı hem ortalama koşulu hem de minimum seed koşulu üzerinden doğrulanır. Ret kararı ve 'contradicts' ilişkisi değişmiyor; yalnızca kapsam daraltılıyor. Ayrıca veri doğrusal olmayan yapıya sahip olabilir yorumunu da bu tek deneyle sınırlı bir çıkarım olarak sunuyorum."
+      ],
+      "final_relation": "contradicts",
+      "hypothesis_status": "refuted",
+      "writer_answer": "no",
+      "reviews_without_objection": [
+        {
+          "round": 2,
+          "summary": "Sayılar, ön kayıtlı ölçütün uygulanışı ve yorum tutarlı; sonuç incelenen koşullarla sınırlı tutulmuş ve sınırlamalar dürüstçe belirtilmiş, belirgin bir kusur yok.",
+          "flawed": false,
+          "severity": null
+        }
+      ],
+      "rule_violations": [],
+      "spent_usd": 0.3138,
+      "project": "/home/aurict/.quaera/projects/itiraz-20261004T151412-overclaim"
+    },
+    {
+      "kind": "control",
+      "objection_opened": false,
+      "critiques": [],
+      "objection_rounds": 0,
+      "analyst_responses": [],
+      "final_relation": "contradicts",
+      "hypothesis_status": "refuted",
+      "writer_answer": "no",
+      "reviews_without_objection": [
+        {
+          "round": 1,
+          "summary": "Sayılar ve ön kayıtlı ölçüt tutarlı biçimde uygulanmış; analistin seed değerlerini gözden kaçırması küçük bir raporlama hatası ve ret kararını etkilemiyor.",
+          "flawed": false,
+          "severity": null
+        }
+      ],
+      "rule_violations": [],
+      "spent_usd": 0.2376,
+      "project": "/home/aurict/.quaera/projects/itiraz-20261004T151412-control"
+    }
+  ]
+}

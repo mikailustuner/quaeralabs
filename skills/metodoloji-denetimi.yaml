@@ -1,0 +1,15 @@
+id: metodoloji-denetimi
+version: 0.1.0
+description: Planı ve sonucu sızıntı, karıştırıcı, tek seed, seçici raporlama ve ön
+  kayıt ihlali açısından denetler.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+- name: store.read
+  protocol: builtin
+requiredPermissions:
+  codeExecute: readonly_checks
+eval: pending

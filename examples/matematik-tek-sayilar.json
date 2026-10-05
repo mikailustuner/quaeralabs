@@ -1,0 +1,332 @@
+{
+  "schemaVersion": "v1",
+  "title": "İlk n tek sayının toplamı",
+  "note": "Örnek veri. Lean dosyası examples/lean/SumOdd.lean; bu repoda Lean ile derlenmemiştir, derleyici çıktısı temsilidir.",
+  "objects": [
+    {
+      "id": "Q-0001",
+      "type": "question",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:00:00Z",
+      "createdBy": {
+        "kind": "human",
+        "userId": "u-ornek"
+      },
+      "title": "İlk n tek sayının toplamı her n için n² midir?",
+      "domain": "math",
+      "scope": "Doğal sayılar; Lean 4 + Mathlib ile biçimsel ispat",
+      "tags": [
+        "toplamlar",
+        "tümevarım"
+      ]
+    },
+    {
+      "id": "ART-0001",
+      "type": "artifact",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:05:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "literature",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "kind": "paper",
+      "uri": "mathlib:Finset.sum_range_succ",
+      "provider": "other",
+      "citationVerified": true
+    },
+    {
+      "id": "H-0001",
+      "type": "hypothesis",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:10:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "hypothesis",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "questionId": "Q-0001",
+      "statement": "Her n doğal sayısı için ∑_{i<n} (2i+1) = n² eşitliği sağlanır.",
+      "falsifiabilityNote": "Eşitliği bozan tek bir n değeri ya da Lean'de derlenmeyen ispat hipotezi çürütür.",
+      "status": "supported",
+      "approval": {
+        "by": {
+          "kind": "human",
+          "userId": "u-ornek"
+        },
+        "at": "2026-10-20T09:12:00Z",
+        "decision": "approved",
+        "autonomyLevel": "manual"
+      }
+    },
+    {
+      "id": "PRE-0001",
+      "type": "preregistration",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:20:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "hypothesisId": "H-0001",
+      "primaryMetric": "lean_compiles_without_sorry",
+      "successCriterion": "Teorem, sorry içermeden Lean 4 + Mathlib ile derlenir.",
+      "analysisPlan": "Derleyici çıktısı sorry ve hata içermemeli; Doğrulayıcı temiz ortamda yeniden derler.",
+      "lockedAt": "2026-10-20T09:21:00Z",
+      "contentHash": "12049b6cacbe1b0024ace2db62ac7ea3aaff48eb4c65fe7685ebbf87db14e23d"
+    },
+    {
+      "id": "E-0001",
+      "type": "experiment",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:15:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "experiment_designer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "hypothesisIds": [
+        "H-0001"
+      ],
+      "domain": "math",
+      "method": "n üzerinde tümevarımla Lean 4 ispatı; Finset.sum_range_succ ve ring taktiği.",
+      "metrics": [
+        {
+          "name": "lean_compiles_without_sorry",
+          "direction": "binary"
+        }
+      ],
+      "lean": {
+        "toolchain": "leanprover/lean4:v4.x (örnek)",
+        "mathlibRev": "örnek-revizyon"
+      },
+      "budget": {
+        "estimatedUsd": 0.4,
+        "approvedUsd": 1.0
+      },
+      "noveltyCheck": {
+        "verdict": "already_done",
+        "summary": "Bilinen bir sonuç; motorun uçtan uca testi için tekrar ediliyor.",
+        "userChoice": "replicate"
+      },
+      "preregistrationId": "PRE-0001",
+      "status": "completed",
+      "approval": {
+        "by": {
+          "kind": "human",
+          "userId": "u-ornek"
+        },
+        "at": "2026-10-20T09:22:00Z",
+        "decision": "approved",
+        "autonomyLevel": "manual"
+      }
+    },
+    {
+      "id": "RUN-0001",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:25:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0001",
+      "kind": "pilot",
+      "status": "succeeded",
+      "seed": 0,
+      "startedAt": "2026-10-20T09:25:00Z",
+      "endedAt": "2026-10-20T09:26:00Z",
+      "cost": {
+        "usd": 0.05
+      }
+    },
+    {
+      "id": "ART-0002",
+      "type": "artifact",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:31:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "kind": "lean_output",
+      "uri": "examples/lean/SumOdd.lean",
+      "provider": "local",
+      "sha256": "12431ed6fa714d56e6132bbbfe15963d705d236dd40ae3c43d1ac545001a53e4"
+    },
+    {
+      "id": "RUN-0002",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:28:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "engineer",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0001",
+      "kind": "full",
+      "status": "succeeded",
+      "seed": 0,
+      "startedAt": "2026-10-20T09:28:00Z",
+      "endedAt": "2026-10-20T09:31:00Z",
+      "logs": "ART-0002",
+      "cost": {
+        "usd": 0.21
+      }
+    },
+    {
+      "id": "RES-0001",
+      "type": "result",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:35:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "experimentId": "E-0001",
+      "runIds": [
+        "RUN-0002"
+      ],
+      "summary": "Teorem sum_first_odds sorry içermeden derlendi.",
+      "limitations": [
+        "İspat Mathlib'in mevcut lemmalarına dayanır."
+      ],
+      "leanProof": {
+        "verified": true,
+        "sorryFree": true,
+        "compilerOutput": "ART-0002",
+        "theoremName": "sum_first_odds"
+      }
+    },
+    {
+      "id": "CR-0001",
+      "type": "critique",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:38:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "critic",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "targetId": "H-0001",
+      "category": "overclaim",
+      "severity": "low",
+      "body": "Hipotez metni toplamın 0'dan mı 1'den mi başladığını belirtmiyor; Lean ifadesiyle uyumlu hale getirilmeli.",
+      "blindReview": true,
+      "status": "resolved",
+      "resolution": {
+        "by": {
+          "kind": "agent",
+          "role": "hypothesis",
+          "model": "anthropic/claude-sonnet-5-5",
+          "modelFamily": "anthropic"
+        },
+        "at": "2026-10-20T09:40:00Z",
+        "text": "İfade ∑_{i<n} biçimine çevrildi; Lean teoremiyle birebir aynı."
+      }
+    },
+    {
+      "id": "MSG-0001",
+      "type": "message",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:38:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "critic",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "kind": "objection",
+      "to": "hypothesis",
+      "subjectId": "CR-0001",
+      "body": "Toplamın indeks başlangıcı belirsiz.",
+      "round": 1,
+      "requiresResponse": true
+    },
+    {
+      "id": "MSG-0002",
+      "type": "message",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:40:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "hypothesis",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "kind": "response",
+      "to": "critic",
+      "subjectId": "CR-0001",
+      "inReplyTo": "MSG-0001",
+      "body": "Kabul edildi; ifade Lean teoremiyle hizalandı.",
+      "round": 1
+    },
+    {
+      "id": "RUN-0003",
+      "type": "run",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:45:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "experimentId": "E-0001",
+      "kind": "verification",
+      "status": "succeeded",
+      "seed": 0,
+      "startedAt": "2026-10-20T09:45:00Z",
+      "endedAt": "2026-10-20T09:48:00Z"
+    },
+    {
+      "id": "VER-0001",
+      "type": "verification",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:49:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "verifier",
+        "model": "provider-b/model-b",
+        "modelFamily": "provider-b"
+      },
+      "resultId": "RES-0001",
+      "verificationRunIds": [
+        "RUN-0003"
+      ],
+      "reproduced": "yes",
+      "crossModel": true
+    },
+    {
+      "id": "EL-0001",
+      "type": "evidence_link",
+      "revision": 1,
+      "createdAt": "2026-10-20T09:50:00Z",
+      "createdBy": {
+        "kind": "agent",
+        "role": "analyst",
+        "model": "anthropic/claude-sonnet-5-5",
+        "modelFamily": "anthropic"
+      },
+      "resultId": "RES-0001",
+      "hypothesisId": "H-0001",
+      "relation": "supports",
+      "independence": "L1",
+      "context": "Biçimsel ispat; temiz ortamda farklı model ailesiyle yeniden derlendi."
+    }
+  ]
+}

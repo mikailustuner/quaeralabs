@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:message",
+  "title": "Ajan mesajı (MSG)",
+  "description": "Ajanlar arası ve ajan-insan iletişimi. Her mesaj türlüdür, bir araştırma nesnesine bağlıdır ve orkestratör üzerinden yönlendirilir. Mesaj yetki veremez.",
+  "allOf": [
+    { "$ref": "urn:quaeralabs:v1:common#/$defs/base" },
+    {
+      "if": { "properties": { "kind": { "const": "approval_request" } } },
+      "then": { "required": ["approvalRequest"], "properties": { "to": { "const": "human" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "enum": ["question", "objection"] } } },
+      "then": { "properties": { "requiresResponse": { "const": true } }, "required": ["requiresResponse"] }
+    }
+  ],
+  "required": ["kind", "to", "subjectId", "body"],
+  "properties": {
+    "id": { "pattern": "^MSG-" },
+    "type": { "const": "message" },
+    "kind": { "enum": ["question", "objection", "proposal", "handoff", "approval_request", "response"] },
+    "to": {
+      "description": "Alıcı rol ya da insan.",
+      "anyOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/role" }, { "const": "human" }, { "const": "all" }]
+    },
+    "subjectId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "body": { "type": "string", "minLength": 1 },
+    "inReplyTo": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "round": { "type": "integer", "minimum": 1, "maximum": 3, "description": "Tartışma turu; 3'ü aşan tartışma insana gider." },
+    "requiresResponse": { "type": "boolean" },
+    "approvalRequest": {
+      "type": "object",
+      "required": ["action", "estimatedUsd"],
+      "properties": {
+        "action": { "enum": ["accept_hypothesis", "approve_experiment", "extra_spend", "install_package", "publish", "raise_budget_cap"] },
+        "estimatedUsd": { "type": "number", "minimum": 0 },
+        "estimatedGpuHours": { "type": "number", "minimum": 0 },
+        "decision": { "$ref": "urn:quaeralabs:v1:common#/$defs/approval" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "unevaluatedProperties": false
+}

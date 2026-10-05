@@ -1,0 +1,10 @@
+id: istatistiksel-guc
+version: 0.1.0
+description: Gereken seed ve örnek sayısını istatistiksel güç hesabıyla önerir.
+domains:
+- ml
+tools:
+- name: stats.power
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

@@ -1,0 +1,30 @@
+{"name": "qsm_square_residues_0", "template": "square_residues", "formal_statement": "theorem qsm_square_residues_0 (n : ℕ) : (n ^ 2) % 3 = 0 ∨ (n ^ 2) % 3 = 1 := by\n"}
+{"name": "qsm_square_residues_1", "template": "square_residues", "formal_statement": "theorem qsm_square_residues_1 (n : ℕ) : (n ^ 2) % 7 = 0 ∨ (n ^ 2) % 7 = 1 ∨ (n ^ 2) % 7 = 2 ∨ (n ^ 2) % 7 = 4 := by\n"}
+{"name": "qsm_square_residues_2", "template": "square_residues", "formal_statement": "theorem qsm_square_residues_2 (n : ℕ) : (n ^ 2) % 9 = 0 ∨ (n ^ 2) % 9 = 1 ∨ (n ^ 2) % 9 = 4 ∨ (n ^ 2) % 9 = 7 := by\n"}
+{"name": "qsm_no_root_mod_0", "template": "no_root_mod", "formal_statement": "theorem qsm_no_root_mod_0 (n : ℕ) : ¬ (4 ∣ n ^ 2 + 13) := by\n"}
+{"name": "qsm_no_root_mod_1", "template": "no_root_mod", "formal_statement": "theorem qsm_no_root_mod_1 (n : ℕ) : ¬ (8 ∣ n ^ 2 + 6) := by\n"}
+{"name": "qsm_no_root_mod_2", "template": "no_root_mod", "formal_statement": "theorem qsm_no_root_mod_2 (n : ℕ) : ¬ (11 ∣ n ^ 2 + 20) := by\n"}
+{"name": "qsm_pow_div_0", "template": "pow_div", "formal_statement": "theorem qsm_pow_div_0 (n : ℕ) : 13 ∣ 3 ^ (3 * n) - 1 := by\n"}
+{"name": "qsm_pow_div_1", "template": "pow_div", "formal_statement": "theorem qsm_pow_div_1 (n : ℕ) : 7 ∣ 3 ^ (6 * n) - 1 := by\n"}
+{"name": "qsm_pow_div_2", "template": "pow_div", "formal_statement": "theorem qsm_pow_div_2 (n : ℕ) : 31 ∣ 7 ^ (15 * n) - 1 := by\n"}
+{"name": "qsm_sum_squares_0", "template": "sum_squares", "formal_statement": "theorem qsm_sum_squares_0 (n : ℕ) :\n    6 * ∑ i ∈ Finset.range (n + 1), (3 * i ^ 2 + 1 * i) = 3 * n * (n + 1) * (2 * n + 1) + 3 * n * (n + 1) := by\n"}
+{"name": "qsm_sum_squares_1", "template": "sum_squares", "formal_statement": "theorem qsm_sum_squares_1 (n : ℕ) :\n    6 * ∑ i ∈ Finset.range (n + 1), (4 * i ^ 2 + 3 * i) = 4 * n * (n + 1) * (2 * n + 1) + 9 * n * (n + 1) := by\n"}
+{"name": "qsm_sum_squares_2", "template": "sum_squares", "formal_statement": "theorem qsm_sum_squares_2 (n : ℕ) :\n    6 * ∑ i ∈ Finset.range (n + 1), (4 * i ^ 2 + 1 * i) = 4 * n * (n + 1) * (2 * n + 1) + 3 * n * (n + 1) := by\n"}
+{"name": "qsm_recurrence_closed_0", "template": "recurrence_closed", "formal_statement": "theorem qsm_recurrence_closed_0 (u : ℕ → ℕ) (h₀ : u 0 = 5) (h₁ : ∀ n, u (n + 1) = 3 * u n + 3) (n : ℕ) :\n    2 * u n + 3 = 13 * 3 ^ n := by\n"}
+{"name": "qsm_recurrence_closed_1", "template": "recurrence_closed", "formal_statement": "theorem qsm_recurrence_closed_1 (u : ℕ → ℕ) (h₀ : u 0 = 0) (h₁ : ∀ n, u (n + 1) = 3 * u n + 5) (n : ℕ) :\n    2 * u n + 5 = 5 * 3 ^ n := by\n"}
+{"name": "qsm_recurrence_closed_2", "template": "recurrence_closed", "formal_statement": "theorem qsm_recurrence_closed_2 (u : ℕ → ℕ) (h₀ : u 0 = 2) (h₁ : ∀ n, u (n + 1) = 2 * u n + 1) (n : ℕ) :\n    1 * u n + 1 = 3 * 2 ^ n := by\n"}
+{"name": "qsm_cauchy_0", "template": "cauchy", "formal_statement": "theorem qsm_cauchy_0 (f : ℝ → ℝ) (hf : ∀ x y, f (x + y) = f x + f y) (h₁ : f 1 = 0) :\n    f 4 = 0 := by\n"}
+{"name": "qsm_cauchy_1", "template": "cauchy", "formal_statement": "theorem qsm_cauchy_1 (f : ℝ → ℝ) (hf : ∀ x y, f (x + y) = f x + f y) (h₁ : f 1 = 1) :\n    f 2 = 2 := by\n"}
+{"name": "qsm_cauchy_2", "template": "cauchy", "formal_statement": "theorem qsm_cauchy_2 (f : ℝ → ℝ) (hf : ∀ x y, f (x + y) = f x + f y) (h₁ : f 1 = -3) :\n    f 5 = -15 := by\n"}
+{"name": "qsm_vertex_0", "template": "vertex", "formal_statement": "theorem qsm_vertex_0 (x : ℝ) : ((-41 : ℝ) / 4) ≤ 4 * x ^ 2 + 6 * x + -8 := by\n"}
+{"name": "qsm_vertex_1", "template": "vertex", "formal_statement": "theorem qsm_vertex_1 (x : ℝ) : (6 : ℝ) ≤ 2 * x ^ 2 + -4 * x + 8 := by\n"}
+{"name": "qsm_vertex_2", "template": "vertex", "formal_statement": "theorem qsm_vertex_2 (x : ℝ) : (-15 : ℝ) ≤ 1 * x ^ 2 + -10 * x + 10 := by\n"}
+{"name": "qsm_bezout_0", "template": "bezout", "formal_statement": "theorem qsm_bezout_0 : ∃ x y : ℤ, 86 * x + 192 * y = 2 := by\n"}
+{"name": "qsm_bezout_1", "template": "bezout", "formal_statement": "theorem qsm_bezout_1 : ∃ x y : ℤ, 86 * x + 34 * y = 2 := by\n"}
+{"name": "qsm_bezout_2", "template": "bezout", "formal_statement": "theorem qsm_bezout_2 : ∃ x y : ℤ, 210 * x + 282 * y = 6 := by\n"}
+{"name": "qsm_no_dioph_0", "template": "no_dioph", "formal_statement": "theorem qsm_no_dioph_0 : ¬ ∃ x y : ℤ, 60 * x + 48 * y = 124 := by\n"}
+{"name": "qsm_no_dioph_1", "template": "no_dioph", "formal_statement": "theorem qsm_no_dioph_1 : ¬ ∃ x y : ℤ, 45 * x + 135 * y = 98 := by\n"}
+{"name": "qsm_no_dioph_2", "template": "no_dioph", "formal_statement": "theorem qsm_no_dioph_2 : ¬ ∃ x y : ℤ, 36 * x + 81 * y = 69 := by\n"}
+{"name": "qsm_sym_ineq_0", "template": "sym_ineq", "formal_statement": "theorem qsm_sym_ineq_0 (a b c : ℝ) :\n    2 * (a * b + b * c + c * a) ≤ 2 * (a ^ 2 + b ^ 2 + c ^ 2) := by\n"}
+{"name": "qsm_sym_ineq_1", "template": "sym_ineq", "formal_statement": "theorem qsm_sym_ineq_1 (a b c : ℝ) :\n    5 * (a * b + b * c + c * a) ≤ 5 * (a ^ 2 + b ^ 2 + c ^ 2) := by\n"}
+{"name": "qsm_sym_ineq_2", "template": "sym_ineq", "formal_statement": "theorem qsm_sym_ineq_2 (a b c : ℝ) :\n    1 * (a * b + b * c + c * a) ≤ 1 * (a ^ 2 + b ^ 2 + c ^ 2) := by\n"}

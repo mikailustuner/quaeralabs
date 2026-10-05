@@ -1,0 +1,14 @@
+id: butce-yonetimi
+version: 0.1.0
+description: Bütçeyi aşamalara dağıtır, harcamayı izler, %80'de uyarı üretir; tavanı
+  asla aşmaz.
+domains:
+- math
+- ml
+tools:
+- name: budget.read
+  protocol: builtin
+- name: budget.allocate
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

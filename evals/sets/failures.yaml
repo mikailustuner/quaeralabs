@@ -1,0 +1,26 @@
+# Gerçek koşularda yaşanmış hatalardan türetilen vakalar (Faz 4: "başarısız araştırmaların eval setine eklenmesi").
+# Her vaka güncel kodla yeniden koşulur (evals/failures_run.py); `expect` tutmazsa hata geri gelmiş demektir.
+# Yeni vakalar `quaera triage add` ile toplanır, ekip incelemesinden sonra buraya eklenir.
+# expect anahtarları: answer (yes/no/unclear) · notStatus · mustObject · mustStop · notAnswered (src/quaera/triage.py)
+version: 1
+cases:
+  - id: fail-goldbach-scope
+    found: 2026-10-04 (Faz 1, ilk Goldbach koşusu)
+    domain: math
+    question: "İkiden büyük her çift doğal sayı iki asal sayının toplamı olarak yazılabilir mi?"
+    scope: "Lean 4 + Mathlib ile biçimsel ispat"
+    note: >-
+      Açık bir problem. Ekip yalnızca 2 < n ≤ 1000 için ispat yaptı ama hipotez kapsam belirtmeden "destekleniyor"
+      olarak raporlandı; okuyucu Goldbach sanısının ispatlandığını sanabilirdi. Düzeltme: scopeRelation, Eleştirmen'in
+      weakerThanQuestion kontrolü ve rapor dili.
+    expect: {notAnswered: true}
+    budget: 1.5
+  - id: fail-ml-no-hypothesis
+    found: 2026-10-04 (Faz 2, ilk sentetik koşu)
+    domain: ml
+    syntheticTask: syn-01
+    note: >-
+      ML sorusunda Hipotez ajanı matematiğe özgü promptla çalıştığı için hiç hipotez üretemedi ve araştırma durdu.
+      Düzeltme: HYPOTHESIS_ML. Doğru cevap "hayır" (lojistik regresyon %75'i geçemez).
+    expect: {mustStop: false, answer: "no"}
+    budget: 1.5

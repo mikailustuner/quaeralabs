@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:verification",
+  "title": "Doğrulama (VER)",
+  "description": "Doğrulayıcının temiz ortamda yeniden üretim sonucu. Doğrulayıcı kodu değiştiremez; yalnızca kaydedilmiş artefaktları çalıştırır.",
+  "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
+  "required": ["resultId", "verificationRunIds", "reproduced", "crossModel"],
+  "properties": {
+    "id": { "pattern": "^VER-" },
+    "type": { "const": "verification" },
+    "resultId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
+    "verificationRunIds": { "type": "array", "items": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" } },
+    "reproduced": { "enum": ["yes", "partial", "no"] },
+    "tolerance": { "type": "string", "description": "Sayısal karşılaştırma toleransı, ör. 'kayıp ±0.02'" },
+    "crossModel": { "type": "boolean", "description": "Doğrulayıcı, işi üreten ajandan farklı bir model ailesinde mi çalıştı?" },
+    "differences": { "type": "array", "items": { "type": "string" } }
+  },
+  "unevaluatedProperties": false
+}

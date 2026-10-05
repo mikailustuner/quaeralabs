@@ -1,0 +1,175 @@
+# Eleştirmen testi v0.1
+# Her vakada kısa bir deney raporu var. "flawed" vakalara bilerek bir hata yerleştirildi;
+# "control" vakalar temizdir ve yanlış alarm oranını ölçmek için kullanılır.
+# Değerlendirme: Eleştirmen'in itirazı beklenen kategoriyi (category) ve ipucundaki
+# noktayı (must_mention) yakalıyorsa vaka "yakalandı" sayılır.
+version: 0.1.0
+cases:
+  - id: ct-01
+    kind: flawed
+    category: leakage
+    report: "Doğrulama seti, eğitim setinden rastgele örneklenerek oluşturuldu ve aynı cümlelerin bir kısmı iki sette de geçiyor. Doğrulama doğruluğu %98."
+    must_mention: eğitim ve doğrulama örtüşüyor
+  - id: ct-02
+    kind: flawed
+    category: statistics
+    report: "Yöntem A tek bir seed ile 0.812, temel çizgi tek bir seed ile 0.806 doğruluk aldı. A'nın daha iyi olduğu sonucuna varıldı."
+    must_mention: tek seed, varyans bilinmiyor
+  - id: ct-03
+    kind: flawed
+    category: preregistration_violation
+    report: "Ön kayıtta birincil metrik doğruluktu. Doğrulukta fark çıkmayınca F1 skoru raporlandı ve F1'de anlamlı iyileşme bulundu."
+    must_mention: birincil metrik sonradan değiştirildi
+  - id: ct-04
+    kind: flawed
+    category: confound
+    report: "Yeni optimize edici 2 kat daha uzun eğitildi ve temel çizgiyi geçti. İyileşme optimize ediciye bağlandı."
+    must_mention: eğitim süresi eşit değil
+  - id: ct-05
+    kind: flawed
+    category: methodology
+    report: "Hiperparametreler test seti üzerinde 50 deneme ile ayarlandı; en iyi denemenin test skoru raporlandı."
+    must_mention: test setinde ayarlama
+  - id: ct-06
+    kind: flawed
+    category: overclaim
+    report: "20M parametreli tek bir modelde ısınmanın gereksiz olduğu bulundu. Sonuç: dil modellerinde ısınma gereksizdir."
+    must_mention: tek ölçekten genelleme
+  - id: ct-07
+    kind: flawed
+    category: implementation
+    report: "Kayıp eğrisi ilk adımdan itibaren sıfıra çok yakın başlıyor. Etiketler giriş tensörüne de eklenmiş görünüyor; yine de sonuç güçlü bulundu."
+    must_mention: etiket girdiye sızmış
+  - id: ct-08
+    kind: flawed
+    category: statistics
+    report: "12 farklı metrik test edildi; bunlardan birinde p=0.04 bulundu ve yöntem başarılı ilan edildi. Çoklu karşılaştırma düzeltmesi yapılmadı."
+    must_mention: çoklu karşılaştırma
+  - id: ct-09
+    kind: flawed
+    category: methodology
+    report: "Temel çizgi olarak 2019 tarihli varsayılan ayarlar kullanıldı; önerilen yöntem için ise 40 hiperparametre denemesi yapıldı."
+    must_mention: temel çizgi ayarlanmamış
+  - id: ct-10
+    kind: flawed
+    category: citation
+    report: "Bu sonucun daha önce gösterildiği belirtildi ve arXiv:2509.99999 kaynak olarak verildi; bağlantı açılmıyor."
+    must_mention: kaynak doğrulanamıyor
+  - id: ct-11
+    kind: flawed
+    category: statistics
+    report: "Beş seed'den en iyi üçü raporlandı; diğer ikisi 'kararsız' oldukları için çıkarıldı."
+    must_mention: seçici raporlama
+  - id: ct-12
+    kind: flawed
+    category: leakage
+    report: "Benchmark soruları modelin ön eğitim verisinde de bulunuyor olabilir; kirlilik kontrolü yapılmadı ve sonuç modelin akıl yürütme yeteneğine bağlandı."
+    must_mention: veri kirliliği
+  - id: ct-13
+    kind: flawed
+    category: confound
+    report: "Isınmalı koşul yeni veri yükleyiciyle, ısınmasız koşul eski veri yükleyiciyle çalıştırıldı. Fark ısınmaya bağlandı."
+    must_mention: iki koşul farklı veri hattı kullanıyor
+  - id: ct-14
+    kind: flawed
+    category: preregistration_violation
+    report: "Ön kayıtta 3 seed planlanmıştı. Sonuçlar beklentiye uymayınca 7 seed'e çıkıldı ve yeni ortalama raporlandı; değişiklik raporda belirtilmedi."
+    must_mention: sonuç görüldükten sonra plan değişti
+  - id: ct-15
+    kind: flawed
+    category: overclaim
+    report: "Doğruluk 0.701'den 0.704'e çıktı (3 seed, standart sapma 0.01). Rapor bunu 'belirgin iyileşme' olarak niteliyor."
+    must_mention: fark gürültü içinde
+  - id: ct-16
+    kind: flawed
+    category: implementation
+    report: "Değerlendirme betiği yalnızca ilk 100 örneği kullanıyor; rapor tam test seti sonucuymuş gibi yazılmış."
+    must_mention: değerlendirme alt kümede yapılmış
+  - id: ct-17
+    kind: flawed
+    category: methodology
+    report: "Ablasyon yapılmadı; önerilen yöntem üç değişikliği birlikte içeriyor ve iyileşme ikinci değişikliğe bağlanıyor."
+    must_mention: ablasyon yok, katkı ayrıştırılamaz
+  - id: ct-18
+    kind: flawed
+    category: statistics
+    report: "Erken durdurma doğrulama setine göre yapıldı ve aynı doğrulama seti nihai sonuç olarak raporlandı."
+    must_mention: doğrulama seti hem seçim hem rapor için kullanıldı
+  - id: ct-19
+    kind: flawed
+    category: confound
+    report: "Yöntem A bir A100'de bf16 ile, temel çizgi bir T4'te fp32 ile çalıştırıldı; hız ve kayıp farkları yönteme bağlandı."
+    must_mention: donanım ve hassasiyet farklı
+  - id: ct-20
+    kind: flawed
+    category: overclaim
+    report: "Lean ispatı 'sorry' içeren iki yardımcı lemma ile derlendi. Rapor teoremin biçimsel olarak doğrulandığını söylüyor."
+    must_mention: sorry içeren ispat doğrulanmış sayılamaz
+  - id: ct-21
+    kind: flawed
+    category: implementation
+    report: "Rastgele seed sabitlendi ama veri karıştırma için ayrı bir rastgele üreteç kullanılıyor ve o sabitlenmedi. Sonuçların birebir tekrar üretilebildiği söyleniyor."
+    must_mention: tüm rastgelelik kaynakları sabitlenmemiş
+  - id: ct-22
+    kind: flawed
+    category: methodology
+    report: "Temel çizgi sonuçları başka bir makaleden alındı; o makale farklı bir veri bölümü ve tokenizer kullanıyor."
+    must_mention: karşılaştırılabilir değil
+  - id: ct-23
+    kind: flawed
+    category: statistics
+    report: "İki yöntemin güven aralıkları büyük ölçüde örtüşüyor; rapor yine de A'nın B'den üstün olduğunu söylüyor."
+    must_mention: güven aralıkları örtüşüyor
+  - id: ct-24
+    kind: flawed
+    category: leakage
+    report: "Normalizasyon istatistikleri (ortalama ve standart sapma) tüm veri setinden, test seti dahil, hesaplandı."
+    must_mention: test istatistiği eğitime sızmış
+  - id: ct-25
+    kind: flawed
+    category: overclaim
+    report: "Model sentetik bir oyuncak görevde %100 aldı. Rapor bunun genel matematiksel akıl yürütme yeteneği gösterdiğini söylüyor."
+    must_mention: oyuncak görevden genelleme
+  - id: ct-26
+    kind: flawed
+    category: preregistration_violation
+    report: "Başarı kriteri ön kayıtta 'kayıp farkı ≤ 0.05' idi. Fark 0.08 çıkınca kriter 'fark ≤ 0.10' olarak güncellendi ve hipotez desteklendi sayıldı."
+    must_mention: başarı kriteri sonradan gevşetildi
+  - id: ct-27
+    kind: flawed
+    category: confound
+    report: "Isınmalı modellerin hepsi pazartesi, ısınmasız modellerin hepsi salı başka bir kütüphane sürümüyle eğitildi."
+    must_mention: ortam sürümü koşulla karışmış
+  - id: ct-28
+    kind: flawed
+    category: implementation
+    report: "Doğruluk, modelin çıktısı ile etiket arasında büyük-küçük harf duyarlı tam eşleşmeyle ölçüldü; doğru cevapların bir kısmı biçim yüzünden yanlış sayıldı."
+    must_mention: metrik hatalı ölçüyor
+  - id: ct-29
+    kind: flawed
+    category: statistics
+    report: "Örneklem 8 problemden oluşuyor; yöntem 5'ini, temel çizgi 4'ünü çözdü. Fark anlamlı olarak raporlandı."
+    must_mention: örneklem çok küçük
+  - id: ct-30
+    kind: flawed
+    category: methodology
+    report: "Model, değerlendirildiği benchmark'ın çözümleri üzerinde ince ayar yapıldı; rapor bunu genelleme olarak sunuyor."
+    must_mention: değerlendirme verisiyle eğitim
+  - id: cc-01
+    kind: control
+    report: "3 seed, aynı veri hattı ve donanım; birincil metrik ön kayıttaki gibi. Fark 0.031 ± 0.006 ve sınırlamalar yazılmış."
+  - id: cc-02
+    kind: control
+    report: "Lean teoremi sorry içermeden derlendi; Doğrulayıcı temiz ortamda aynı sonucu aldı."
+  - id: cc-03
+    kind: control
+    report: "Negatif sonuç: yöntem temel çizgiyi geçemedi (5 seed, güven aralıkları örtüşüyor). Rapor hipotezin desteklenmediğini söylüyor."
+  - id: cc-04
+    kind: control
+    report: "Ön kayıt değişikliği sonuçlar görülmeden yapıldı, gerekçesi ve zamanı raporda var; analiz planına uyuldu."
+  - id: cc-05
+    kind: control
+    report: "Temel çizgi ve yöntem aynı hiperparametre arama bütçesiyle (20 deneme) ayarlandı; seçim doğrulama setinde, rapor test setinde."
+  - id: cc-06
+    kind: control
+    report: "Tüm rastgelelik kaynakları sabitlendi; container özeti ve lockfile kayıtlı. Sonuç iki farklı model ailesiyle yeniden üretildi."

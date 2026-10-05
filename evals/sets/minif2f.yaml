@@ -1,0 +1,12 @@
+# miniF2F (Lean 4) kaynak yapılandırması
+version: 0.2.0
+source:
+  description: "miniF2F'in Lean 4 sürümü (DeepSeek-Prover-V1.5 deposundaki veri seti); olimpiyat düzeyi problemler"
+  upstream: "https://github.com/deepseek-ai/DeepSeek-Prover-V1.5/blob/main/datasets/minif2f.jsonl"
+  pinned_commit: 2c4ba9119eef74d0d611f494261b2c5bae98c69a
+  local_copy: evals/data/minif2f-deepseek-v15.jsonl
+splits: [valid, test]
+metric: "pass@k: k deneme içinde (derleyici geri bildirimiyle) sorry ve standart dışı aksiyom olmadan derlenen ispat oranı"
+compatibility: >
+  İfadeler eski bir Mathlib için yazılmıştır. Her ifade önce güncel Mathlib'de `sorry` ile derlenir (pilot);
+  derlenmeyenler değerlendirme dışı bırakılır ve sayısı raporlanır. Eski `∑ x in s` sözdizimi `∑ x ∈ s` olarak güncellenir.

@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-10-04T13:10:20+00:00",
+  "tasks": 1,
+  "correct": 0,
+  "correct_and_reproduced": 0,
+  "gate_min": 4,
+  "passed": false,
+  "spent_usd": 0.104,
+  "rows": [
+    {
+      "id": "syn-01",
+      "truth": "no",
+      "answer": "unclear",
+      "correct": false,
+      "reproduced": false,
+      "counts": false,
+      "hypothesis": null,
+      "rule_violations": [],
+      "spent_usd": 0.104,
+      "data_seed": 191860299,
+      "project": "/home/aurict/.quaera/projects/sentetik-20261004T130914-syn-01"
+    }
+  ]
+}

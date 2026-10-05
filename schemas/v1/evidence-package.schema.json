@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:evidence-package",
+  "title": "Kanıt paketi manifesti (quaera-manifest.json)",
+  "description": "RO-Crate 1.1 paketinin içinde, ro-crate-metadata.json yanında duran QuaeraLabs manifesti. AI etiketi burada da yer alır ve imza kapsamındadır; etiketi çıkarılmış paket doğrulamadan geçmez.",
+  "type": "object",
+  "required": ["manifestVersion", "quaeraVersion", "createdAt", "aiLabel", "objects", "files", "signature"],
+  "properties": {
+    "manifestVersion": { "const": 1 },
+    "quaeraVersion": { "type": "string" },
+    "createdAt": { "$ref": "urn:quaeralabs:v1:common#/$defs/timestamp" },
+    "roCrateVersion": { "const": "1.1" },
+    "aiLabel": {
+      "type": "object",
+      "required": ["text", "models", "approvedBy", "publishedAt"],
+      "properties": {
+        "text": { "type": "string", "pattern": "QuaeraLabs" },
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["role", "model"],
+            "properties": { "role": { "$ref": "urn:quaeralabs:v1:common#/$defs/role" }, "model": { "type": "string" } },
+            "additionalProperties": false
+          }
+        },
+        "approvedBy": { "$ref": "urn:quaeralabs:v1:common#/$defs/humanActor" },
+        "publishedAt": { "$ref": "urn:quaeralabs:v1:common#/$defs/timestamp" },
+        "crossModelReview": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "objects": { "type": "array", "minItems": 1, "items": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" } },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": { "path": { "type": "string" }, "sha256": { "$ref": "urn:quaeralabs:v1:common#/$defs/sha256" } },
+        "additionalProperties": false
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["alg", "publicKey", "value", "covers"],
+      "properties": {
+        "alg": { "const": "ed25519" },
+        "publicKey": { "type": "string" },
+        "value": { "type": "string" },
+        "covers": { "const": "sha256 of canonical JSON of this manifest without the signature field" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

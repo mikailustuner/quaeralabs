@@ -1,0 +1,11 @@
+id: log-kaydi
+version: 0.1.0
+description: Çalıştırma loglarını, metrikleri ve ortam bilgisini içerik özetiyle kaydeder.
+domains:
+- math
+- ml
+tools:
+- name: store.put
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

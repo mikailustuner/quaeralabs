@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:question",
+  "title": "Soru (Q)",
+  "description": "Araştırmanın kök nesnesi. Bir tartışma başlığı değil; hipotezlerin bağlandığı sorudur.",
+  "allOf": [
+    {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/base"
+    }
+  ],
+  "required": [
+    "title",
+    "domain",
+    "scope"
+  ],
+  "properties": {
+    "id": {
+      "pattern": "^Q-"
+    },
+    "type": {
+      "const": "question"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 1500,
+      "description": "Araştırma sorusu. Yarışma soruları gibi uzun ifadeler için 1500 karaktere kadar (v1 içinde gevşetildi: 300 → 1500)."
+    },
+    "domain": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/domain"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Sorunun sınırları: hangi modeller, ölçekler, teoriler"
+    },
+    "description": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "parentId": {
+      "$ref": "urn:quaeralabs:v1:common#/$defs/publicId"
+    }
+  },
+  "unevaluatedProperties": false
+}

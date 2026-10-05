@@ -1,0 +1,351 @@
+{
+  "createdAt": "2026-10-04T12:26:01+00:00",
+  "split": "test",
+  "sampled": 20,
+  "seed": 0,
+  "attempts_per_problem": 2,
+  "profile": "balanced",
+  "models": [
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "statement_compile_ok": 20,
+  "attempted": 20,
+  "solved": 19,
+  "pass@2": 0.95,
+  "clean_reverified": 19,
+  "contamination_note": "miniF2F 2021'den beri açık; problemler ve çözümleri model eğitim verisinde olabilir. Bu değer bir alt sınır değil, iyimser bir tavan olarak okunmalıdır.",
+  "spent_usd": 0.3333,
+  "budget_usd": 5.0,
+  "budget_never_exceeded": true,
+  "rows": [
+    {
+      "name": "numbertheory_4x3m7y3neq2003",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.5
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem numbertheory_4x3m7y3neq2003 (x y : ℤ) : 4 * x ^ 3 - 7 * y ^ 3 ≠ 2003 := by\n  intro h\n  have h2 := congrArg (Int.cast : ℤ → ZMod 7) h\n  push_cast at h2\n  have key : ∀ a b : ZMod 7, 4 * a ^ 3 - 7 * b ^ 3 ≠ 2003 := by decide\n  exact key _ _ h2\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "imo_1959_p1",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.7
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem imo_1959_p1 (n : ℕ) (h₀ : 0 < n) : Nat.gcd (21 * n + 4) (14 * n + 3) = 1 := by\n  have h1 : Nat.gcd (21 * n + 4) (14 * n + 3) ∣ 21 * n + 4 := Nat.gcd_dvd_left _ _\n  have h2 : Nat.gcd (21 * n + 4) (14 * n + 3) ∣ 14 * n + 3 := Nat.gcd_dvd_right _ _\n  have h3 : Nat.gcd (21 * n + 4) (14 * n + 3) ∣ 3 * (14 * n + 3) := Dvd.dvd.mul_left h2 3\n  have h4 : Nat.gcd (21 * n + 4) (14 * n + 3) ∣ 2 * (21 * n + 4) := Dvd.dvd.mul_left h1 2\n  have h6 : 3 * (14 * n + 3) = 2 * (21 * n + 4) + 1 := by omega\n  rw [h6] at h3\n  exact Nat.dvd_one.mp ((Nat.dvd_add_right h4).mp h3)\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "amc12_2000_p6",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        1.8
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem amc12_2000_p6 (p q : ℕ) (h₀ : Nat.Prime p ∧ Nat.Prime q) (h₁ : 4 ≤ p ∧ p ≤ 18)\n    (h₂ : 4 ≤ q ∧ q ≤ 18) : ↑p * ↑q - (↑p + ↑q) ≠ (194 : ℕ) := by\n  obtain ⟨hp, hq⟩ := h₀\n  obtain ⟨a, b⟩ := h₁\n  obtain ⟨c, d⟩ := h₂\n  interval_cases p <;> interval_cases q <;>\n    first\n    | omega\n    | (norm_num at hp)\n    | (norm_num at hq)\n    | (norm_num at hp hq ⊢)\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "amc12b_2020_p21",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        4.0
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\nlemma amc12b_2020_p21_aux (n k : ℕ) (h1 : k * k ≤ n) (h2 : n < (k + 1) * (k + 1)) :\n    Int.floor (Real.sqrt n) = (k : ℤ) := by\n  have := (Nat.eq_sqrt.2 ⟨h1, h2⟩)\n  rw [Real.floor_real_sqrt_eq_nat_sqrt, ← this]\n\ntheorem amc12b_2020_p21 (S : Finset ℕ)\n    (h₀ : ∀ n : ℕ, n ∈ S ↔ 0 < n ∧ (↑n + (1000 : ℝ)) / 70 = Int.floor (Real.sqrt n)) : S.card = 6 := by\n  have hS : S = {400, 470, 2290, 2360, 2430, 2500} := by\n    ext n\n    rw [h₀]\n    simp only [Finset.mem_insert, Finset.mem_singleton]\n    constructor\n    · rintro ⟨hn, h⟩\n      set k := Int.floor (Real.sqrt n) with hk\n      have h1 : (k:ℝ) ≤ Real.sqrt n := Int.floor_le _\n      have h2 : Real.sqrt n < k + 1 := Int.lt_floor_add_one _\n      have hk0 : 0 ≤ k := Int.floor_nonneg.mpr (Real.sqrt_nonneg _)\n      have hk0r : (0:ℝ) ≤ k := by exact_mod_cast hk0\n      have hsq := Real.sq_sqrt (Nat.cast_nonneg n : (0:ℝ) ≤ n)\n      have h3 : (k:ℝ)^2 ≤ n := by nlinarith\n      have h4 : (n:ℝ) < (k+1)^2 := by nlinarith [Real.sqrt_nonneg (n:ℝ)]\n      have h5 : (n:ℝ) = 70 * k - 1000 := by linarith\n      have h6 : (n:ℤ) = 70 * k - 1000 := by exact_mod_cast h5\n      have h7 : k^2 ≤ (n:ℤ) := by exact_mod_cast h3\n      have h8 : (n:ℤ) < (k+1)^2 := by exact_mod_cast h4\n      have hl : 20 ≤ k := by\n        by_contra hc\n        have hc' : k ≤ 19 := by omega\n        nlinarith [mul_nonneg (sub_nonneg.2 hc') (show (0:ℤ) ≤ 51 - k by omega)]\n      have hu : k ≤ 50 := by\n        by_contra hc\n        have hc' : 51 ≤ k := by omega\n        nlinarith [mul_nonneg (sub_nonneg.2 hc') (show (0:ℤ) ≤ k - 19 by omega)]\n      clear_value k\n      interval_cases k\n      all_goals first | omega | (norm_num at h7 h8 <;> omega)\n    · intro h\n      rcases h with rfl | rfl | rfl | rfl | rfl | rfl\n      · refine ⟨by norm_num, ?_⟩\n        rw [amc12b_2020_p21_aux _ 20 (by norm_num) (by norm_num)]\n        norm_num\n      · refine ⟨by norm_num, ?_⟩\n        rw [amc12b_2020_p21_aux _ 21 (by norm_num) (by norm_num)]\n        norm_num\n      · refine ⟨by norm_num, ?_⟩\n        rw [amc12b_2020_p21_aux _ 47 (by norm_num) (by norm_num)]\n        norm_num\n      · refine ⟨by norm_num, ?_⟩\n        rw [amc12b_2020_p21_aux _ 48 (by norm_num) (by norm_num)]\n        norm_num\n      · refine ⟨by norm_num, ?_⟩\n        rw [amc12b_2020_p21_aux _ 49 (by norm_num) (by norm_num)]\n        norm_num\n      · refine ⟨by norm_num, ?_⟩\n        rw [amc12b_2020_p21_aux _ 50 (by norm_num) (by norm_num)]\n        norm_num\n  rw [hS]\n  rfl\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_algebra_171",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.2
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_algebra_171 (f : ℝ → ℝ) (h₀ : ∀ x, f x = 5 * x + 4) : f 1 = 9 := by\n  rw [h₀ 1]\n  norm_num\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_numbertheory_222",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.2
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_numbertheory_222 (b : ℕ) (h₀ : Nat.lcm 120 b = 3720) (h₁ : Nat.gcd 120 b = 8) :\n    b = 248 := by\n  have h := Nat.gcd_mul_lcm 120 b\n  rw [h₀, h₁] at h\n  omega\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "aime_1990_p4",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.6
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem aime_1990_p4 (x : ℝ) (h₀ : 0 < x) (h₁ : x ^ 2 - 10 * x - 29 ≠ 0)\n    (h₂ : x ^ 2 - 10 * x - 45 ≠ 0) (h₃ : x ^ 2 - 10 * x - 69 ≠ 0)\n    (h₄ : 1 / (x ^ 2 - 10 * x - 29) + 1 / (x ^ 2 - 10 * x - 45) - 2 / (x ^ 2 - 10 * x - 69) = 0) :\n    x = 13 := by\n  rw [div_add_div _ _ h₁ h₂, div_sub_div _ _ (mul_ne_zero h₁ h₂) h₃, div_eq_zero_iff] at h₄\n  rcases h₄ with h | h\n  · have hy : x ^ 2 - 10 * x - 39 = 0 := by\n      linear_combination (-1/64 : ℝ) * h\n    have h5 : (x - 13) * (x + 3) = 0 := by linear_combination hy\n    rcases mul_eq_zero.mp h5 with h6 | h6\n    · linarith\n    · linarith\n  · exact absurd h (mul_ne_zero (mul_ne_zero h₁ h₂) h₃)\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.8
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_absxm1pabsxpabsxp1eqxp2_0leqxleq1 (x : ℝ)\n    (h₀ : abs (x - 1) + abs x + abs (x + 1) = x + 2) : 0 ≤ x ∧ x ≤ 1 := by\n  rcases abs_cases (x - 1) with ⟨a, b⟩ | ⟨a, b⟩ <;>\n  rcases abs_cases x with ⟨c, d⟩ | ⟨c, d⟩ <;>\n  rcases abs_cases (x + 1) with ⟨e, f⟩ | ⟨e, f⟩ <;>\n  constructor <;> linarith\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "numbertheory_notequiv2i2jasqbsqdiv8",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.3
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem numbertheory_notequiv2i2jasqbsqdiv8 :\n    ¬∀ a b : ℤ, (∃ i j, a = 2 * i ∧ b = 2 * j) ↔ ∃ k, a ^ 2 + b ^ 2 = 8 * k := by\n  intro h\n  obtain ⟨k, hk⟩ := (h 2 0).mp ⟨1, 0, by norm_num, by norm_num⟩\n  have h4 : (4:ℤ) = 8 * k := by linarith [hk]\n  omega\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_algebra_246",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.4
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_algebra_246 (a b : ℝ) (f : ℝ → ℝ) (h₀ : ∀ x, f x = a * x ^ 4 - b * x ^ 2 + x + 5)\n    (h₂ : f (-3) = 2) : f 3 = 8 := by\n  have h := h₂\n  rw [h₀] at h\n  rw [h₀]\n  nlinarith [h]\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "imo_1982_p1",
+      "pilot_ok": true,
+      "solved": false,
+      "attempts": 2,
+      "seconds": [
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "name": "mathd_algebra_452",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.5
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_algebra_452 (a : ℕ → ℝ) (h₀ : ∀ n, a (n + 2) - a (n + 1) = a (n + 1) - a n)\n    (h₁ : a 1 = 2 / 3) (h₂ : a 9 = 4 / 5) : a 5 = 11 / 15 := by\n  have e1 : a 3 - a 2 = a 2 - a 1 := h₀ 1\n  have e2 : a 4 - a 3 = a 3 - a 2 := h₀ 2\n  have e3 : a 5 - a 4 = a 4 - a 3 := h₀ 3\n  have e4 : a 6 - a 5 = a 5 - a 4 := h₀ 4\n  have e5 : a 7 - a 6 = a 6 - a 5 := h₀ 5\n  have e6 : a 8 - a 7 = a 7 - a 6 := h₀ 6\n  have e7 : a 9 - a 8 = a 8 - a 7 := h₀ 7\n  linarith\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_algebra_80",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.3
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_algebra_80 (x : ℝ) (h₀ : x ≠ -1) (h₁ : (x - 9) / (x + 1) = 2) : x = -11 := by\n  have h2 : x + 1 ≠ 0 := by\n    intro h\n    apply h₀\n    linarith\n  field_simp at h₁\n  linarith\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "algebra_apbon2pownleqapownpbpowon2",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.5
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_apbon2pownleqapownpbpowon2 (a b : ℝ) (n : ℕ) (h₀ : 0 < a ∧ 0 < b) (h₁ : 0 < n) :\n    ((a + b) / 2) ^ n ≤ (a ^ n + b ^ n) / 2 := by\n  have h := (convexOn_pow n).2 (Set.mem_Ici.mpr h₀.1.le) (Set.mem_Ici.mpr h₀.2.le)\n    (by norm_num : (0:ℝ) ≤ 1/2) (by norm_num : (0:ℝ) ≤ 1/2) (by norm_num)\n  simp only [smul_eq_mul] at h\n  have e : (a + b) / 2 = 1/2 * a + 1/2 * b := by ring\n  rw [e]\n  linarith [h]\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_algebra_756",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.4
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_algebra_756 (a b : ℝ) (h₀ : (2 : ℝ) ^ a = 32) (h₁ : a ^ b = 125) : b ^ a = 243 := by\n  have h2 : a = 5 := by\n    have h3 : Real.log ((2:ℝ)^a) = Real.log 32 := by rw [h₀]\n    rw [Real.log_rpow (by norm_num)] at h3\n    have h32 : Real.log (32:ℝ) = 5 * Real.log 2 := by\n      rw [show (32:ℝ) = 2^5 by norm_num, Real.log_pow]; norm_num\n    have hl : 0 < Real.log 2 := Real.log_pos (by norm_num)\n    rw [h32] at h3\n    exact mul_right_cancel₀ hl.ne' h3\n  subst h2\n  have h4 : b = 3 := by\n    have h3 : Real.log ((5:ℝ)^b) = Real.log 125 := by rw [h₁]\n    rw [Real.log_rpow (by norm_num)] at h3\n    have h125 : Real.log (125:ℝ) = 3 * Real.log 5 := by\n      rw [show (125:ℝ) = 5^3 by norm_num, Real.log_pow]; norm_num\n    have hl : 0 < Real.log 5 := Real.log_pos (by norm_num)\n    rw [h125] at h3\n    exact mul_right_cancel₀ hl.ne' h3\n  subst h4\n  rw [show (5:ℝ) = ((5:ℕ):ℝ) by norm_num, Real.rpow_natCast]\n  norm_num\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_algebra_188",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.2
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_algebra_188 (σ : Equiv ℝ ℝ) (h : σ.1 2 = σ.2 2) : σ.1 (σ.1 2) = 2 := by\n  exact (congrArg σ.1 h).trans (σ.right_inv 2)\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_numbertheory_293",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.2
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_numbertheory_293 (n : ℕ) (h₀ : n ≤ 9) (h₁ : 11 ∣ 20 * 100 + 10 * n + 7) : n = 5 := by\n  interval_cases n <;> omega\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "mathd_numbertheory_447",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.2
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem mathd_numbertheory_447 :\n    (∑ k ∈ Finset.filter (fun x => 3 ∣ x) (Finset.Icc 1 49), k % 10) = 78 := by\n  first\n    | decide\n    | rfl\n    | (simp [Finset.sum_filter, Finset.sum_Icc_succ_top]; done)\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "amc12a_2021_p19",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        7.6
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem amc12a_2021_p19 (S : Finset ℝ)\n    (h₀ :\n      ∀ x : ℝ,\n        x ∈ S ↔\n          0 ≤ x ∧\n            x ≤ Real.pi ∧\n              Real.sin (Real.pi / 2 * Real.cos x) = Real.cos (Real.pi / 2 * Real.sin x)) :\n    S.card = 2 := by\n  have hpos := Real.pi_pos\n  have hS : S = {0, Real.pi / 2} := by\n    ext x\n    rw [h₀ x]\n    simp only [Finset.mem_insert, Finset.mem_singleton]\n    constructor\n    · rintro ⟨h0, hpi, h⟩\n      have hs : 0 ≤ Real.sin x := Real.sin_nonneg_of_nonneg_of_le_pi h0 hpi\n      have hsc : Real.sin x ^ 2 + Real.cos x ^ 2 = 1 := Real.sin_sq_add_cos_sq x\n      have h' : Real.sin (Real.pi / 2 * Real.cos x)\n          = Real.sin (Real.pi / 2 - Real.pi / 2 * Real.sin x) := by\n        rw [Real.sin_pi_div_two_sub]; exact h\n      obtain ⟨k, hk⟩ := Real.sin_eq_sin_iff.mp h'\n      have c0 : Real.cos x = 1 → x = 0 := fun hc =>\n        Real.injOn_cos ⟨h0, hpi⟩ ⟨le_refl _, hpos.le⟩ (by rw [hc, Real.cos_zero])\n      have c1 : Real.cos x = 0 → x = Real.pi / 2 := fun hc =>\n        Real.injOn_cos ⟨h0, hpi⟩ ⟨by linarith, by linarith⟩ (by rw [hc, Real.cos_pi_div_two])\n      rcases hk with hk | hk\n      · have e : Real.sin x + Real.cos x = 1 - 4 * (k : ℝ) := by\n          have : Real.pi * (Real.sin x + Real.cos x - (1 - 4 * (k : ℝ))) = 0 := by linarith\n          rcases mul_eq_zero.mp this with h1 | h1\n          · linarith\n          · linarith\n        have hk0 : k = 0 := by\n          have hb : (Real.sin x + Real.cos x) ^ 2 ≤ 2 := by\n            nlinarith [sq_nonneg (Real.sin x - Real.cos x)]\n          rw [e] at hb\n          have h1 : k ≤ 0 := by\n            by_contra hn\n            have : (1:ℝ) ≤ k := by exact_mod_cast (by omega : (1:ℤ) ≤ k)\n            nlinarith\n          have h2 : 0 ≤ k := by\n            by_contra hn\n            have : (k:ℝ) ≤ -1 := by exact_mod_cast (by omega : k ≤ -1)\n            nlinarith\n          omega\n        have e' : Real.sin x + Real.cos x = 1 := by rw [e, hk0]; simp\n        have hm : Real.sin x * Real.cos x = 0 := by nlinarith\n        rcases mul_eq_zero.mp hm with h1 | h1\n        · left; exact c0 (by linarith)\n        · right; exact c1 h1\n      · have e : Real.cos x - Real.sin x = 4 * (k : ℝ) + 1 := by\n          have : Real.pi * (Real.cos x - Real.sin x - (4 * (k : ℝ) + 1)) = 0 := by linarith\n          rcases mul_eq_zero.mp this with h1 | h1\n          · linarith\n          · linarith\n        have hk0 : k = 0 := by\n          have hb : (Real.cos x - Real.sin x) ^ 2 ≤ 2 := by\n            nlinarith [sq_nonneg (Real.sin x + Real.cos x)]\n          rw [e] at hb\n          have h1 : k ≤ 0 := by\n            by_contra hn\n            have : (1:ℝ) ≤ k := by exact_mod_cast (by omega : (1:ℤ) ≤ k)\n            nlinarith\n          have h2 : 0 ≤ k := by\n            by_contra hn\n            have : (k:ℝ) ≤ -1 := by exact_mod_cast (by omega : k ≤ -1)\n            nlinarith\n          omega\n        have e' : Real.cos x - Real.sin x = 1 := by rw [e, hk0]; simp\n        have hs0 : Real.sin x = 0 := by nlinarith\n        left; exact c0 (by linarith)\n    · rintro (rfl | rfl)\n      · refine ⟨le_refl _, hpos.le, ?_⟩\n        simp\n      · refine ⟨by positivity, by linarith, ?_⟩\n        simp\n  rw [hS]\n  apply Finset.card_pair\n  intro h\n  linarith\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    },
+    {
+      "name": "algebra_amgm_sum1toneqn_prod1tonleq1",
+      "pilot_ok": true,
+      "solved": true,
+      "attempts": 1,
+      "seconds": [
+        0.4
+      ],
+      "proof": "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_amgm_sum1toneqn_prod1tonleq1 (a : ℕ → NNReal) (n : ℕ)\n    (h₀ : (∑ x ∈ Finset.range n, a x) = n) : (∏ x ∈ Finset.range n, a x) ≤ 1 := by\n  rcases Nat.eq_zero_or_pos n with rfl | hn\n  · simp\n  have hn' : (n : NNReal) ≠ 0 := Nat.cast_ne_zero.mpr hn.ne'\n  have h := NNReal.geom_mean_le_arith_mean_weighted (Finset.range n)\n    (fun _ => (n : NNReal)⁻¹) a (by simp [Finset.sum_const, hn'])\n  have h2 : ∑ i ∈ Finset.range n, (n : NNReal)⁻¹ * a i = 1 := by\n    rw [← Finset.mul_sum, h₀]\n    exact inv_mul_cancel₀ hn'\n  rw [h2] at h\n  rw [NNReal.finset_prod_rpow] at h\n  have hpos : 0 < (((n : NNReal)⁻¹ : NNReal) : ℝ) :=\n    NNReal.coe_pos.mpr (inv_pos.mpr (Nat.cast_pos.mpr hn))\n  by_contra hc\n  push_neg at hc\n  have := NNReal.one_lt_rpow hc hpos\n  exact absurd h (not_le.mpr this)\n",
+      "clean_verified": true,
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "clean_problems": []
+    }
+  ]
+}

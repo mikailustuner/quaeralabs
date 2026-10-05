@@ -1,0 +1,11 @@
+id: hipotez-uretme
+version: 0.1.0
+description: Kaynaklardan ve sonuçlardan test edilebilir hipotez taslakları üretir.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

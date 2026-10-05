@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:quaeralabs:v1:skill",
+  "title": "Skill",
+  "description": "Yeniden kullanılabilir yetenek paketi. Araçlar MCP araç adlarıyla tanımlanır. Topluluk v1.0'da skill yazabilir; skill kendi izinlerini beyan eder ve kullanıcı ilk kurulumda onaylar.",
+  "type": "object",
+  "required": ["id", "version", "description", "tools", "requiredPermissions", "eval"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "description": { "type": "string", "minLength": 10 },
+    "domains": { "type": "array", "items": { "$ref": "urn:quaeralabs:v1:common#/$defs/domain" } },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "protocol"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9_.-]+$" },
+          "protocol": { "enum": ["mcp", "builtin"] },
+          "server": { "type": "string", "description": "MCP sunucusunun adı" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "requiredPermissions": {
+      "description": "Skill'in çalışması için ajanın sahip olması gereken izinler. Bir ajana, izinlerini aşan skill atanamaz.",
+      "type": "object",
+      "properties": {
+        "literatureRead": { "type": "boolean" },
+        "codeWrite": { "enum": ["none", "analysis_scripts", "sandbox"] },
+        "codeExecute": { "enum": ["none", "readonly_checks", "sandbox_no_gpu", "sandbox", "clean_sandbox"] },
+        "gpuSpend": { "enum": ["none", "within_approved_plan"] }
+      },
+      "additionalProperties": false
+    },
+    "eval": { "type": "string", "description": "Skill'in kendi değerlendirme setinin yolu ya da 'pending'" }
+  },
+  "additionalProperties": false
+}

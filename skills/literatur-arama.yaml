@@ -1,0 +1,17 @@
+id: literatur-arama
+version: 0.1.0
+description: arXiv, Semantic Scholar, OpenAlex ve Crossref üzerinde arama yapar, sonuçları
+  özetler.
+domains:
+- math
+- ml
+tools:
+- name: arxiv.search
+  protocol: mcp
+  server: literature
+- name: openalex.search
+  protocol: mcp
+  server: literature
+requiredPermissions:
+  literatureRead: true
+eval: pending

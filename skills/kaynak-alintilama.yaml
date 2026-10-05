@@ -1,0 +1,17 @@
+id: kaynak-alintilama
+version: 0.1.0
+description: Her alıntıyı DOI veya arXiv kimliğiyle doğrular; doğrulanamayan kaynağı
+  'doğrulanmadı' olarak işaretler.
+domains:
+- math
+- ml
+tools:
+- name: crossref.lookup
+  protocol: mcp
+  server: literature
+- name: arxiv.lookup
+  protocol: mcp
+  server: literature
+requiredPermissions:
+  literatureRead: true
+eval: pending

@@ -1,0 +1,19 @@
+# Literatür / yenilik değerlendirme seti v0.1
+# Her soru için kabul edilebilir yenilik kararları. "open" soruların "already_done" denmesi en ağır hatadır.
+version: 0.1.0
+thresholds:            # koşudan ÖNCE belirlendi
+  accuracy_min: 0.75   # kararın kabul edilebilir kümede olma oranı
+  open_marked_done_max: 0
+cases:
+  - { id: lit-01, domain: math, kind: classical, question: "Her n doğal sayısı için n³ - n ifadesi 6'ya bölünür mü?", accept: [already_done] }
+  - { id: lit-02, domain: math, kind: classical, question: "Sonsuz sayıda asal sayı var mıdır?", accept: [already_done] }
+  - { id: lit-03, domain: math, kind: classical, question: "√2 irrasyonel midir?", accept: [already_done] }
+  - { id: lit-04, domain: math, kind: classical, question: "Her p asalı ve p'ye bölünmeyen a için a^(p-1) ≡ 1 (mod p) olur mu?", accept: [already_done] }
+  - { id: lit-05, domain: math, kind: open, question: "İkiden büyük her çift doğal sayı iki asal sayının toplamı olarak yazılabilir mi?", accept: [novel, partially_done, unknown] }
+  - { id: lit-06, domain: math, kind: open, question: "Sonsuz sayıda ikiz asal çifti var mıdır?", accept: [novel, partially_done, unknown] }
+  - { id: lit-07, domain: math, kind: open, question: "Collatz dizisi her pozitif tam sayı için 1'e ulaşır mı?", accept: [novel, partially_done, unknown] }
+  - { id: lit-08, domain: ml, kind: classical, question: "Batch normalization derin ağların eğitimini hızlandırır mı?", accept: [already_done, partially_done] }
+  - { id: lit-09, domain: ml, kind: classical, question: "Dropout küçük veri setlerinde aşırı öğrenmeyi azaltır mı?", accept: [already_done, partially_done] }
+  - { id: lit-10, domain: ml, kind: classical, question: "Adam optimize edicisi düzgün ayarlanmış SGD'den her zaman daha iyi genelleme yapar mı?", accept: [already_done, partially_done] }
+  - { id: lit-11, domain: ml, kind: open, question: "20 milyon parametreli transformer modellerde öğrenme oranı ısınması, 3e-4 öğrenme oranında doğrulama kaybını değiştirir mi?", accept: [novel, partially_done, unknown] }
+  - { id: lit-12, domain: ml, kind: open, question: "Modüler toplama görevinde ağırlık bozunumunu sıfıra indirmek grokking'i tamamen engeller mi?", accept: [novel, partially_done, unknown, already_done] }

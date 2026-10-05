@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Büyük ikili dosyalar ve konsept görseller repoda tutulmaz
+images/
+*.pdf
+evals/results/*.local.json
+
+# Yerel ortamlar (kurulum betiği üretir; çok büyük)
+ml-env/
+lean/.lake/
+web/node_modules/
+web/dist/
+docs/
