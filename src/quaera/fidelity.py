@@ -1,18 +1,18 @@
-"""Biçimselleştirme sadakati (#6): ispata para harcamadan önce Lean ifadesinin kendisini sınar.
+"""Formalization fidelity (#6): tests the Lean statement itself before money is spent on a proof.
 
-  boşluk     varsayımlar çelişkiliyse ifade "boşuna doğru"dur (ör. `n > 5 → n < 3 → …`); `False` türetilmeye çalışılır
-  çürütme    ifadenin olumsuzu otomatik taktiklerle (gerekirse bir model denemesiyle) ispatlanmaya çalışılır;
-             başarılı olursa hipotez Lean'de doğrulanmış bir karşı örnekle ÇÜRÜTÜLMÜŞ olur
-  geri çeviri  yalnızca Lean dosyasını gören bir model ifadeyi Türkçeye çevirir; Eleştirmen hipotezle karşılaştırır
+  vacuity      if the assumptions contradict each other the statement is "vacuously true" (e.g. `n > 5 → n < 3 → …`); we try to derive `False`
+  refutation   we try to prove the statement's negation with automatic tactics (if needed, with one model attempt);
+               on success the hypothesis is REFUTED by a counterexample verified in Lean
+  back-translation  a model that sees only the Lean file translates the statement into natural language; the Critic compares it with the hypothesis
 
-Dosyalar ajanın yazdığı başlığı (import/open/yardımcı tanımlar) korur; yalnızca teorem değişir.
+The files keep the header the agent wrote (import/open/helper definitions); only the theorem changes.
 """
 
 from __future__ import annotations
 
 import re
 
-# `done` koruması: hedefi kapatmadan ilerleyen taktik `first` zincirini durdurmasın (gerçek Lean'de sınandı).
+# `done` guard: a tactic that makes progress without closing the goal must not stop the `first` chain (tested on real Lean).
 AUTOMATION = ("first | decide | omega | (norm_num; done) | (simp; done) | (push_neg; decide) | (push_neg; norm_num; done)"
               " | (push_neg; simp; done) | aesop")
 VACUITY_AUTOMATION = "first | omega | linarith | nlinarith | (simp_all; done) | aesop | (norm_num at *; done) | decide"
@@ -21,8 +21,8 @@ CLOSE = {"(": ")", "[": "]", "{": "}", "⦃": "⦄"}
 
 
 def split_theorem(source: str, name: str) -> tuple[str, str, str] | None:
-    """Dosyayı (başlık, bağlayıcılar, sonuç) olarak ayırır. `theorem name (x : ℕ) (h : P x) : Q x := …`
-    → ("import …\n", "(x : ℕ) (h : P x)", "Q x"). Ayrıştırılamazsa None."""
+    """Splits the file into (header, binders, conclusion). `theorem name (x : ℕ) (h : P x) : Q x := …`
+    → ("import …\n", "(x : ℕ) (h : P x)", "Q x"). None if it cannot be parsed."""
     m = re.search(rf"(?:theorem|lemma)\s+{re.escape(name)}\b", source)
     if not m:
         return None
@@ -58,8 +58,8 @@ def split_theorem(source: str, name: str) -> tuple[str, str, str] | None:
 
 
 def as_prop(binders: str, concl: str) -> str:
-    """Bağlayıcıları ∀ ile sarar: Lean 4 `∀ (x : ℕ) (h : P x), Q x` biçimini kabul eder.
-    Örtük/örnek bağlayıcılar ({α}, [inst]) açık bağlayıcıya çevrilir."""
+    """Wraps the binders in ∀: Lean 4 accepts the form `∀ (x : ℕ) (h : P x), Q x`.
+    Implicit/instance binders ({α}, [inst]) are turned into explicit binders."""
     if not binders:
         return concl
     explicit = re.sub(r"[{⦃\[]([^{}⦃⦄\[\]]*)[}⦄\]]", lambda m: f"({m.group(1)})" if ":" in m.group(1) else f"(_inst : {m.group(1)})", binders)
@@ -67,7 +67,7 @@ def as_prop(binders: str, concl: str) -> str:
 
 
 def refutation_file(source: str, name: str, proof: str = f"by\n  {AUTOMATION}") -> tuple[str, str] | None:
-    """(dosya, onaylanacak ifade) döner: `theorem quaera_refute : ¬ (∀ …, …)`."""
+    """Returns (file, statement to approve): `theorem quaera_refute : ¬ (∀ …, …)`."""
     parts = split_theorem(source, name)
     if not parts:
         return None
@@ -77,7 +77,7 @@ def refutation_file(source: str, name: str, proof: str = f"by\n  {AUTOMATION}") 
 
 
 def vacuity_file(source: str, name: str) -> tuple[str, str] | None:
-    """Varsayımlardan `False` türetmeyi dener. Bağlayıcı yoksa boşluk söz konusu değildir: None."""
+    """Tries to derive `False` from the assumptions. Without binders there is no vacuity: None."""
     parts = split_theorem(source, name)
     if not parts or not parts[1]:
         return None

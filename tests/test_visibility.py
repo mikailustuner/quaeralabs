@@ -1,4 +1,4 @@
-"""Görünürlük: ajanların söyledikleri, canlı adımlar ve paralel çalışan Hipotez ajanları kayda geçer."""
+"""Visibility: what agents say, live steps and Hypothesis agents running in parallel are recorded."""
 
 from test_orchestrator import Script, make
 
@@ -16,6 +16,6 @@ def test_agents_speech_activity_and_parallel_lanes_are_recorded(tmp_path):
     assert {"LITERATURE_PLAN", "HYPOTHESIS", "RANK_HYPOTHESES", "FORMALIZE", "BACKTRANSLATE", "CRITIC_STATEMENT", "PROVE"} <= purposes
     acts = [e["payload"] for e in s.events("activity")]
     assert any(a["status"] == "start" for a in acts) and any(a["status"] == "done" for a in acts)
-    assert any("Compiling with Lean" in a["step"] for a in acts)          # ispat araması kendi adımlarını bildirir
+    assert any("Compiling with Lean" in a["step"] for a in acts)          # the proof search reports its own steps
     steps = s.events("proof.search")[-1]["payload"]["steps"]
     assert all("source" not in st for st in steps) and any(st.get("sha256") for st in steps)

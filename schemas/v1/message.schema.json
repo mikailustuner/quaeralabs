@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:message",
-  "title": "Ajan mesajı (MSG)",
-  "description": "Ajanlar arası ve ajan-insan iletişimi. Her mesaj türlüdür, bir araştırma nesnesine bağlıdır ve orkestratör üzerinden yönlendirilir. Mesaj yetki veremez.",
+  "title": "Agent message (MSG)",
+  "description": "Agent-to-agent and agent-to-human communication. Every message is typed, tied to a research object and routed through the orchestrator. A message cannot grant authority.",
   "allOf": [
     { "$ref": "urn:quaeralabs:v1:common#/$defs/base" },
     {
@@ -20,13 +20,13 @@
     "type": { "const": "message" },
     "kind": { "enum": ["question", "objection", "proposal", "handoff", "approval_request", "response"] },
     "to": {
-      "description": "Alıcı rol ya da insan.",
+      "description": "Recipient role or human.",
       "anyOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/role" }, { "const": "human" }, { "const": "all" }]
     },
     "subjectId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
     "body": { "type": "string", "minLength": 1 },
     "inReplyTo": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
-    "round": { "type": "integer", "minimum": 1, "maximum": 3, "description": "Tartışma turu; 3'ü aşan tartışma insana gider." },
+    "round": { "type": "integer", "minimum": 1, "maximum": 3, "description": "Discussion round; a discussion beyond 3 rounds goes to the human." },
     "requiresResponse": { "type": "boolean" },
     "approvalRequest": {
       "type": "object",

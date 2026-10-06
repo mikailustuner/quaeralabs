@@ -1,7 +1,7 @@
-"""Dürüstlük denetimini tüm projelerde koşar ve sonucu evals/results/audit-<tarih>.json dosyasına yazar.
+"""Runs the integrity audit over all projects and writes the result to evals/results/audit-<date>.json.
 
-Kullanım: tools/limited.sh 10G 300% uv run python -u evals/audit_run.py [--lean] [--lean-timeout 1200] [--offline]
-Lean yeniden derlemesi her ispat için ayrı ve temiz bir Lean sürecidir; zaman aşımı "sonuçsuz" sayılır, sahte değil.
+Usage: tools/limited.sh 10G 300% uv run python -u evals/audit_run.py [--lean] [--lean-timeout 1200] [--offline]
+The Lean recompilation is a separate, clean Lean process per proof; a timeout counts as "inconclusive", not fake.
 """
 
 from __future__ import annotations

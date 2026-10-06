@@ -7,7 +7,7 @@ import { ProofView, ReportView } from "./Report";
 
 type ReplayFile = { project: string; title: string; domain: "math" | "ml"; stages: string[]; mode?: "verify" | "discover"; events: QEvent[]; report?: string | null };
 
-/** Tekrar oynatma: olay kaydını adım adım yeniden kurar. Model çağrısı ya da API anahtarı gerektirmez. */
+/** Replay: rebuilds the event log step by step. Needs no model calls or API key. */
 export function Replay({ pid }: { pid?: string }) {
   const [file, setFile] = useState<ReplayFile | null>(null);
   const [error, setError] = useState<string | null>(null);

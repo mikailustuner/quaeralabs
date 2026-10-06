@@ -9,7 +9,7 @@ const CRITERIA: [string, string, string][] = [
   ["cost", "Cost", "10 = cheap and quick to test"],
 ];
 
-/** Eleştirmen'in hipotez puanlaması: ne puanlandı, hangi ağırlıkla, kim seçildi ve kim elendi. */
+/** The Critic's hypothesis scoring: what was scored, with which weights, which one was chosen and which were dropped. */
 export function HypothesisRanking({ ev, hypotheses }: { ev: QEvent; hypotheses: QObject[] }) {
   const p = ev.payload;
   const weights: Record<string, number> = p.weights || {};

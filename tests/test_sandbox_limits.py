@@ -1,4 +1,4 @@
-"""Sandbox kaynak sınırları: bellek sınırını aşan ajan kodu yalnızca kendi kapsamında öldürülür."""
+"""Sandbox resource limits: agent code that exceeds the memory limit is killed only within its own scope."""
 
 import json
 import shutil
@@ -11,7 +11,7 @@ from quaera.mcp_servers import sandbox_server
 
 pytestmark = pytest.mark.skipif(not shutil.which("systemd-run") or not shutil.which("bwrap")
                                 or not (Path(sandbox_server.ML_ENV) / "bin" / "python").exists(),
-                                reason="systemd-run, bwrap ya da ml-env yok")
+                                reason="systemd-run, bwrap or ml-env missing")
 
 
 def run(code, monkeypatch, mem="200M"):
@@ -20,13 +20,13 @@ def run(code, monkeypatch, mem="200M"):
 
 
 def test_over_memory_limit_is_killed(monkeypatch):
-    r = run("x = bytearray(600 * 1024 * 1024); print('geçti')", monkeypatch)
-    assert r["returncode"] != 0 and "geçti" not in r["stdout"]
+    r = run("x = bytearray(600 * 1024 * 1024); print('passed')", monkeypatch)
+    assert r["returncode"] != 0 and "passed" not in r["stdout"]
 
 
 def test_within_limit_runs(monkeypatch):
-    r = run("x = bytearray(50 * 1024 * 1024); print('tamam')", monkeypatch)
-    assert r["returncode"] == 0 and "tamam" in r["stdout"]
+    r = run("x = bytearray(50 * 1024 * 1024); print('ok')", monkeypatch)
+    assert r["returncode"] == 0 and "ok" in r["stdout"]
 
 
 def test_no_network_and_no_home(monkeypatch):

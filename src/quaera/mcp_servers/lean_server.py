@@ -1,4 +1,4 @@
-"""Lean MCP sunucusu: lean_compile ve mathlib_search araçları."""
+"""Lean MCP server: the lean_compile and mathlib_search tools."""
 
 from __future__ import annotations
 
@@ -24,13 +24,13 @@ def checker() -> LeanChecker:
 
 @mcp.tool()
 def lean_compile(source: str, theorem: str | None = None, approved_statement: str | None = None, clean: bool = False) -> str:
-    """Lean 4 kaynağını sandbox içinde kontrol eder (clean=True: sıfırdan tek seferlik derleme); derleme, aksiyom ve ifade raporu döndürür."""
+    """Checks Lean 4 source inside the sandbox (clean=True: one-shot compilation from scratch); returns a report on compilation, axioms and the statement."""
     return json.dumps(asdict(checker().check(source, theorem, approved_statement, clean)), ensure_ascii=False)
 
 
 @mcp.tool()
 def mathlib_search(query: str, limit: int = 20) -> str:
-    """Mathlib kaynaklarında, sorgudaki tüm kelimeleri içeren teorem/lemma/def satırlarını arar."""
+    """Searches the Mathlib sources for theorem/lemma/def lines that contain every word of the query."""
     root = DEFAULT_WORKSPACE / ".lake" / "packages" / "mathlib" / "Mathlib"
     words = [w for w in re.split(r"\s+", query.strip()) if w][:6]
     if not words or not root.exists():

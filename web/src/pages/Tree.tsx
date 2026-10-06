@@ -10,7 +10,7 @@ const OUTCOME: Record<string, [string, string]> = {
 };
 const W = 220, H = 92, GX = 28, GY = 54, PAD = 16;
 
-/** Ağaç yerleşimi: derinlik = dikey seviye, yapraklar soldan sağa; ebeveyn çocuklarının ortasında. */
+/** Tree layout: depth = vertical level, leaves left to right; a parent sits centred over its children. */
 function layout(nodes: TreeNode[], root: string) {
   const kids = new Map<string, TreeNode[]>();
   for (const n of nodes) if (n.parent) kids.set(n.parent, [...(kids.get(n.parent) || []), n]);
@@ -47,7 +47,7 @@ export function TreeView({ pid, n }: { pid: string; n: number }) {
   const data = t.data as TreeData | undefined;
   const lay = useMemo(() => (data ? layout(data.nodes, data.root) : null), [data]);
   const anyRunning = !!data?.nodes.some((x) => x.running);
-  useEffect(() => {        // dallar ayrı projelerdir: biri çalışırken ağacı düzenli tazele
+  useEffect(() => {        // branches are separate projects: refresh the tree regularly while one is running
     if (!anyRunning) return;
     const h = setInterval(t.reload, 5000);
     return () => clearInterval(h);

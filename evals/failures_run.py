@@ -1,9 +1,9 @@
-"""Hata vakası seti: geçmişte yaşanmış hataları güncel kodla yeniden koşar ve beklentinin tuttuğunu denetler.
+"""Failure case set: re-runs past failures with the current code and checks that the expectation holds.
 
-Kullanım: tools/limited.sh 8G 300% uv run python -u evals/failures_run.py [--only fail-goldbach-scope]
-Matematik vakaları Lean gerektirir. ML vakaları ya `syntheticTask` (veri gizli seed'le yeniden üretilir) ya da
-`evals/data/failures/<id>/` altında rızayla paylaşılmış veriyle çalışır; veri yoksa vaka atlanır.
-Hafıza kapalıdır (memory=False): vaka, aynı sorunun önceki koşusunu hatırlayarak geçmemeli.
+Usage: tools/limited.sh 8G 300% uv run python -u evals/failures_run.py [--only fail-goldbach-scope]
+Math cases need Lean. ML cases run either on a `syntheticTask` (data regenerated with a hidden seed) or on data
+shared with consent under `evals/data/failures/<id>/`; without data the case is skipped.
+Memory is off (memory=False): a case must not pass by remembering an earlier run of the same question.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def main() -> int:
     for case in cases:
         if a.only and case["id"] != a.only:
             continue
-        project = HOME / f"vaka-{stamp}-{case['id']}"
+        project = HOME / f"case-{stamp}-{case['id']}"
         question, scope, data = case.get("question"), case.get("scope", ""), None
         if case["domain"] == "ml":
             if case.get("syntheticTask"):
@@ -47,7 +47,7 @@ def main() -> int:
             elif (ROOT / "evals/data/failures" / case["id"]).exists():
                 data = ROOT / "evals/data/failures" / case["id"]
             else:
-                rows.append({"id": case["id"], "skipped": "veri yok"})
+                rows.append({"id": case["id"], "skipped": "no data"})
                 continue
         orch = build(project, case.get("budget", 1.5), None, autonomy="cap", domain=case["domain"], memory=False)
         orch.store.set_meta("title", question)
@@ -56,13 +56,13 @@ def main() -> int:
         orch.store.put({"type": "question", "createdBy": orch.human(), "title": question, "domain": case["domain"], "scope": scope})
         try:
             finish(orch)
-        except Exception as exc:  # bir vakanın çökmesi diğerlerini durdurmasın
-            print(f"{case['id']}: çöktü: {exc}", flush=True)
+        except Exception as exc:  # one case crashing must not stop the others
+            print(f"{case['id']}: crashed: {exc}", flush=True)
         problems = check(case, orch.store)
         spent = sum(e["payload"]["costUsd"] for e in orch.store.events("model.call"))
         rows.append({"id": case["id"], "passed": not problems, "problems": problems, "spent_usd": round(spent, 4),
                      "project": str(project)})
-        print(f"{case['id']}: {'GEÇTİ' if not problems else 'KALDI: ' + '; '.join(problems)} · ${spent:.3f}", flush=True)
+        print(f"{case['id']}: {'PASSED' if not problems else 'FAILED: ' + '; '.join(problems)} · ${spent:.3f}", flush=True)
         out.write_text(json.dumps({"rows": rows}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     ran = [r for r in rows if "passed" in r]
     summary = {"createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"), "cases": len(rows), "ran": len(ran),

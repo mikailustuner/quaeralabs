@@ -1,10 +1,10 @@
-"""Araç katmanı (ADR 0006).
+"""Tool layer (ADR 0006).
 
-Ajanlar araçlara yalnızca bu kayıt üzerinden erişir. Her çağrıdan önce rolün skill'lerinde
-o aracın bulunup bulunmadığı kontrol edilir (izinler kodda zorlanır). MCP araçları kalıcı
-stdio oturumlarıyla çağrılır; her çağrı olay kaydına yazılır.
+Agents reach tools only through this registry. Before every call, the role's skills are
+checked for that tool (permissions are enforced in code). MCP tools are called over persistent
+stdio sessions; every call is written to the event log.
 
-Araç adı eşlemesi: skill'deki `lean.compile` (sunucu `lean`) → MCP aracı `lean_compile`.
+Tool name mapping: `lean.compile` in a skill (server `lean`) → MCP tool `lean_compile`.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class ToolError(Exception):
 
 
 class MCPPool:
-    """Arka plandaki bir olay döngüsünde MCP oturumlarını açık tutar."""
+    """Keeps MCP sessions open on a background event loop."""
 
     def __init__(self):
         self.loop = asyncio.new_event_loop()
@@ -86,12 +86,12 @@ class ToolRegistry:
     def call(self, role: str, tool: str, **args) -> str:
         self.permissions.check_tool(role, tool)
         if tool == "sandbox.exec" and args.get("gpu"):
-            self.permissions.check_action(role, "gpu_spend")  # GPU yalnızca izinli rollerde
+            self.permissions.check_action(role, "gpu_spend")  # GPU only for permitted roles
         server = self.server_of.get(tool)
         if server not in SERVERS:
             raise ToolError(f"the server ({server}) for the '{tool}' tool is not available in this version")
-        # Canlı görünüm: uzun süren araçlar (Lean derlemesi, sandbox'ta deney) başlarken de kayda geçer; derlenen ya da
-        # yazılan kod (en fazla 20 bin karakter) arayüzde "şu an ne yapılıyor" panelinde gösterilir.
+        # Live view: long-running tools (Lean compilation, sandbox experiments) are also logged when they start; the code
+        # being compiled or written (at most 20k characters) is shown in the UI's "what is happening now" panel.
         code = args.get("source") or args.get("content")
         self.record("tool.started", {"role": role, "tool": tool,
                                      "args": {k: (v if len(str(v)) < 200 else str(v)[:200] + "…") for k, v in args.items()

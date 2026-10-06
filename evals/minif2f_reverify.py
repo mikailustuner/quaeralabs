@@ -1,6 +1,6 @@
-"""Kaydedilmiş miniF2F ispatlarını model çağrısı yapmadan, temiz ortamda yeniden doğrular.
+"""Re-verifies saved miniF2F proofs in a clean environment, without any model calls.
 
-Kullanım: uv run python evals/minif2f_reverify.py evals/results/minif2f-test-<tarih>.json
+Usage: uv run python evals/minif2f_reverify.py evals/results/minif2f-test-<date>.json
 """
 
 import json
@@ -26,7 +26,7 @@ def main(path: str) -> int:
         rep = lean.check(row["proof"], row["name"], approved, clean=True)
         row["clean_verified"], row["axioms"], row["solved"] = rep.verified, rep.axioms, rep.verified
         row["clean_problems"] = rep.problems + rep.errors[:2]
-        print(f"{row['name']}: {'doğrulandı' if rep.verified else 'REDDEDİLDİ ' + str(row['clean_problems'])}", flush=True)
+        print(f"{row['name']}: {'verified' if rep.verified else 'REJECTED ' + str(row['clean_problems'])}", flush=True)
     lean.close()
     solved = sum(r["solved"] for r in data["rows"])
     attempted = sum(1 for r in data["rows"] if r["attempts"] > 0)

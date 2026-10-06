@@ -1,9 +1,9 @@
-"""QuaeraLabs sözleşmeleri: şemalar ve şemanın tek başına ifade edemediği kurallar.
+"""QuaeraLabs contracts: the schemas and the rules a schema cannot express on its own.
 
-Referans bütünlüğü, ön kayıt özeti, pilot zorunluluğu, Eleştirmen/Doğrulayıcı
-kapısı ve izin tutarlılığı burada kontrol edilir. Aynı kurallar hem
-`tools/validate.py` tarafından repo üzerinde hem de veri deposu tarafından her
-yazmada uygulanır.
+Referential integrity, the preregistration hash, the mandatory pilot, the Critic/Verifier
+gate and permission consistency are checked here. The same rules are applied both
+by `tools/validate.py` on the repo and by the data store on every
+write.
 """
 
 from __future__ import annotations
@@ -39,17 +39,17 @@ ROLES = {
     "engineer", "analyst", "critic", "verifier", "writer", "manager",
 }
 
-# Ön kayıtta kilitlenen alanlar; contentHash bunların kanonik JSON özetidir.
+# Fields locked by the preregistration; contentHash is the canonical JSON hash of them.
 PREREG_LOCKED_FIELDS = ("hypothesisId", "primaryMetric", "successCriterion", "analysisPlan", "seeds")
 
-# Bir nesnenin başka nesnelere referans veren alanları.
+# Fields through which an object references other objects.
 REF_FIELDS = (
     "questionId", "hypothesisId", "experimentId", "resultId", "targetId", "subjectId",
     "inReplyTo", "preregistrationId", "logs", "parentId",
 )
 REF_LIST_FIELDS = ("hypothesisIds", "runIds", "verificationRunIds", "derivedFrom")
 
-# İzin seviyeleri: bir skill, ajanın seviyesini aşan izin isteyemez.
+# Permission levels: a skill cannot require more than the agent's level.
 LEVELS = {
     "codeWrite": ["none", "analysis_scripts", "sandbox"],
     "codeExecute": ["none", "readonly_checks", "sandbox_no_gpu", "sandbox", "clean_sandbox"],
@@ -87,7 +87,7 @@ def check_schemas() -> list[str]:
     for name, schema in SCHEMAS.items():
         try:
             Draft202012Validator.check_schema(schema)
-        except Exception as exc:  # şema bozuksa geri kalan her şey anlamsız
+        except Exception as exc:  # if a schema is broken, nothing else means anything
             errors.append(f"schema {name}: {exc}")
     return errors
 
@@ -99,8 +99,8 @@ def prereg_hash(prereg: dict) -> str:
 
 
 def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
-    """final=False: araştırma sürerken geçici olarak sağlanamayan kurallar (ör. henüz
-    cevaplanmamış itiraz) atlanır."""
+    """final=False: rules that cannot hold temporarily while research is running (e.g. a not yet
+    answered objection) are skipped."""
     errors = schema_errors("bundle", bundle, where)
     if errors:
         return errors
@@ -120,7 +120,7 @@ def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
     def of_type(t: str) -> list[dict]:
         return [o for o in objs if o["type"] == t]
 
-    # 1. Referans bütünlüğü
+    # 1. Referential integrity
     for obj in objs:
         refs = [obj[f] for f in REF_FIELDS if f in obj]
         refs += [r for f in REF_LIST_FIELDS for r in obj.get(f, [])]
@@ -134,12 +134,12 @@ def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
     if errors:
         return errors
 
-    # 2. Ön kayıt: özet doğru olmalı
+    # 2. Preregistration: the hash must be correct
     for pre in of_type("preregistration"):
         if pre["contentHash"] != prereg_hash(pre):
             errors.append(f"{where}: {pre['id']} contentHash does not match the locked fields (preregistration was modified)")
 
-    # 3. Deneyler: onaylı deney ön kayda bağlı, tam çalıştırmalar ön kayıttan ve başarılı bir pilottan sonra
+    # 3. Experiments: an approved experiment is tied to a preregistration; full runs come after it and after a successful pilot
     for exp in of_type("experiment"):
         runs = sorted((r for r in of_type("run") if r["experimentId"] == exp["id"]), key=lambda r: r["startedAt"])
         if "preregistrationId" in exp:
@@ -161,7 +161,7 @@ def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
             if run["kind"] == "verification" and run["createdBy"].get("role") != "verifier":
                 errors.append(f"{where}: {run['id']} verification run was started by someone other than the Verifier")
 
-    # 4. Lean: 'verified' yalnızca lean_output artefaktıyla
+    # 4. Lean: 'verified' only with a lean_output artifact
     for res in of_type("result"):
         proof = res.get("leanProof")
         if proof and proof.get("verified"):
@@ -169,7 +169,7 @@ def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
             if art["type"] != "artifact" or art["kind"] != "lean_output":
                 errors.append(f"{where}: {res['id']} claims verified but compilerOutput is not a Lean output")
 
-    # 5. Doğrulama: rol ve çapraz model iddiası tutarlı olmalı
+    # 5. Verification: the role and the cross-model claim must be consistent
     for ver in of_type("verification"):
         if ver["createdBy"].get("role") != "verifier":
             errors.append(f"{where}: {ver['id']} was created by someone other than the Verifier")
@@ -179,7 +179,7 @@ def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
             if ver["createdBy"].get("modelFamily") in producer_families:
                 errors.append(f"{where}: {ver['id']} claims cross-model but is in the same model family as the producing agent")
 
-    # 6. Kapı: desteklendi/çürütüldü durumu için doğrulanmış kanıt ve açık itiraz olmaması
+    # 6. Gate: supported/refuted requires verified evidence and no open objection
     open_targets = {c["targetId"] for c in of_type("critique") if c["status"] == "open"}
     for hyp in of_type("hypothesis"):
         if hyp["status"] not in ("supported", "refuted"):
@@ -197,7 +197,7 @@ def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
         if blocked & open_targets:
             errors.append(f"{where}: {hyp['id']} is '{hyp['status']}' but has an open objection")
 
-    # 7. İletişim: soru ve itirazlar cevapsız kalamaz (yalnızca araştırma kapanırken)
+    # 7. Communication: questions and objections cannot stay unanswered (only when the research closes)
     if not final:
         return errors
     replied = {m["inReplyTo"] for m in of_type("message") if "inReplyTo" in m}

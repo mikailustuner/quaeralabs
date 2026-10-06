@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-/** Hash yönlendirici: sunucu tek bir index.html sunar, derin bağlantılar `#/p/<id>/grafik` biçimindedir. */
+/** Hash router: the server serves a single index.html; deep links look like `#/p/<id>/graph`. */
 export function useRoute(): string[] {
   const read = () => decodeURIComponent(window.location.hash.replace(/^#\/?/, "")).split("/").filter(Boolean);
   const [parts, setParts] = useState(read);

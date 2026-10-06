@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:question",
-  "title": "Soru (Q)",
-  "description": "Araştırmanın kök nesnesi. Bir tartışma başlığı değil; hipotezlerin bağlandığı sorudur.",
+  "title": "Question (Q)",
+  "description": "The root object of a research project. Not a discussion topic; it is the question the hypotheses attach to.",
   "allOf": [
     {
       "$ref": "urn:quaeralabs:v1:common#/$defs/base"
@@ -24,7 +24,7 @@
       "type": "string",
       "minLength": 8,
       "maxLength": 1500,
-      "description": "Araştırma sorusu. Yarışma soruları gibi uzun ifadeler için 1500 karaktere kadar (v1 içinde gevşetildi: 300 → 1500)."
+      "description": "The research question. Up to 1500 characters for long statements such as competition problems (relaxed within v1: 300 → 1500)."
     },
     "domain": {
       "$ref": "urn:quaeralabs:v1:common#/$defs/domain"
@@ -32,7 +32,7 @@
     "scope": {
       "type": "string",
       "minLength": 1,
-      "description": "Sorunun sınırları: hangi modeller, ölçekler, teoriler"
+      "description": "Bounds of the question: which models, scales, theories"
     },
     "description": {
       "type": "string"

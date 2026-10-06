@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:common",
-  "title": "QuaeraLabs ortak tanımlar",
-  "description": "Tüm araştırma nesnelerinin paylaştığı kimlik, aktör, revizyon ve onay tanımları.",
+  "title": "QuaeraLabs common definitions",
+  "description": "Id, actor, revision and approval definitions shared by all research objects.",
   "$defs": {
     "publicId": {
-      "description": "İnsan tarafından okunabilir kalıcı kimlik. Önek nesne türünü belirtir; URL değişse de kimlik değişmez.",
+      "description": "Human-readable persistent id. The prefix gives the object type; the id stays the same even if the URL changes.",
       "type": "string",
       "pattern": "^(Q|H|PRE|E|RUN|RES|CR|EL|VER|ART|MSG)-[0-9]{4,}$"
     },
@@ -20,14 +20,14 @@
       "enum": ["director", "literature", "hypothesis", "experiment_designer", "engineer", "analyst", "critic", "verifier", "writer", "manager"]
     },
     "actor": {
-      "description": "Bir nesneyi ya da mesajı kimin ürettiği. Ajanlarda rol ve model, insanlarda kullanıcı kimliği zorunludur.",
+      "description": "Who produced an object or message. Agents require role and model; humans require a user id.",
       "type": "object",
       "required": ["kind"],
       "properties": {
         "kind": { "enum": ["agent", "human"] },
         "role": { "$ref": "#/$defs/role" },
-        "model": { "type": "string", "minLength": 1, "description": "Sağlayıcı/model kimliği, ör. anthropic/claude-opus-5-5" },
-        "modelFamily": { "type": "string", "minLength": 1, "description": "Çapraz model kontrolü için model ailesi, ör. anthropic" },
+        "model": { "type": "string", "minLength": 1, "description": "Provider/model id, e.g. anthropic/claude-opus-5-5" },
+        "modelFamily": { "type": "string", "minLength": 1, "description": "Model family for the cross-model check, e.g. anthropic" },
         "userId": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false,
@@ -49,7 +49,7 @@
       ]
     },
     "approval": {
-      "description": "İnsan onayı kaydı. Onay her zaman bir insana aittir.",
+      "description": "Record of a human approval. An approval always belongs to a human.",
       "type": "object",
       "required": ["by", "at", "decision"],
       "properties": {
@@ -57,7 +57,7 @@
         "at": { "$ref": "#/$defs/timestamp" },
         "decision": { "enum": ["approved", "rejected"] },
         "autonomyLevel": {
-          "description": "Onayın hangi otonomi modunda verildiği. auto_under_limit modunda insan, limiti önceden onaylamıştır.",
+          "description": "The autonomy mode the approval was given in. In auto_under_limit mode the human approved the limit in advance.",
           "enum": ["manual", "auto_under_limit", "auto_to_budget_cap"]
         },
         "note": { "type": "string" }
@@ -75,7 +75,7 @@
       "additionalProperties": false
     },
     "base": {
-      "description": "Her araştırma nesnesinin taşıdığı alanlar. Yayınlanmış bir revizyon değiştirilemez; değişiklik yeni revizyon açar.",
+      "description": "Fields every research object carries. A published revision cannot be modified; a change opens a new revision.",
       "type": "object",
       "required": ["id", "type", "revision", "createdAt", "createdBy"],
       "properties": {
@@ -86,7 +86,7 @@
         "createdAt": { "$ref": "#/$defs/timestamp" },
         "createdBy": { "$ref": "#/$defs/actor" },
         "branchOf": {
-          "description": "Dallanma: bu nesnenin çatallandığı kaynak nesne ve revizyon.",
+          "description": "Branching: the source object and revision this object was forked from.",
           "type": "object",
           "required": ["id", "revision"],
           "properties": { "id": { "$ref": "#/$defs/publicId" }, "revision": { "type": "integer", "minimum": 1 } },

@@ -1,1 +1,1 @@
-"""QuaeraLabs MCP sunucuları (ADR 0006)."""
+"""QuaeraLabs MCP servers (ADR 0006)."""

@@ -1,11 +1,11 @@
-"""Başarısız araştırmaların incelenmesi ve eval setine aktarılması (Faz 4).
+"""Reviewing failed research and moving it into the eval set (Phase 4).
 
-  quaera triage scan                      tüm projelerdeki hata işaretleri (haftalık "ajan hata incelemesi" girdisi)
-  quaera triage add <proje> --expect …    bir vakayı beklenen davranışla yerel olarak kaydeder (~/.quaera/triage/)
-  quaera triage export <dosya.zip>        vakaları kişisel bilgilerden arındırıp paketler (katılımcı rızasıyla gönderilir)
+  quaera triage scan                      failure signals across all projects (input to the weekly "agent failure review")
+  quaera triage add <project> --expect …  saves a case locally with its expected behaviour (~/.quaera/triage/)
+  quaera triage export <file.zip>         packages the cases stripped of personal data (sent with the participant's consent)
 
-Ekip, gelen vakaları inceleyip `evals/sets/failures.yaml` dosyasına ekler; `evals/failures_run.py` bu vakaları
-güncel kodla yeniden koşar ve beklentinin tuttuğunu kontrol eder.
+The team reviews incoming cases and adds them to `evals/sets/failures.yaml`; `evals/failures_run.py` reruns those
+cases with the current code and checks that the expectation holds.
 """
 
 from __future__ import annotations
@@ -22,16 +22,16 @@ import yaml
 from .store import Store
 
 EXPECT_KEYS = {
-    "answer": {"yes", "no", "unclear"},                  # Yazar'ın son cevabı bu olmalı
-    "notStatus": {"supported", "refuted", "inconclusive", "under_critique"},   # seçilen hipotez bu durumda OLMAMALI
-    "mustObject": {True, False},                         # Eleştirmen sonuca itiraz açmalı mı
-    "mustStop": {True, False},                           # araştırma kontrollü durmalı mı
-    "notAnswered": {True},                               # açık bir soru tam cevaplanmış gibi raporlanmamalı
+    "answer": {"yes", "no", "unclear"},                  # the Writer's final answer must be this
+    "notStatus": {"supported", "refuted", "inconclusive", "under_critique"},   # the chosen hypothesis must NOT end in this status
+    "mustObject": {True, False},                         # must the Critic object to the result
+    "mustStop": {True, False},                           # must the research stop in a controlled way
+    "notAnswered": {True},                               # an open question must not be reported as fully answered
 }
 
 
 def signals(store: Store) -> list[dict]:
-    """Bir projedeki hata işaretleri. Boş liste = belirgin bir sorun yok (yine de yanlış olabilir)."""
+    """Failure signals in a project. Empty list = no obvious problem (it may still be wrong)."""
     out = []
     st = {e["payload"]["key"]: e["payload"]["value"] for e in store.events("state")}
     if st.get("stopped"):
@@ -69,7 +69,7 @@ def scan(home: Path) -> list[dict]:
         s = Store(p / "quaera.db")
         try:
             if s.events("fault.injected"):
-                continue                                     # bilinçli hata enjeksiyonu: değerlendirme, gerçek vaka değil
+                continue                                     # deliberate fault injection: an eval, not a real case
             sig = signals(s)
             q = next((o for o in s.latest("question")), {})
             rows.append({"project": p.name, "title": q.get("title", ""), "domain": q.get("domain", ""), "signals": sig})
@@ -108,7 +108,7 @@ def add_case(home: Path, project: str, note: str, expect: dict) -> Path:
 
 
 def redact(text: str) -> str:
-    """Kullanıcı adını ve ev dizini yollarını gizler (soru metni katılımcının rızasıyla paylaşılır)."""
+    """Redacts the user name and home directory paths (the question text is shared with the participant's consent)."""
     user = getpass.getuser()
     text = re.sub(r"/(home|Users)/[^/\s\"']+", "/~", text)
     return re.sub(rf"\b{re.escape(user)}\b", "<user>", text) if len(user) > 2 else text
@@ -125,7 +125,7 @@ def export(home: Path) -> bytes:
 
 
 def check(case: dict, store: Store) -> list[str]:
-    """Bir vakanın beklentisini yeniden koşulmuş projeye karşı denetler. Boş liste = beklenti tuttu."""
+    """Checks a case's expectation against the rerun project. Empty list = the expectation held."""
     problems = []
     exp = case["expect"]
     answer = next((e["payload"].get("answer") for e in reversed(store.events("writer.output"))), None)

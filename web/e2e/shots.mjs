@@ -1,4 +1,4 @@
-// Görsel kontrol: belirtilen sayfaların ekran görüntülerini masaüstü ve 375px genişlikte alır.
+// Visual check: takes screenshots of the given pages at desktop and 375px width.
 import { chromium } from "playwright";
 import { mkdirSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -22,8 +22,8 @@ for (const [name, path] of pages) {
     await p.goto(`${BASE}/#${path}`);
     await p.waitForTimeout(2500);
     const overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    if (process.env.FULL) {   // tam sayfa: pencereyi içerik boyuna uzat (headless-shell'de fullPage bazen başarısız)
-      let full = 0;   // içerik yüklenene kadar: yükseklik iki ölçümde sabitlenince
+    if (process.env.FULL) {   // full page: stretch the window to the content height (fullPage sometimes fails in headless-shell)
+      let full = 0;   // until the content has loaded: when the height is stable across two measurements
       for (let i = 0; i < 20; i++) {
         const h2 = await p.evaluate(() => document.documentElement.scrollHeight);
         if (h2 === full && h2 > h) break;
@@ -33,7 +33,7 @@ for (const [name, path] of pages) {
       await p.waitForTimeout(400);
     }
     await p.screenshot({ path: `${OUT}/${name}-${tag}${process.env.THEME === "dark" ? "-dark" : ""}.png` });
-    console.log(name, tag, "yatay taşma:", overflow, errors.length ? "HATALAR: " + errors.join(" | ") : "");
+    console.log(name, tag, "horizontal overflow:", overflow, errors.length ? "ERRORS: " + errors.join(" | ") : "");
     await p.close();
   }
 }

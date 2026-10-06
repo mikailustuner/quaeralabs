@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:evidence-package",
-  "title": "Kanıt paketi manifesti (quaera-manifest.json)",
-  "description": "RO-Crate 1.1 paketinin içinde, ro-crate-metadata.json yanında duran QuaeraLabs manifesti. AI etiketi burada da yer alır ve imza kapsamındadır; etiketi çıkarılmış paket doğrulamadan geçmez.",
+  "title": "Evidence package manifest (quaera-manifest.json)",
+  "description": "The QuaeraLabs manifest inside the RO-Crate 1.1 package, next to ro-crate-metadata.json. The AI label is included here too and covered by the signature; a package with the label removed fails verification.",
   "type": "object",
   "required": ["manifestVersion", "quaeraVersion", "createdAt", "aiLabel", "objects", "files", "signature"],
   "properties": {

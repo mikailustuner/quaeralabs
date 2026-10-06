@@ -1,5 +1,5 @@
-/* QuaeraLabs v3 — sıcak nötr tonlar (açık varsayılan + koyu), serif başlıklar, sakin yüzeyler.
-   design-system/quaeralabs/MASTER.md. Renkler yalnızca tokenlardan; her metin/zemin çifti WCAG AA (≥4.5). */
+/* QuaeraLabs v3 — warm neutral tones (light by default + dark), serif headings, calm surfaces.
+   design-system/quaeralabs/MASTER.md. Colours come only from tokens; every text/background pair meets WCAG AA (≥4.5). */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/source-serif-4";
 @import "@fontsource-variable/geist-mono";
@@ -88,7 +88,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .skip:focus { left: 8px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
-/* ---------------- yerleşim: referanstaki gibi dar sol panel + sakin ana alan ---------------- */
+/* ---------------- layout: narrow left panel + calm main area, as in the reference ---------------- */
 .app { display: grid; grid-template-columns: 276px minmax(0, 1fr); min-height: 100vh; }
 .app.collapsed { grid-template-columns: 0 minmax(0, 1fr); }
 .app.collapsed .side { visibility: hidden; }
@@ -154,7 +154,7 @@ a.mem-item:hover { background: var(--fill); text-decoration: none; }
   .main, .app.collapsed .main { padding: var(--s4) var(--s4) 40px; }
 }
 
-/* ---------------- yüzeyler ---------------- */
+/* ---------------- surfaces ---------------- */
 .card { background: var(--surface); border: 1px solid var(--sep); border-radius: var(--r-card); padding: var(--s4); box-shadow: var(--shadow); min-width: 0; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin-bottom: var(--s3); flex-wrap: wrap; }
 .card-head h2, .card-head h3 { display: flex; align-items: center; gap: 8px; }
@@ -175,7 +175,7 @@ a.mem-item:hover { background: var(--fill); text-decoration: none; }
 @media (max-width: 1100px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
 
-/* ---------------- düğmeler, formlar ---------------- */
+/* ---------------- buttons, forms ---------------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 16px; border-radius: var(--r-btn);
        border: 1px solid var(--sep-strong); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; white-space: nowrap;
        transition: background .15s, border-color .15s; }
@@ -205,7 +205,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .segmented button { border: 0; background: transparent; padding: 5px 12px; border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; min-height: 30px; }
 .segmented button[aria-pressed="true"], .segmented button[aria-checked="true"] { background: var(--bg-elev); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 
-/* ---------------- rozet, çip ---------------- */
+/* ---------------- badge, chip ---------------- */
 .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: var(--r-pill); font-size: 12.5px; font-weight: 600; background: var(--fill); color: var(--text-2); white-space: nowrap; }
 .badge.good { background: var(--green-soft); color: var(--green); }
 .badge.bad { background: var(--red-soft); color: var(--red); }
@@ -219,7 +219,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 @media (prefers-reduced-motion: no-preference) { .dot.working { animation: pulse 1.4s ease-in-out infinite; } }
 @keyframes pulse { 50% { box-shadow: 0 0 0 6px transparent; } }
 
-/* ---------------- proje başlığı ---------------- */
+/* ---------------- project header ---------------- */
 .topbar { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s4); flex-wrap: wrap; }
 .crumbs { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; min-width: 0; }
 .crumbs a { color: var(--muted); }
@@ -232,7 +232,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .title-row h1 { flex: 1 1 400px; overflow-wrap: anywhere; }
 .subtitle { color: var(--muted); margin-top: 6px; max-width: 90ch; }
 
-/* aşama çizgisi */
+/* stage bar */
 .phases { display: flex; align-items: center; flex-wrap: wrap; row-gap: 10px; margin: var(--s5) 0; padding: 0; list-style: none; }
 .phase { position: relative; display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 600; font-size: 14px; white-space: nowrap; }
 .phase .pi { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--sep-strong); display: grid; place-items: center; flex: none; font-size: 12px; }
@@ -242,12 +242,12 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .phase-line { flex: 1 1 40px; min-width: 24px; height: 2px; background: var(--sep); margin: 0 12px; }
 .phase-line.done { background: var(--accent); }
 
-/* ana ızgara: içerik + sağ panel */
+/* main grid: content + right panel */
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s5); align-items: start; }
 .rail { display: grid; gap: var(--s4); position: sticky; top: var(--s4); }
 @media (max-width: 1280px) { .workspace { grid-template-columns: 1fr; } .rail { position: static; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); } }
 
-/* karar kartı */
+/* decision card */
 .decision { background: var(--orange-soft); border: 1px solid var(--sep-strong); border-radius: var(--r-card); padding: var(--s5); display: grid; gap: var(--s4); }
 .decision .kicker { color: var(--orange); font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
 .decision h2 { font-size: 22px; }
@@ -262,7 +262,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .option:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .option input { accent-color: var(--accent); margin-top: 3px; width: 16px; height: 16px; }
 
-/* puan çubukları (hipotez sıralaması) */
+/* score bars (hypothesis ranking) */
 .rank-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .rank-table th { text-align: left; color: var(--faint); font-weight: 600; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--sep); white-space: nowrap; }
 .rank-table td { padding: 10px 8px; border-bottom: 1px solid var(--sep); vertical-align: top; }
@@ -291,7 +291,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .legend { display: flex; gap: var(--s3); flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 
-/* kontrol listesi (canlı adımlar) */
+/* checklist (live steps) */
 .checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .checklist li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 6px 2px; font-size: 14px; }
 .ck { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; border: 1.5px solid var(--sep-strong); color: var(--muted); margin-top: 1px; }
@@ -316,12 +316,12 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .active-head { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; }
 .live-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
 
-/* bütçe */
+/* budget */
 .meterbar { height: 8px; border-radius: 4px; background: var(--fill); overflow: hidden; }
 .meterbar > span { display: block; height: 100%; background: var(--accent); }
 .meterbar.warn > span { background: var(--orange); } .meterbar.bad > span { background: var(--red); }
 
-/* etkinlik akışı */
+/* activity feed */
 .feed { list-style: none; margin: 0; padding: 0; }
 .feed li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; padding: 9px 4px; border-top: 1px solid var(--sep); align-items: start; }
 .feed li:first-child { border-top: 0; }
@@ -332,7 +332,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .feed .when { color: var(--faint); font-size: 12px; font-family: var(--mono); white-space: nowrap; }
 .feed li.warn .ev { color: var(--orange); } .feed li.bad .ev { color: var(--red); }
 
-/* giriş kutusu (yönetici / ekip) */
+/* composer (manager / team) */
 .composer { position: sticky; bottom: var(--s3); margin-top: var(--s4); background: var(--bg-elev); border: 1px solid var(--sep-strong); border-radius: 18px;
             box-shadow: var(--shadow-pop); padding: 10px 10px 8px 14px; display: grid; gap: 6px; z-index: 5; }
 .composer:focus-within { border-color: var(--accent); }
@@ -342,7 +342,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .composer-hint { font-size: 12.5px; }
 @media (max-width: 640px) { .composer-hint { display: none; } .composer .chip-field select { max-width: 52vw; } }
 
-/* çekmece ve diyalog */
+/* drawer and dialog */
 .drawer { position: fixed; inset: 0 0 0 auto; width: min(640px, 100vw); max-width: 100vw; background: var(--bg-elev); border: 0; border-left: 1px solid var(--sep); box-shadow: var(--shadow-pop);
           z-index: 40; margin: 0 0 0 auto; padding: 0; max-height: none; height: 100vh; color: var(--text); }
 .drawer[open] { display: flex; flex-direction: column; }
@@ -357,7 +357,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .said > button:focus-visible { box-shadow: var(--focus); border-radius: var(--r-item); }
 .said .said-body { padding: 0 12px 12px; display: grid; gap: 8px; }
 
-/* zengin metin (ayrıştırıcı) */
+/* rich text (parser) */
 .rich { line-height: 1.6; color: var(--text-2); overflow-wrap: anywhere; }
 .rich > * + * { margin-top: .6em; }
 .rich h1, .rich h2, .rich h3 { color: var(--text); margin-top: 1.1em; }
@@ -378,7 +378,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .json-tree .nest { border-left: 2px solid var(--sep); padding-left: 12px; display: grid; gap: 8px; }
 .more { all: unset; cursor: pointer; color: var(--accent); font-weight: 600; font-size: 13px; }
 
-/* kanıt ve deney */
+/* evidence and experiment */
 .verdict { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; border-radius: var(--r-card); padding: var(--s4); }
 .verdict .vi { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; font-weight: 800; }
 .verdict.good { background: var(--green-soft); } .verdict.good .vi { background: var(--green); color: var(--on-accent); }
@@ -395,7 +395,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .callout .ci { width: 22px; height: 22px; border-radius: 50%; background: var(--blue); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; }
 .lock { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--orange); background: var(--orange-soft); padding: 2px 8px; border-radius: var(--r-pill); }
 
-/* genel liste ve durumlar */
+/* general lists and states */
 .plist { display: grid; gap: var(--s2); list-style: none; margin: 0; padding: 0; }
 .pitem { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3); align-items: center; padding: var(--s3) var(--s4); background: var(--surface);
          border: 1px solid var(--sep); border-radius: var(--r-card); color: var(--text); }
@@ -413,7 +413,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .diff del { color: var(--red); background: var(--red-soft); text-decoration: line-through; padding: 0 2px; border-radius: 3px; }
 .diff ins { color: var(--green); background: var(--green-soft); text-decoration: none; padding: 0 2px; border-radius: 3px; }
 
-/* kanıt grafiği ve araştırma ağacı */
+/* evidence graph and research tree */
 .graph-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s4); }
 @media (max-width: 1500px) { .graph-wrap { grid-template-columns: 1fr; } }
 .graph { width: 100%; overflow: auto; background: var(--surface); border: 1px solid var(--sep); border-radius: var(--r-card); }
@@ -445,7 +445,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
   .card { border: 0; box-shadow: none; padding: 0; }
 }
 
-/* ---------------- v3: ana sayfa (referanstaki ortalanmış giriş kutusu) ---------------- */
+/* ---------------- v3: home page (centred composer from the reference) ---------------- */
 .page { max-width: 1240px; }
 .hero { min-height: calc(100vh - 120px); display: grid; align-content: center; justify-items: center; gap: var(--s4); padding: var(--s6) 0; }
 .hero-title { display: flex; align-items: center; gap: 12px; font-size: clamp(30px, 4vw, 40px); text-align: center; }
@@ -479,7 +479,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .suggestion:hover { background: var(--fill-2); border-color: var(--sep-strong); }
 .pitem .sub { color: var(--muted); font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 
-/* ---------------- v3: hafıza ---------------- */
+/* ---------------- v3: memory ---------------- */
 .memory-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: var(--s4); align-items: start; }
 @media (max-width: 1000px) { .memory-layout { grid-template-columns: 1fr; } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -492,7 +492,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .lessons .badge { justify-self: start; text-transform: capitalize; }
 @media (max-width: 520px) { .lessons li { grid-template-columns: 1fr; gap: 2px; } }
 
-/* ---------------- v3: proje başlığı, satır içi kod ---------------- */
+/* ---------------- v3: project header, inline code ---------------- */
 .section-title { font-family: var(--serif); font-size: 22px; font-weight: 500; }
 .title-row h1 { font-size: 30px; }
 .question { color: var(--text-2); font-size: 15.5px; max-width: 90ch; }
@@ -501,7 +501,7 @@ code.ic, .rich code { font-family: var(--mono); font-size: 0.86em; background: v
 .rich pre code { background: none; border: 0; padding: 0; }
 .katex { font-size: 1.06em; }
 
-/* ---------------- v3: proje yöneticisi ---------------- */
+/* ---------------- v3: project manager ---------------- */
 .pm-card h2 { display: flex; align-items: center; gap: 8px; }
 .pm-card .pm-log { max-height: 340px; }
 .pm-thread { display: grid; gap: 10px; min-width: 0; }
@@ -526,7 +526,7 @@ code.ic, .rich code { font-family: var(--mono); font-size: 0.86em; background: v
 
 .btn.plain { white-space: normal; text-align: left; height: auto; min-height: 32px; }
 
-/* ---------------- v3: keşif kipi ---------------- */
+/* ---------------- v3: discovery mode ---------------- */
 .discover-note { font-size: 13.5px; color: var(--text-2); background: var(--blue-soft); border-radius: var(--r-item); padding: 10px 12px; }
 .models-pick { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .models-pick legend { font-size: 12.5px; color: var(--faint); font-weight: 500; padding: 0; margin-bottom: 4px; }

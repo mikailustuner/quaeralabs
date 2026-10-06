@@ -1,4 +1,4 @@
-// Deneyin ve ispatın görselleştirilmesi: ne tasarlandı, ne çalıştırıldı, ne çıktı — yanılgılar ve çürütmeler dahil.
+// Visualising the experiment and the proof: what was designed, what was run, what came out, including errors and refutations.
 import { useEffect, useMemo, useState } from "react";
 import { Derived, QEvent, QObject, time } from "./api";
 import { Histogram, SeedChart, thresholdOf } from "./charts";
@@ -11,7 +11,7 @@ export function statesOf(events: QEvent[]): Record<string, any> {
 }
 const last = (events: QEvent[], kind: string) => [...events].reverse().find((e) => e.kind === kind);
 
-/** İçerik adresli depodan metin (kod, Lean dosyası, log). Tekrar oynatmada sunucu yoksa null. */
+/** Text from the content-addressed store (code, Lean file, log). null in replay when there is no server. */
 export function useBlob(pid: string | null, sha: string | undefined | null) {
   const [state, setState] = useState<{ text?: string; error?: string }>({});
   useEffect(() => {
@@ -152,7 +152,7 @@ function ProofStep({ s, pid, all }: { s: any; pid: string | null; all: any[] }) 
     <li><details><summary><span className="ck fail" aria-hidden="true">!</span><span>Model error</span><span className="faint">call retried</span></summary>
       <div className="body"><p className="faint">{s.error}</p></div></details></li>
   );
-  if (s.kind === "lemma" || s.kind === "lemma_automation") return null;   // taslak altında gösterilir
+  if (s.kind === "lemma" || s.kind === "lemma_automation") return null;   // shown under the sketch
   const title = s.kind === "automation" ? "Automation tactics (no model)" : s.kind === "whole" ? `Whole-proof candidate${s.lane ? ` (lane ${s.lane}: ${s.lane === "A" ? "direct" : "split into steps"})` : ""}`
     : s.kind === "sketch" ? `Proof sketch: ${(s.lemmas || []).length} lemmas` : s.kind === "assembled" ? "Lemmas assembled: full proof" : s.kind;
   const lemmaStatus = (name: string) => {

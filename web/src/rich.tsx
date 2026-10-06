@@ -1,6 +1,6 @@
-// Ayrıştırıcı: ajan çıktıları, raporlar ve ifadeler tek bir yerden görüntülenir.
-// Markdown (marked) + matematik (KaTeX: $…$, $$…$$, \(…\), \[…\]) + kod renklendirme (Lean, Python) + JSON → alan/değer görünümü.
-// Tüm HTML DOMPurify'dan geçer; ajanın yazdığı içerik sayfada betik çalıştıramaz.
+// Parser: agent outputs, reports and statements are all rendered from one place.
+// Markdown (marked) + math (KaTeX: $…$, $$…$$, \(…\), \[…\]) + code highlighting (Lean, Python) + JSON → field/value view.
+// All HTML goes through DOMPurify; content written by an agent cannot run scripts on the page.
 import DOMPurify from "dompurify";
 import katex from "katex";
 import { Marked } from "marked";
@@ -13,7 +13,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const LEAN_KW = /\b(theorem|lemma|def|abbrev|example|import|open|namespace|section|end|by|have|show|from|fun|intro|intros|rcases|obtain|with|at|calc|exact|apply|refine|rw|simp|simp_all|omega|ring|ring_nf|decide|norm_num|nlinarith|linarith|positivity|aesop|cases|induction|use|constructor|push_neg|field_simp|gcongr|first|done|sorry|let|if|then|else|match|Type|Prop)\b/g;
 const PY_KW = /\b(def|return|import|from|as|for|in|if|elif|else|while|with|class|try|except|finally|raise|lambda|None|True|False|and|or|not|print|yield|pass|break|continue)\b/g;
 
-/** Basit, bağımlılıksız renklendirme: yorumlar ve dizeler önce ayrılır, kalanında anahtar kelime ve sayılar. */
+/** Simple, dependency-free highlighting: comments and strings are split out first, then keywords and numbers in the rest. */
 export function highlight(code: string, lang: string): string {
   const isLean = /lean/i.test(lang), isPy = /py/i.test(lang);
   if (!isLean && !isPy) return esc(code);
@@ -36,14 +36,14 @@ md.use({
       return `<pre class="code" tabindex="0">${highlight(text, lang || "")}</pre>`;
     },
     codespan({ text }) {
-      // Satır içi kod: Lean ise renklendirilir (marked metni önceden kaçışlamıştır).
+      // Inline code: highlighted if it is Lean (marked has already escaped the text).
       const raw = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
       return `<code class="ic">${highlight(raw, /[ℝℕℤ]|=>|\bfun\b|\.\w/.test(raw) ? "lean" : "")}</code>`;
     },
   },
 });
 
-/** \( \) ve \[ \] gösterimlerini $ biçimine çevirir (KaTeX eklentisi $ bekler); kod blokları dokunulmadan kalır. */
+/** Converts \( \) and \[ \] notation to $ form (the KaTeX extension expects $); code blocks are left untouched. */
 function normalizeMath(src: string): string {
   return src.split(/(```[\s\S]*?```)/g).map((part, i) => i % 2 ? part :
     part.replace(/\\\[([\s\S]+?)\\\]/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`).replace(/\\\((.+?)\\\)/g, (_, m) => `$${m}$`)).join("");
@@ -59,7 +59,7 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
   return <div className={`rich ${className}`} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-/** Tek satırlık metin içinde matematik (ör. hipotez ifadesi). */
+/** Math inside single-line text (e.g. a hypothesis statement). */
 export function InlineMath({ text }: { text: string }) {
   const html = useMemo(() => {
     const inline = (md.parseInline(autoMath(normalizeMath(text || "")), { async: false }) as string);
@@ -77,7 +77,7 @@ export function Code({ code, lang = "" }: { code: string; lang?: string }) {
   return <pre className="code" tabIndex={0} dangerouslySetInnerHTML={{ __html: highlight(code, lang) }} />;
 }
 
-// --- JSON çıktılar -----------------------------------------------------------------------------
+// --- JSON outputs ------------------------------------------------------------------------------
 
 const LABELS: Record<string, string> = {
   hypotheses: "Hypotheses", statement: "Statement", falsifiabilityNote: "Falsifiability note", expectedSignal: "Expected signal",
@@ -123,7 +123,7 @@ export function JsonTree({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-/** Metin JSON mu? Tamamı ya da ```json bloğu. Değilse null. */
+/** Is the text JSON? Either all of it or a ```json block. Otherwise null. */
 export function extractJson(text: string): { before: string; data: unknown; after: string } | null {
   const t = text.trim();
   const fence = t.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
@@ -140,7 +140,7 @@ export function extractJson(text: string): { before: string; data: unknown; afte
   return null;
 }
 
-/** Ajan çıktısı: JSON ise yapılandırılmış görünüm, değilse Markdown + matematik + kod. Uzun metin katlanır. */
+/** Agent output: a structured view if JSON, otherwise Markdown + math + code. Long text is collapsed. */
 export function RichText({ text, collapse = 0 }: { text: string; collapse?: number }) {
   const [open, setOpen] = useState(!collapse || text.length <= collapse);
   const json = useMemo(() => extractJson(text), [text]);

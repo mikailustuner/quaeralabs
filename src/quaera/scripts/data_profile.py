@@ -1,6 +1,6 @@
-"""Veri profili (deterministik, model yok): /data altındaki .npz/.npy/.csv dosyalarının boyutları, türleri,
-sınıf dengesi, temel istatistikler ve hedefle doğrusal ilişki. Sandbox'ta ağsız çalışır.
-Çıktı: tek satır `QUAERA_PROFILE {...}`."""
+"""Data profile (deterministic, no model): shapes, dtypes, class balance, basic statistics and linear
+correlation with the target for the .npz/.npy/.csv files under /data. Runs in the sandbox without network.
+Output: a single line `QUAERA_PROFILE {...}`."""
 
 import json
 import os
@@ -51,7 +51,7 @@ def main():
                             den = np.sqrt((xc ** 2).sum() * (yc ** 2).sum())
                             corr.append(round(float((xc * yc).sum() / den), 4) if den > 0 else None)
                         entry["corr_with_y"] = corr
-                        # Arayüz için: ilk 5 satır ve hedefle en güçlü ilişkili (en fazla 3) özelliğin sınıf bazında histogramı
+                        # For the UI: the first 5 rows and per-class histograms of the (at most 3) features most correlated with the target
                         entry["preview"] = {"columns": [f"x{i}" for i in range(min(X.shape[1], 8))] + ["y"],
                                             "rows": [[round(float(v), 4) for v in X[r, :8]] + [round(float(y[r]), 4)]
                                                      for r in range(min(5, len(X)))]}
@@ -72,7 +72,7 @@ def main():
                     entry = {"file": rel, "columns": list(data.dtype.names or []), "rows": int(data.shape[0])}
                 else:
                     entry = {"file": rel, "bytes": os.path.getsize(path)}
-            except Exception as exc:  # okunamayan dosya profili bozmasın
+            except Exception as exc:  # an unreadable file must not break the profile
                 entry = {"file": rel, "error": str(exc)[:200]}
             files.append(entry)
     print("QUAERA_PROFILE " + json.dumps({"files": files}, ensure_ascii=False))

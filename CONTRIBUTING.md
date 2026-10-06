@@ -1,33 +1,33 @@
-# Katkı rehberi
+# Contributing guide
 
-QuaeraLabs'e katkı verdiğiniz için teşekkürler. Bu proje [davranış kurallarına](CODE_OF_CONDUCT.md) tabidir.
+Thank you for contributing to QuaeraLabs. This project is governed by a [code of conduct](CODE_OF_CONDUCT.md).
 
-## Kurulum
+## Setup
 
 ```bash
 uv sync
-uv run pytest                       # tüm testler
-uv run python tools/validate.py     # şemalar, örnekler, ajan ve skill tanımları
-uv run python evals/run_evals.py    # değerlendirme setleri (ağ erişimi gerekir)
+uv run pytest                       # all tests
+uv run python tools/validate.py     # schemas, examples, agent and skill definitions
+uv run python evals/run_evals.py    # evaluation sets (needs network access)
 ```
 
-## Nereye katkı verebilirsiniz?
+## Where can you contribute?
 
-| Alan | Nerede | Not |
+| Area | Where | Note |
 | --- | --- | --- |
-| Skill | `skills/*.yaml` | v1.0'da topluluğa açık en kolay alan. Skill kendi izinlerini `requiredPermissions` ile beyan eder; bir ajana izinlerini aşan skill atanamaz. |
-| Değerlendirme vakası | `evals/sets/` | Eleştirmen testine yeni hatalı ya da temiz vaka, kaynak setine yeni gerçek/uydurma kimlik. |
-| Örnek araştırma | `examples/*.json` | Şemanın temsil edemediği bir araştırma durumu bulursanız örnekle birlikte issue açın. |
-| Mimari karar | `docs/adr/` | Yeni karar için yeni bir ADR; kabul edilmiş ADR değiştirilmez. |
-| Yeni ajan rolü | — | v1.1'de açılacak. |
+| Skill | `skills/*.yaml` | The easiest area open to the community in v1.0. A skill declares its own permissions with `requiredPermissions`; a skill that exceeds an agent's permissions cannot be assigned to it. |
+| Evaluation case | `evals/sets/` | A new flawed or clean case for the Critic test, a new real/fabricated identifier for the source set. |
+| Example research | `examples/*.json` | If you find a research situation the schema cannot represent, open an issue with an example. |
+| Architecture decision | `docs/adr/` | A new ADR for a new decision; an accepted ADR is not changed. |
+| New agent role | — | Opens in v1.1. |
 
-## Kurallar
+## Rules
 
-- Her değişiklik `uv run pytest` ve `uv run python tools/validate.py` testlerinden geçmelidir.
-- Şemada geriye uyumsuz değişiklik yeni ana sürüm gerektirir (bkz. [ADR 0008](docs/adr/0008-sema-surumleme.md)).
-- Yeni bir doğrulama kuralı eklerseniz onu ihlal eden bir negatif test de ekleyin (`tests/test_validate.py`).
-- Commit mesajları kısa ve açıklayıcı olsun; büyük değişiklikler için önce issue açın.
+- Every change must pass `uv run pytest` and `uv run python tools/validate.py`.
+- A backward-incompatible schema change requires a new major version (see [ADR 0008](docs/adr/0008-schema-versioning.md)).
+- If you add a new validation rule, also add a negative test that violates it (`tests/test_validate.py`).
+- Keep commit messages short and descriptive; open an issue first for large changes.
 
-## Lisans
+## License
 
-Katkılarınız [Apache License 2.0](LICENSE) altında lisanslanır. Yayınlanan araştırma raporları ve şemalar CC BY 4.0 altındadır.
+Your contributions are licensed under the [Apache License 2.0](LICENSE). Published research reports and schemas are under CC BY 4.0.

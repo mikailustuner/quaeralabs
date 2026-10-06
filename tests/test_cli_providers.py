@@ -1,5 +1,5 @@
-"""Codex CLI ve OpenCode CLI sağlayıcıları: tespit, çıktı ayrıştırma, hata, çapraz aile yönlendirmesi.
-Gerçek CLI'ler çağrılmaz: PATH'e konan sahte ikililer kullanılır (para ve kota harcanmaz)."""
+"""Codex CLI and OpenCode CLI providers: detection, output parsing, errors, cross-family routing.
+The real CLIs are not called: fake binaries put on PATH are used (no money or quota is spent)."""
 
 import json
 import os

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:evidence-link",
-  "title": "Kanıt bağı (EL)",
-  "description": "Bir sonucu bir hipoteze bağlar. Tek bir doğruluk skoru yoktur; ilişki türü ve bağımsızlık seviyesi gösterilir.",
+  "title": "Evidence link (EL)",
+  "description": "Links a result to a hypothesis. There is no single truth score; the relation type and independence level are shown.",
   "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
   "required": ["resultId", "hypothesisId", "relation", "independence"],
   "properties": {
@@ -12,7 +12,7 @@
     "hypothesisId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
     "relation": { "enum": ["supports", "contradicts", "inconclusive", "methodological_only"] },
     "independence": {
-      "description": "L0 aynı kod/veri tekrarı · L1 aynı ekip farklı seed · L2 farklı ekip aynı kod · L3 farklı uygulama · L4 farklı model/veri/ortam",
+      "description": "L0 same code/data rerun · L1 same team, different seed · L2 different team, same code · L3 different implementation · L4 different model/data/environment",
       "enum": ["L0", "L1", "L2", "L3", "L4"]
     },
     "context": { "type": "string" }

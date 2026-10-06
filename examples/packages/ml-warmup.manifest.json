@@ -4,13 +4,13 @@
   "createdAt": "2026-11-05T10:00:00Z",
   "roCrateVersion": "1.1",
   "aiLabel": {
-    "text": "Bu araştırma QuaeraLabs AI ajan ekibiyle üretildi ve bir insan tarafından onaylanarak yayınlandı.",
+    "text": "This research was produced by the QuaeraLabs AI agent team and published with a human's approval.",
     "models": [
       { "role": "engineer", "model": "anthropic/claude-sonnet-5-5" },
       { "role": "critic", "model": "provider-b/model-b" },
       { "role": "verifier", "model": "provider-b/model-b" }
     ],
-    "approvedBy": { "kind": "human", "userId": "u-ornek" },
+    "approvedBy": { "kind": "human", "userId": "u-example" },
     "publishedAt": "2026-11-05T10:00:00Z",
     "crossModelReview": true
   },
@@ -20,8 +20,8 @@
   ],
   "signature": {
     "alg": "ed25519",
-    "publicKey": "ornek-acik-anahtar",
-    "value": "ornek-imza",
+    "publicKey": "example-public-key",
+    "value": "example-signature",
     "covers": "sha256 of canonical JSON of this manifest without the signature field"
   }
 }

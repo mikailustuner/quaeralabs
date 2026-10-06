@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:hypothesis",
-  "title": "Hipotez (H)",
-  "description": "Test edilebilir iddia. Taslak dışındaki her durum, hipotezin bir insan tarafından listeye alındığını gösteren onay gerektirir.",
+  "title": "Hypothesis (H)",
+  "description": "A testable claim. Every status other than draft requires an approval showing that a human put the hypothesis on the list.",
   "allOf": [
     {
       "$ref": "urn:quaeralabs:v1:common#/$defs/base"
@@ -59,7 +59,7 @@
     "falsifiabilityNote": {
       "type": "string",
       "minLength": 10,
-      "description": "Hangi gözlem bu hipotezi çürütür?"
+      "description": "Which observation would refute this hypothesis?"
     },
     "expectedSignal": {
       "type": "string"
@@ -78,7 +78,7 @@
       ]
     },
     "derivedFrom": {
-      "description": "Türetilmiş hipotez: hangi sonuç veya hipotezden türedi.",
+      "description": "Derived hypothesis: which result or hypothesis it was derived from.",
       "type": "array",
       "items": {
         "$ref": "urn:quaeralabs:v1:common#/$defs/publicId"
@@ -88,7 +88,7 @@
       "$ref": "urn:quaeralabs:v1:common#/$defs/approval"
     },
     "scopeRelation": {
-      "description": "Hipotezin soruyla ilişkisi: soruyu tamamen mi yanıtlıyor, yoksa kısıtlı bir halini mi (ör. sonlu bir aralık)?",
+      "description": "How the hypothesis relates to the question: does it answer the question fully, or a restricted form of it (e.g. a finite range)?",
       "type": "object",
       "required": [
         "relation"

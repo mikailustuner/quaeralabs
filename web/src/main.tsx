@@ -10,7 +10,7 @@ import { useRoute } from "./router";
 import { BrandMark, EVAL_PREFIX, ICONS, icon } from "./ui";
 import "./styles.css";
 
-/** Bir görünüm çökerse tüm uygulama boşalmasın; hata gösterilir, menü çalışmaya devam eder. */
+/** If one view crashes the whole app must not go blank: the error is shown and the menu keeps working. */
 class Boundary extends Component<{ children: ReactNode; k: string }, { error: string | null }> {
   state = { error: null as string | null };
   static getDerivedStateFromError(e: Error) { return { error: e.message }; }
@@ -27,7 +27,7 @@ const KIND_LABEL: Record<string, string> = {
   observation: "Observation", result: "Result",
 };
 
-/** Tarihe göre gruplama (referanstaki "Oct 2 / Older" gibi): Today, Yesterday, gün adı, Older. */
+/** Grouping by date (like "Oct 2 / Older" in the reference): Today, Yesterday, weekday name, Older. */
 function groupByDate(items: Summary[]): [string, Summary[]][] {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const groups = new Map<string, Summary[]>();
@@ -50,7 +50,7 @@ function Sidebar({ section, pid, onCollapse, onNavigate }: { section: string; pi
   const [q, setQ] = useState("");
   const projects = useLoad(api.projects, [section, pid]);
   const learned = useLoad(() => api.learnings({ limit: 6 }), [section, pid]);
-  // Kısa adlar arka planda verilir, öğrenilenler her deney sonucunda eklenir: kenar çubuğu kendini tazeler.
+  // Short names are assigned in the background and learnings are added after each experiment result: the sidebar refreshes itself.
   useEffect(() => {
     const t = setInterval(() => { if (document.visibilityState === "visible") { projects.reload(); learned.reload(); } }, 8000);
     return () => clearInterval(t);
@@ -137,7 +137,7 @@ function App() {
   const [a, b, c] = useRoute();
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem("quaera.side") === "closed"; } catch { return false; } });
   const [menu, setMenu] = useState(false);
-  useEffect(() => { try { localStorage.setItem("quaera.side", collapsed ? "closed" : "open"); } catch { /* yalnızca kolaylık */ } }, [collapsed]);
+  useEffect(() => { try { localStorage.setItem("quaera.side", collapsed ? "closed" : "open"); } catch { /* convenience only */ } }, [collapsed]);
   useEffect(() => {
     if (!menu) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenu(false); };

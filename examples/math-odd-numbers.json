@@ -1,7 +1,7 @@
 {
   "schemaVersion": "v1",
-  "title": "İlk n tek sayının toplamı",
-  "note": "Örnek veri. Lean dosyası examples/lean/SumOdd.lean; bu repoda Lean ile derlenmemiştir, derleyici çıktısı temsilidir.",
+  "title": "Sum of the first n odd numbers",
+  "note": "Example data. Lean file examples/lean/SumOdd.lean; it has not been compiled with Lean in this repo, the compiler output is illustrative.",
   "objects": [
     {
       "id": "Q-0001",
@@ -10,14 +10,14 @@
       "createdAt": "2026-10-20T09:00:00Z",
       "createdBy": {
         "kind": "human",
-        "userId": "u-ornek"
+        "userId": "u-example"
       },
-      "title": "İlk n tek sayının toplamı her n için n² midir?",
+      "title": "Is the sum of the first n odd numbers n² for every n?",
       "domain": "math",
-      "scope": "Doğal sayılar; Lean 4 + Mathlib ile biçimsel ispat",
+      "scope": "Natural numbers; formal proof in Lean 4 + Mathlib",
       "tags": [
-        "toplamlar",
-        "tümevarım"
+        "sums",
+        "induction"
       ]
     },
     {
@@ -48,13 +48,13 @@
         "modelFamily": "anthropic"
       },
       "questionId": "Q-0001",
-      "statement": "Her n doğal sayısı için ∑_{i<n} (2i+1) = n² eşitliği sağlanır.",
-      "falsifiabilityNote": "Eşitliği bozan tek bir n değeri ya da Lean'de derlenmeyen ispat hipotezi çürütür.",
+      "statement": "For every natural number n, ∑_{i<n} (2i+1) = n² holds.",
+      "falsifiabilityNote": "A single n that breaks the equality, or a proof that does not compile in Lean, refutes the hypothesis.",
       "status": "supported",
       "approval": {
         "by": {
           "kind": "human",
-          "userId": "u-ornek"
+          "userId": "u-example"
         },
         "at": "2026-10-20T09:12:00Z",
         "decision": "approved",
@@ -74,10 +74,10 @@
       },
       "hypothesisId": "H-0001",
       "primaryMetric": "lean_compiles_without_sorry",
-      "successCriterion": "Teorem, sorry içermeden Lean 4 + Mathlib ile derlenir.",
-      "analysisPlan": "Derleyici çıktısı sorry ve hata içermemeli; Doğrulayıcı temiz ortamda yeniden derler.",
+      "successCriterion": "The theorem compiles with Lean 4 + Mathlib without sorry.",
+      "analysisPlan": "The compiler output must contain no sorry and no errors; the Verifier recompiles in a clean environment.",
       "lockedAt": "2026-10-20T09:21:00Z",
-      "contentHash": "12049b6cacbe1b0024ace2db62ac7ea3aaff48eb4c65fe7685ebbf87db14e23d"
+      "contentHash": "0076676fa8bd3245d285b47dd5e4b44cfc4170b495f2c4767cace2a435e30653"
     },
     {
       "id": "E-0001",
@@ -94,7 +94,7 @@
         "H-0001"
       ],
       "domain": "math",
-      "method": "n üzerinde tümevarımla Lean 4 ispatı; Finset.sum_range_succ ve ring taktiği.",
+      "method": "Lean 4 proof by induction on n; Finset.sum_range_succ and the ring tactic.",
       "metrics": [
         {
           "name": "lean_compiles_without_sorry",
@@ -102,8 +102,8 @@
         }
       ],
       "lean": {
-        "toolchain": "leanprover/lean4:v4.x (örnek)",
-        "mathlibRev": "örnek-revizyon"
+        "toolchain": "leanprover/lean4:v4.x (example)",
+        "mathlibRev": "example-revision"
       },
       "budget": {
         "estimatedUsd": 0.4,
@@ -111,7 +111,7 @@
       },
       "noveltyCheck": {
         "verdict": "already_done",
-        "summary": "Bilinen bir sonuç; motorun uçtan uca testi için tekrar ediliyor.",
+        "summary": "A known result; replicated as an end-to-end test of the engine.",
         "userChoice": "replicate"
       },
       "preregistrationId": "PRE-0001",
@@ -119,7 +119,7 @@
       "approval": {
         "by": {
           "kind": "human",
-          "userId": "u-ornek"
+          "userId": "u-example"
         },
         "at": "2026-10-20T09:22:00Z",
         "decision": "approved",
@@ -200,9 +200,9 @@
       "runIds": [
         "RUN-0002"
       ],
-      "summary": "Teorem sum_first_odds sorry içermeden derlendi.",
+      "summary": "Theorem sum_first_odds compiled without sorry.",
       "limitations": [
-        "İspat Mathlib'in mevcut lemmalarına dayanır."
+        "The proof relies on existing Mathlib lemmas."
       ],
       "leanProof": {
         "verified": true,
@@ -225,7 +225,7 @@
       "targetId": "H-0001",
       "category": "overclaim",
       "severity": "low",
-      "body": "Hipotez metni toplamın 0'dan mı 1'den mi başladığını belirtmiyor; Lean ifadesiyle uyumlu hale getirilmeli.",
+      "body": "The hypothesis text does not say whether the sum starts at 0 or 1; it should be aligned with the Lean statement.",
       "blindReview": true,
       "status": "resolved",
       "resolution": {
@@ -236,7 +236,7 @@
           "modelFamily": "anthropic"
         },
         "at": "2026-10-20T09:40:00Z",
-        "text": "İfade ∑_{i<n} biçimine çevrildi; Lean teoremiyle birebir aynı."
+        "text": "The statement was rewritten as ∑_{i<n}; it now matches the Lean theorem exactly."
       }
     },
     {
@@ -253,7 +253,7 @@
       "kind": "objection",
       "to": "hypothesis",
       "subjectId": "CR-0001",
-      "body": "Toplamın indeks başlangıcı belirsiz.",
+      "body": "The starting index of the sum is ambiguous.",
       "round": 1,
       "requiresResponse": true
     },
@@ -272,7 +272,7 @@
       "to": "critic",
       "subjectId": "CR-0001",
       "inReplyTo": "MSG-0001",
-      "body": "Kabul edildi; ifade Lean teoremiyle hizalandı.",
+      "body": "Accepted; the statement was aligned with the Lean theorem.",
       "round": 1
     },
     {
@@ -326,7 +326,7 @@
       "hypothesisId": "H-0001",
       "relation": "supports",
       "independence": "L1",
-      "context": "Biçimsel ispat; temiz ortamda farklı model ailesiyle yeniden derlendi."
+      "context": "Formal proof; recompiled in a clean environment by a different model family."
     }
   ]
 }

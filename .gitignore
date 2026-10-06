@@ -2,14 +2,13 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-# Büyük ikili dosyalar ve konsept görseller repoda tutulmaz
+# Large binaries and concept images are not kept in the repo
 images/
 *.pdf
 evals/results/*.local.json
 
-# Yerel ortamlar (kurulum betiği üretir; çok büyük)
+# Local environments (created by the install script; very large)
 ml-env/
 lean/.lake/
 web/node_modules/
 web/dist/
-docs/

@@ -1,6 +1,6 @@
-// Uçtan uca kullanıcı akışı + erişilebilirlik denetimi (axe-core, WCAG 2.1 AA).
-// Sahte modellerle çalışan tests/e2e_server.py'ye karşı koşar: para harcamaz.
-// Kullanım: node e2e/walkthrough.mjs [çıktı-dizini]
+// End-to-end user flow + accessibility audit (axe-core, WCAG 2.1 AA).
+// Runs against tests/e2e_server.py, which uses fake models: costs no money.
+// Usage: node e2e/walkthrough.mjs [output-dir]
 import AxeBuilder from "@axe-core/playwright";
 import { chromium } from "playwright";
 import { mkdirSync, readdirSync } from "node:fs";
@@ -29,22 +29,22 @@ async function audit(name) {
 }
 
 try {
-  // 1) Ana sayfa: ortalanmış giriş kutusu; boş kenar çubuğu
+  // 1) Home page: centred composer; empty sidebar
   await page.goto(`${BASE}/#/`);
   await page.getByRole("heading", { level: 1 }).waitFor();
   await page.getByText("No projects yet").waitFor();
   step("home: composer and empty sidebar", true);
   await audit("home (empty)");
 
-  // 2) Klavye ile hatalı gönderim: odak soru alanına gider
+  // 2) Invalid submit via keyboard: focus moves to the question field
   await page.getByLabel("Research question").focus();
   await page.keyboard.press("Control+Enter");
   const focused = await page.evaluate(() => document.activeElement?.id);
   step("invalid submit keeps focus on the question", focused === "f-question", `focus: ${focused}`);
   await audit("home (validation error)");
 
-  // 3) Araştırmayı başlat
-  await page.getByLabel("Research question").fill("İlk n tek sayının toplamı n² midir?");
+  // 3) Start the research
+  await page.getByLabel("Research question").fill("Is the sum of the first n odd numbers n²?");
   await page.getByRole("button", { name: "Start research" }).click();
   await page.waitForURL(/#\/p\//);
   const pid = decodeURIComponent(page.url().split("#/p/")[1]);
@@ -53,7 +53,7 @@ try {
   const mathInQuestion = await page.locator(".question .katex").count();
   step("parser: math in the question is typeset (KaTeX)", mathInQuestion >= 2, `${mathInQuestion} formulas`);
 
-  // 4) Hipotez onayı
+  // 4) Hypothesis approval
   await page.getByRole("heading", { name: "Which hypothesis should be tested?" }).waitFor({ timeout: 30000 });
   step("hypothesis decision card arrived live", true);
   await page.locator(".side").getByRole("link", { name: "Sum of first n odds" }).waitFor({ timeout: 20000 });
@@ -63,7 +63,7 @@ try {
   await page.getByRole("radio").first().check();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
 
-  // 5) Deney onayı + canlı görünüm
+  // 5) Experiment approval + live view
   await page.getByRole("heading", { name: "Approve the proof plan" }).waitFor({ timeout: 30000 });
   step("experiment decision card with structured facts", await page.locator(".decision .fact").count() > 0);
   await page.getByRole("button", { name: "Approve", exact: true }).click();
@@ -73,7 +73,7 @@ try {
   step("live view: current step and the Lean code being compiled", /theorem|import/.test(liveCode), liveCode.split("\n")[0]);
   await page.screenshot({ path: `${OUT}/live.png` });
 
-  // 6) Proje yöneticisi: varsayılan alıcı; yanıt sağ panelde, ekip bölünmez
+  // 6) Project manager: default recipient; reply in the right panel, the team is not interrupted
   const before = await page.locator(".feed li").count();
   await page.getByLabel("Message", { exact: true }).fill("What is the status? Please tell the team to mention n = 0.");
   await page.getByRole("button", { name: "Ask the project manager" }).click();
@@ -87,19 +87,19 @@ try {
   await page.locator(".feed").getByText(/@Director: Please also state the/).waitFor({ timeout: 10000 });
   step("suggested note reaches the Director only after the click", true);
 
-  // 7) Ekibe not (@Critic)
+  // 7) Note to the team (@Critic)
   await page.getByLabel("Recipient").selectOption("critic");
   await page.getByLabel("Message", { exact: true }).fill("Check the edge cases as well.");
   await page.getByRole("button", { name: "Send note to the team" }).click();
   await page.locator(".feed").getByText("@Critic: Check the edge cases as well.").waitFor({ timeout: 10000 });
   step("@Critic note appears in the feed", true);
 
-  // 8) Bitiş
+  // 8) Finish
   await page.getByText("Research finished", { exact: true }).first().waitFor({ timeout: 60000 });
   step("research finished", true);
   await audit("lab (finished)");
 
-  // 8b) Sorun bildir
+  // 8b) Report a problem
   await page.getByRole("button", { name: "Report a problem" }).click();
   await page.getByRole("button", { name: "Save case" }).click();
   await page.getByRole("dialog").getByRole("alert").waitFor();
@@ -110,7 +110,7 @@ try {
   await page.getByText(/Case saved/).waitFor({ timeout: 10000 });
   step("problem report saved as a local case", true);
 
-  // 9) Kanıt grafiği klavye ile
+  // 9) Evidence graph via keyboard
   await page.getByRole("link", { name: "Evidence graph" }).click();
   const first = page.locator(".gnode").first();
   await first.focus();
@@ -120,7 +120,7 @@ try {
   step("graph: arrow key + Enter opens details", /Hypothesis H-/.test(panel), panel.split("\n")[0]);
   await audit("evidence graph");
 
-  // 10) İspat, puanlama, ajan ve yönetici çekmeceleri, temalar
+  // 10) Proof, scoring, agent and manager drawers, themes
   await page.getByRole("link", { name: "Lab", exact: true }).click();
   await page.getByRole("heading", { name: "Proof process" }).waitFor();
   await page.getByRole("heading", { name: "Verified proof" }).waitFor();
@@ -161,7 +161,7 @@ try {
   const zip = await page.request.get(`${BASE}/api/projects/${encodeURIComponent(pid)}/export.zip`);
   step("evidence package downloads", zip.ok() && (await zip.body()).length > 1000, `${(await zip.body()).length} bytes`);
 
-  // 11) Tekrar oynatma
+  // 11) Replay
   await page.goto(`${BASE}/#/replay/${encodeURIComponent(pid)}`);
   await page.getByRole("button", { name: "Next stage »" }).click();
   await page.getByRole("button", { name: "Next stage »" }).click();
@@ -169,7 +169,7 @@ try {
   step("replay advances stage by stage", /event [1-9]\d*\//.test(prog), prog);
   await audit("replay");
 
-  // 12) Dallanma
+  // 12) Branching
   await page.goto(`${BASE}/#/p/${encodeURIComponent(pid)}`);
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: /All stages/ }).click();
@@ -177,7 +177,7 @@ try {
   await page.waitForURL(/-dal-/);
   step("branching from a stage opens the new project", true, decodeURIComponent(page.url().split("#/p/")[1]));
 
-  // 12b) Araştırma ağacı
+  // 12b) Research tree
   await page.goto(`${BASE}/#/p/${encodeURIComponent(pid)}/tree`);
   await page.getByText("New branch from this one, with a change").click();
   await page.getByLabel("New hypothesis").fill("For every n the sum of the first n odd numbers is a perfect square.");
@@ -198,7 +198,7 @@ try {
   step("tree shows the hypothesis diff and branch rates", /perfect square/.test(ins) && /branch/i.test(statText), `added: "${ins}"`);
   await audit("research tree");
 
-  // 13) Liste, hafıza, ayarlar, kenar çubuğu
+  // 13) List, memory, settings, sidebar
   await page.goto(`${BASE}/#/research`);
   await page.locator(".pitem").first().waitFor();
   await audit("research list");
@@ -224,7 +224,7 @@ try {
   await page.getByRole("row", { name: /Codex CLI/ }).getByText(/✓ 51/).waitFor({ timeout: 10000 });
   step("provider test button answers", true);
 
-  // 13b) Keşif kipi: çok modelli fikir üretimi, çapraz inceleme, lemma programı, çürütme + onarım, sentez
+  // 13b) Discovery mode: multi-model ideation, cross-review, lemma programme, refutation + repair, synthesis
   await page.goto(`${BASE}/#/`);
   await page.getByRole("radio", { name: "Discover" }).click();
   await page.getByText("Discovery mode.").waitFor();

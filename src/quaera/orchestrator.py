@@ -1,11 +1,11 @@
-"""Orkestratör: kalıcı araştırma döngüsü (ADR 0005). Faz 1 kapsamı: matematik.
+"""Orchestrator: the persistent research loop (ADR 0005). Phase 1 scope: mathematics.
 
-Her aşama tamamlandığında olay kaydına `stage.done` yazılır. Süreç herhangi bir anda
-kesilirse `resume` tamamlanmış aşamaları atlar ve kaldığı aşamadan devam eder.
+Each completed stage writes `stage.done` to the event log. If the process is interrupted at
+any point, `resume` skips the completed stages and continues from where it stopped.
 
-Faz 1'de LLM ile çalışan roller: Literatür, Hipotez, Mühendis, Eleştirmen.
-Direktör (aşama geçişleri) ve matematikte şablonla çalışan Deney tasarımcısı, Analist,
-Doğrulayıcı ve Yazar deterministiktir; aktör kaydında model `quaera/deterministic` olarak görünür.
+Roles that run on an LLM in Phase 1: Literature, Hypothesis, Engineer, Critic.
+The Director (stage transitions) and, in mathematics, the template-driven Experiment designer,
+Analyst, Verifier and Writer are deterministic; the actor record shows the model as `quaera/deterministic`.
 """
 
 from __future__ import annotations
@@ -38,14 +38,14 @@ PROVE_BUDGET_SHARE = 0.5
 
 
 class SearchBudget(Exception):
-    """İspat araması kendi bütçe payını kullandı; araştırma sürer (sonuç: ispat bulunamadı)."""
+    """The proof search used up its budget share; the research continues (result: no proof found)."""
 
 
 class StopResearch(Exception):
-    """Araştırma kontrollü olarak sonlanıyor (ör. bütçe bitti, insan durdurdu)."""
+    """The research is ending in a controlled way (e.g. budget exhausted, stopped by the human)."""
 
 
-# --- insan onayı ------------------------------------------------------------------
+# --- human approval ------------------------------------------------------------------
 
 @dataclass
 class Decision:
@@ -64,19 +64,19 @@ class Approver:
 
 class InteractiveApprover(Approver):
     def decide(self, action, summary, cost_usd, options=None):
-        print(f"\n[ONAY] {action} · tahmini maliyet ${cost_usd:.2f}\n{summary}")
+        print(f"\n[APPROVAL] {action} · estimated cost ${cost_usd:.2f}\n{summary}")
         if options:
             for i, o in enumerate(options, 1):
                 print(f"  {i}. {o}")
-            raw = input("Seçiminiz (numara, boş = 1, h = reddet): ").strip().lower()
-            if raw == "h":
+            raw = input("Your choice (number, empty = 1, n = reject): ").strip().lower()
+            if raw in ("n", "h"):
                 return Decision(False)
             return Decision(True, choice=int(raw) - 1 if raw else 0)
-        return Decision(input("Onaylıyor musunuz? [e/h]: ").strip().lower().startswith("e"))
+        return Decision(input("Approve? [y/N]: ").strip().lower() in ("y", "yes", "e", "evet"))
 
 
 class AutoApprover(Approver):
-    """Otonomi seviyesi 'auto_under_limit': insan, belirlediği tutarın altındaki onayları önceden vermiştir."""
+    """Autonomy level 'auto_under_limit': the human has pre-approved everything below the amount they set."""
 
     def __init__(self, limit_usd: float):
         self.limit_usd = limit_usd
@@ -88,8 +88,8 @@ class AutoApprover(Approver):
 
 
 class CapApprover(Approver):
-    """Otonomi seviyesi 3 'auto_to_budget_cap': bütçe tavanına kadar her harcama otomatik onaylanır.
-    Yayınlama ve tavanı yükseltme bu kipte de insana kalır (döngüde zaten bu eylemler yoktur)."""
+    """Autonomy level 3 'auto_to_budget_cap': every expense up to the budget cap is auto-approved.
+    Publishing and raising the cap stay with the human in this mode too (the loop has no such actions anyway)."""
 
     def __init__(self, gateway):
         self.gateway = gateway
@@ -102,7 +102,7 @@ class CapApprover(Approver):
         return Decision(True, "auto_to_budget_cap", 0, "auto-approved within the budget cap")
 
 
-# --- orkestratör -------------------------------------------------------------------
+# --- orchestrator -------------------------------------------------------------------
 
 @dataclass
 class Orchestrator:
@@ -115,9 +115,9 @@ class Orchestrator:
     log: Callable[[str], None] = print
     reports_dir: Path | None = None
     actors: dict = field(default_factory=dict)
-    memory: object | None = None          # memory.LabMemory; None ise hafıza kullanılmaz (testler, değerlendirmeler)
+    memory: object | None = None          # memory.LabMemory; None means no memory is used (tests, evals)
 
-    # yardımcılar ------------------------------------------------------------
+    # helpers ------------------------------------------------------------
     def human(self) -> dict:
         return {"kind": "human", "userId": self.approver.user}
 
@@ -125,9 +125,9 @@ class Orchestrator:
         return {"kind": "agent", "role": role, **DETERMINISTIC}
 
     def human_notes(self, role: str) -> str:
-        """İnsanın bu role (@rol) ya da herkese yazdığı ve henüz iletilmemiş notlar; iletildikleri kayda geçer."""
+        """Notes the human wrote to this role (@role) or to everyone that are not yet delivered; delivery is recorded."""
         delivered = {(e["payload"]["msg"], e["payload"]["role"]) for e in self.store.events("message.delivered")}
-        # İnsanın notları ve Direktör'ün dal revizyon önerileri (kind=proposal) ilgili role bir kez iletilir.
+        # The human's notes and the Director's branch revision proposals (kind=proposal) are delivered to the role once.
         notes = [m for m in self.store.latest("message")
                  if (m["createdBy"]["kind"] == "human" or (m["createdBy"].get("role") == "director" and m["kind"] == "proposal"))
                  and m["to"] in (role, "all") and (m["id"], role) not in delivered]
@@ -139,12 +139,12 @@ class Orchestrator:
             "\n".join(f"- [{m['id']}] {m['body']}" for m in notes)
 
     def activity(self, role: str, step: str, status: str = "start", detail: str = "", lane: str | None = None) -> None:
-        """Canlı görünüm: bir ajanın şu an ne yaptığı (başladı / bitti / başarısız). Arayüz aktif ajan kartında gösterir."""
+        """Live view: what an agent is doing right now (started / done / failed). The UI shows it on the active agent card."""
         self.store.append("activity", self.det(role), {"role": role, "step": step, "status": status,
                                                          "detail": detail[:400], "lane": lane})
 
     def said(self, actor: dict, system: str, prompt: str, text: str, lane: str | None = None) -> None:
-        """Ajanın söylediği her şey kayda geçer: tam metin içerik adresli depoda, önizleme olayda. Ajana tıklayınca görünür."""
+        """Everything an agent says is recorded: full text in the content-addressed store, preview in the event. Shown when the agent is clicked."""
         sha = self.store.put_blob(text.encode("utf-8"))
         self.store.append("agent.said", actor, {"role": actor["role"], "purpose": purpose_of(system), "lane": lane,
                                                 "sha256": sha, "chars": len(text), "preview": text[:800],
@@ -177,12 +177,12 @@ class Orchestrator:
         return completion.text, actor
 
     def lane_family(self, lane: str | None) -> str | None:
-        """Paralel ikinci şerit (B), birden fazla sağlayıcı varsa farklı model ailesiyle çalışır (çapraz model çeşitliliği)."""
+        """The parallel second lane (B) runs on a different model family when there is more than one provider (cross-model diversity)."""
         families = list(self.gateway.providers)
         return families[1] if lane == "B" and len(families) > 1 else None
 
     def parallel(self, *calls):
-        """Bağımsız işleri aynı anda çalıştırır (ör. iki Hipotez ajanı). Bütçe tavanı paralelde de kesin (Gateway rezervasyonu)."""
+        """Runs independent jobs concurrently (e.g. two Hypothesis agents). The budget cap stays strict in parallel too (Gateway reservation)."""
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=len(calls)) as pool:
             futures = [pool.submit(fn) for fn in calls]
@@ -190,7 +190,7 @@ class Orchestrator:
 
     def ask_json(self, role: str, system: str, prompt: str, max_output_tokens: int = 8000, lane: str | None = None,
                  family: str | None = None) -> tuple[dict, dict]:
-        """JSON bekleyen çağrı: geçersiz çıktıda bir kez düzeltme istenir, olmazsa araştırma kontrollü durur."""
+        """A call that expects JSON: on invalid output a fix is requested; if that fails the research stops in a controlled way."""
         text, actor = self.guarded(self.llm, role, system, prompt, max_output_tokens, lane=lane, family=family)
         try:
             return as_object(parse_json(text)), actor
@@ -257,7 +257,7 @@ class Orchestrator:
     def selected_hypothesis(self) -> dict:
         return self.store.get(self.state("hypothesis_id"))
 
-    # ana döngü ---------------------------------------------------------------
+    # main loop ---------------------------------------------------------------
     def run(self) -> str:
         done = set(self.done_stages())
         try:
@@ -272,7 +272,7 @@ class Orchestrator:
                 if stage in ("analysis", "verification", "conclude", "report"):
                     self.learn()
         except StopResearch as exc:
-            self.log(f"■ durduruldu: {exc}")
+            self.log(f"■ stopped: {exc}")
             self.set_state("stopped", str(exc))
             for stage in ("conclude", "report"):
                 if stage not in self.done_stages():
@@ -286,10 +286,10 @@ class Orchestrator:
             return fn(*args, **kwargs)
         except BudgetExceeded as exc:
             raise StopResearch(f"budget cap: {exc}") from exc
-        except ModelError as exc:  # ayrıştırılamayan model çıktısı vb.
+        except ModelError as exc:  # unparseable model output, etc.
             raise StopResearch(f"model error: {exc}") from exc
 
-    # aşamalar ---------------------------------------------------------------
+    # stages ---------------------------------------------------------------
     def stage_literature(self) -> None:
         from .literature import run_literature
         q = self.question()
@@ -311,17 +311,17 @@ class Orchestrator:
         q, lit = self.question(), self.state("literature")
         branch = self.store.meta("branch") or {}
         if branch.get("kind") == "hypothesis" and branch.get("hypothesis") and (branch.get("by") or {}).get("kind") == "human":
-            # İnsanın dal değişikliği: hipotezi insan verdi, kendi adıyla kayda geçer; Hipotez ajanı çağrılmaz.
-            # (Direktör'ün önerdiği revizyon ise Hipotez ajanına mesaj olarak gider; hipotezi ajan yazar.)
+            # A branch change by the human: the human gave the hypothesis, so it is recorded under their name; the Hypothesis agent is not called.
+            # (A revision proposed by the Director goes to the Hypothesis agent as a message instead; the agent writes the hypothesis.)
             self.store.put({"type": "hypothesis", "createdBy": branch["by"], "questionId": q["id"], "statement": branch["hypothesis"],
                             "falsifiabilityNote": f"Branch change: {branch.get('reason', '')}", "status": "draft"})
             return
         system = prompts.HYPOTHESIS_ML if q["domain"] == "ml" else prompts.HYPOTHESIS
         base = (f"Question: {q['title']}\nScope: {q['scope']}\nLiterature summary: {lit['summary']}"
                 + self._profile_text() + self.recall_memory(q))
-        # #4: iki bakış açısıyla üret, neredeyse aynı olanları ayıkla, Eleştirmen'e puanlat, en iyileri insana sun.
+        # #4: generate from two perspectives, drop near-duplicates, have the Critic score them, offer the best to the human.
         cands, actor = [], None
-        # İki Hipotez ajanı aynı anda, iki farklı bakış açısıyla çalışır (şerit A ve B).
+        # Two Hypothesis agents run concurrently from two different perspectives (lanes A and B).
         outs = self.parallel(*[(lambda lens=lens, lane=lane: self.ask_json("hypothesis", system, base + lens, 4000, lane=lane))
                                for lens, lane in zip(prompts.HYPOTHESIS_LENSES, "AB")])
         for out, actor in outs:
@@ -343,13 +343,13 @@ class Orchestrator:
             try:
                 self.store.put(obj)
                 written += 1
-            except IntegrityError as exc:   # sözleşmeye uymayan tek bir aday araştırmayı çökertmesin; sıradaki aday denenir
+            except IntegrityError as exc:   # a single candidate that breaks the contract must not crash the research; the next one is tried
                 self.store.append("hypothesis.invalid", actor, {"statement": h["statement"][:300], "error": str(exc)[:300]})
         if not written:
             raise StopResearch("none of the Hypothesis agent's candidates satisfied the contract")
 
     def _rank_hypotheses(self, q: dict, lit: dict, cands: list[dict]) -> list[dict]:
-        """Adayları Eleştirmen'e puanlatır; puan ve gerekçe hem kayda (hypotheses.ranked) hem onay kartına girer."""
+        """Has the Critic score the candidates; the score and reason go both into the log (hypotheses.ranked) and onto the approval card."""
         if len(cands) < 2:
             return cands
         listing = "\n".join(f"[{i}] {c['statement']} (scope: {(c.get('scope') or {}).get('relation', '?')})" for i, c in enumerate(cands))
@@ -389,7 +389,7 @@ class Orchestrator:
                 + json.dumps(ex, ensure_ascii=False)[:2500])
 
     def stage_explore(self) -> None:
-        """#3 deneysel matematik: ispattan önce hipotezi küçük durumlarda sınar ve karşı örnek arar."""
+        """#3 experimental mathematics: before the proof, tests the hypothesis on small cases and looks for a counterexample."""
         h = self.selected_hypothesis()
         workdir = str(self.store.path.parent / "work")
         prompt = f"Hypothesis: {h['statement']}\nQuestion: {self.question()['title']}"
@@ -401,7 +401,7 @@ class Orchestrator:
                 self.tools.call_json("engineer", "sandbox.write", workdir=workdir, path="explore.py", content=code,
                                      message=f"exploration {attempt}")
                 res = self.tools.call_json("engineer", "sandbox.exec", workdir=workdir, command=["python", "explore.py"], timeout_s=120)
-            except Exception as exc:   # ML ortamı kurulu değilse keşif atlanır; araştırma sürer
+            except Exception as exc:   # if the ML environment is not installed, exploration is skipped; the research continues
                 self.store.append("tool.error", actor, {"tool": "sandbox.exec", "error": str(exc)[:300]})
                 return
             found = re.search(r"QUAERA_EXPLORE\s+(\{.*\})", res.get("stdout", ""))
@@ -409,7 +409,7 @@ class Orchestrator:
             art = self.store.put({"type": "artifact", "createdBy": actor, "kind": "log", "uri": f"cas:{digest}", "provider": "local",
                                   "sha256": digest, "mediaType": "text/plain"})
             ok = res.get("returncode") == 0 and bool(found)
-            # Deney nesnesi bu aşamada henüz yok: kayıt, betik+çıktı artefaktı ve exploration.done olayıyla tutulur.
+            # The experiment object does not exist yet at this stage: the record is kept as a script+output artifact and an exploration.done event.
             if ok:
                 try:
                     data = json.loads(found.group(1))
@@ -567,7 +567,7 @@ class Orchestrator:
         self.store.append("statement.approved", self.human(), {"summary": "by human decision", "round": rounds})
 
     def _backtranslation(self, source: str) -> str:
-        """#6: hipotezi görmeyen bir model Lean dosyasını Türkçeye çevirir; Eleştirmen bu bağımsız okumayla karşılaştırır."""
+        """#6: a model that has not seen the hypothesis translates the Lean file into natural language; the Critic compares against this independent reading."""
         try:
             out, reader = self.ask_json("verifier", prompts.BACKTRANSLATE, f"Lean file:\n```lean\n{source}\n```", 1500)
         except StopResearch:
@@ -578,7 +578,7 @@ class Orchestrator:
                 f"domain, quantifiers, ranges or assumptions, that is a fidelity issue):\n{out.get('translation', '')}\nPitfalls it noticed: {odd}")
 
     def record_scope(self, review: dict, critic: dict) -> None:
-        """Eleştirmen'in, biçimsel ifadenin sorudan zayıf olup olmadığına dair bağımsız görüşü."""
+        """The Critic's independent view on whether the formal statement is weaker than the question."""
         if "weakerThanQuestion" in review:
             self.store.append("scope.review", critic, {"weakerThanQuestion": bool(review["weakerThanQuestion"]),
                                                       "note": review.get("scopeNote", "")})
@@ -597,7 +597,7 @@ class Orchestrator:
         return report["verified"]
 
     def _pre_proof_checks(self) -> bool:
-        """#6: varsayımlar çelişkili mi (boşuna doğru)? İfade kolayca çürütülebiliyor mu? True dönerse ispata gerek yok."""
+        """#6: are the assumptions contradictory (vacuously true)? Can the statement be refuted easily? If True, no proof is needed."""
         from .fidelity import refutation_file, vacuity_file
         formal, auto = self.state("formal"), self.det("engineer")
         vac = vacuity_file(formal["source"], THEOREM)
@@ -612,8 +612,8 @@ class Orchestrator:
         return bool(ref and self._fidelity_check("refutation", ref[0], "quaera_refute", ref[1], auto))
 
     def _try_refute(self, hint: str = "") -> bool:
-        """Bir kez karşı örnek aranır (model): ispat bulunamadığında ya da keşif aday bir karşı örnek bulduğunda.
-        Başarılıysa hipotez Lean'de çürütülmüş olur."""
+        """Searches once for a counterexample (model): when no proof was found or exploration found a candidate counterexample.
+        On success the hypothesis is refuted in Lean."""
         from .fidelity import refutation_file
         formal = self.state("formal")
         ref = refutation_file(formal["source"], THEOREM, proof="by\n  sorry")
@@ -635,12 +635,12 @@ class Orchestrator:
         if ex.get("counterexample") and self._try_refute(f"Numerical exploration found a candidate counterexample: {json.dumps(ex['counterexample'], ensure_ascii=False)}"):
             self.set_state("proof", None)
             return
-        # #2 ispat araması: otomasyon → hataya dayanıklı bütün ispat denemeleri → taslak + lemmalar (src/quaera/prover.py)
+        # #2 proof search: automation → error-tolerant whole-proof attempts → sketch + lemmas (src/quaera/prover.py)
         from .prover import prove_search
         limit = self.permissions.spec("engineer")["limits"].get("maxFixAttempts", 3)
         verified_main: dict = {}
-        # İspat araması zor problemlerde bütçenin tamamını yiyebilir (Putnam ölçümünde tek problem 2,52 $ harcadı).
-        # İnceleme, doğrulama ve rapor için pay kalsın diye arama, aşama başındaki kalan bütçenin yarısıyla sınırlanır.
+        # On hard problems the proof search can eat the whole budget (in the Putnam measurement a single problem spent $2.52).
+        # To leave room for review, verification and the report, the search is capped at half the budget left at stage start.
         search_cap = self.gateway.spent_usd + PROVE_BUDGET_SHARE * self.gateway.remaining()
 
         def ask(system: str, prompt: str, n: int, lane: str | None = None) -> str:
@@ -654,7 +654,7 @@ class Orchestrator:
             actor = {"kind": "agent", "role": "engineer", "model": completion.model, "modelFamily": completion.family}
             self.actors["engineer"] = actor
             self.said(actor, system, prompt, completion.text, lane=lane)
-            return completion.text   # ModelError (ör. çıktı sınırı) aramaya iletilir; arama istemi değiştirip sürer
+            return completion.text   # ModelError (e.g. output limit) is passed to the search; the search changes the prompt and continues
 
         def check(source: str, name: str | None = None, approved: str | None = None) -> dict:
             name = name or THEOREM
@@ -680,7 +680,7 @@ class Orchestrator:
             self._try_refute()
             return
         steps = []
-        for e in res.log:   # kaynak metinler içerik adresli depoya; arayüz ispat yapısını (taslak, lemmalar) buradan çizer
+        for e in res.log:   # sources go to the content-addressed store; the UI draws the proof structure (sketch, lemmas) from here
             step = {k: v for k, v in e.items() if k != "source"}
             if e.get("source"):
                 step["sha256"] = self.store.put_blob(e["source"].encode("utf-8"))
@@ -769,7 +769,7 @@ class Orchestrator:
         if h["status"] in ("accepted", "testing") or h["status"] != status:
             if h["status"] != "rejected":
                 self.store.put({**h, "status": status, "createdBy": h["createdBy"]}, by=self.det("hypothesis"))
-        # Cevapsız itiraz kalmasın: insana yöneltilmiş itirazlar rapora taşınır ve kayıt altına alınır.
+        # Leave no objection unanswered: objections addressed to the human are carried into the report and recorded.
         replied = {m.get("inReplyTo") for m in self.store.latest("message")}
         for m in self.store.latest("message"):
             if m.get("requiresResponse") and m["id"] not in replied:
@@ -784,7 +784,7 @@ class Orchestrator:
             self.memory.index_project(self.store.path.parent)
 
     def recall_memory(self, q: dict) -> str:
-        """Benzer geçmiş projeleri Hipotez ajanına yönlendirme bağlamı olarak verir; ne verildiği kayda geçer."""
+        """Gives similar past projects to the Hypothesis agent as guiding context; what was given is recorded."""
         if self.memory is None:
             return ""
         from .memory import context_block, outcome
@@ -796,34 +796,34 @@ class Orchestrator:
                                      for e in items})
 
     def learn(self) -> None:
-        """Deney sonucu ya da sonuç aşamasından sonra öğrenilenler laboratuvar hafızasına yazılır (projeler arası)."""
+        """After an experiment result or the conclude stage, the learnings are written to the lab memory (cross-project)."""
         if self.memory is not None:
             try:
                 self.memory.learn(self.store.path.parent)
-            except Exception as exc:   # hafıza yardımcıdır: yazılamaması araştırmayı durdurmamalı, ama kayda geçer
+            except Exception as exc:   # memory is auxiliary: a failed write must not stop the research, but it is recorded
                 self.store.append("memory.error", self.det("director"), {"error": str(exc)[:300]})
 
 
 PROMPT_NAMES = {v: k for k, v in vars(prompts).items() if k.isupper() and isinstance(v, str) and len(v) > 200}
-# Teorem adı değiştirilerek kullanılan istemler (ör. PROVE ile bir lemmayı ispatlamak): `quaera_main` yerine herhangi bir ad.
+# Prompts reused with a different theorem name (e.g. PROVE for a lemma): any name in place of `quaera_main`.
 PROMPT_PATTERNS = [(k, re.compile(re.escape(v).replace(re.escape("`quaera_main`"), r"`[\w.']+`")))
                    for v, k in PROMPT_NAMES.items() if "`quaera_main`" in v]
 
 
 def purpose_of(system: str) -> str:
-    """Sistem isteminden çağrının amacı (ör. PROVE, CRITIC_EXPERIMENT)."""
+    """The purpose of a call, from its system prompt (e.g. PROVE, CRITIC_EXPERIMENT)."""
     return PROMPT_NAMES.get(system) or next((k for k, rx in PROMPT_PATTERNS if rx.fullmatch(system)), "OTHER")
 
 
 def as_object(value):
-    """ask_json her zaman bir JSON nesnesi bekler; liste gelirse geçersiz yanıt sayılır (bir kez yeniden sorulur)."""
+    """ask_json always expects a JSON object; a list counts as an invalid answer (asked again once)."""
     if not isinstance(value, dict):
         raise ValueError(f"expected a JSON object, got {type(value).__name__}")
     return value
 
 
 def similar(a: str, b: str, threshold: float = 0.85) -> bool:
-    """Neredeyse aynı iki hipotez (kelime düzeyinde benzerlik) tek aday sayılır."""
+    """Two nearly identical hypotheses (word-level similarity) count as one candidate."""
     import difflib
     return difflib.SequenceMatcher(a=a.lower().split(), b=b.lower().split()).ratio() >= threshold
 

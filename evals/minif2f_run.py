@@ -1,10 +1,10 @@
-"""miniF2F (Lean 4) başlangıç değeri.
+"""miniF2F (Lean 4) baseline.
 
-Mühendis ajanı her problem için en fazla k deneme yapar; her başarısız denemeden sonra derleyici
-geri bildirimi verilir. Bir ispat ancak Lean REPL'de onaylı ifade değişmeden, sorry ve standart dışı
-aksiyom olmadan derlenirse sayılır. Bütçe tavanı gateway tarafından uygulanır ve aşılmaz.
+The Engineer agent makes at most k attempts per problem; after every failed attempt it gets the compiler
+feedback. A proof counts only if it compiles in the Lean REPL with the approved statement unchanged, without
+sorry and without non-standard axioms. The budget cap is enforced by the gateway and is never exceeded.
 
-Kullanım: uv run python evals/minif2f_run.py --split test --n 20 --attempts 2 --budget 6 --profile balanced
+Usage: uv run python evals/minif2f_run.py --split test --n 20 --attempts 2 --budget 6 --profile balanced
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def main() -> int:
         if not pilot.compiled:
             row["pilot_errors"] = pilot.errors[:2]
             out.append(row)
-            print(f"[{i}/{len(rows)}] {name}: ifade güncel Mathlib'de derlenmiyor, atlandı", flush=True)
+            print(f"[{i}/{len(rows)}] {name}: statement does not compile in current Mathlib, skipped", flush=True)
             continue
         approved = statement_of(pilot_src, name)
         prompt = (f"Prove this theorem. Keep the theorem name `{name}` and its statement exactly.\n"
@@ -85,11 +85,11 @@ def main() -> int:
         except BudgetExceeded as exc:
             row["budget_stop"] = str(exc)
             out.append(row)
-            print(f"bütçe tavanı: {exc}", flush=True)
+            print(f"budget cap: {exc}", flush=True)
             break
         out.append(row)
-        print(f"[{i}/{len(rows)}] {name}: {'ÇÖZÜLDÜ' if row['solved'] else 'çözülemedi'} ({row['attempts']} deneme) · harcanan ${gw.spent_usd:.3f}", flush=True)
-    # Çözülen her ispat, REPL'den bağımsız olarak temiz ortamda tek seferlik derlemeyle yeniden doğrulanır.
+        print(f"[{i}/{len(rows)}] {name}: {'SOLVED' if row['solved'] else 'not solved'} ({row['attempts']} attempts) · spent ${gw.spent_usd:.3f}", flush=True)
+    # Every solved proof is re-verified independently of the REPL with a one-off compile in a clean environment.
     for row in out:
         if row["solved"]:
             pilot_src = HEADER + modernize(next(r for r in rows if r["name"] == row["name"])["formal_statement"]).rstrip() + " sorry\n"
@@ -99,7 +99,7 @@ def main() -> int:
             if not clean.verified:
                 row["solved"] = False
                 row["clean_problems"] = clean.problems + clean.errors[:2]
-                print(f"{row['name']}: temiz ortamda doğrulanamadı → çözülmedi sayıldı", flush=True)
+                print(f"{row['name']}: not verified in a clean environment → counted as unsolved", flush=True)
     lean.close()
 
     usable = [r for r in out if r["pilot_ok"]]
@@ -112,7 +112,7 @@ def main() -> int:
         "statement_compile_ok": len(usable), "attempted": len(attempted), "solved": len(solved),
         f"pass@{a.attempts}": round(len(solved) / len(attempted), 3) if attempted else None,
         "clean_reverified": sum(1 for r in out if r.get("clean_verified")),
-        "contamination_note": "miniF2F 2021'den beri açık; problemler ve çözümleri model eğitim verisinde olabilir. Bu değer bir alt sınır değil, iyimser bir tavan olarak okunmalıdır.",
+        "contamination_note": "miniF2F has been public since 2021; the problems and their solutions may be in model training data. Read this value as an optimistic ceiling, not a lower bound.",
         "spent_usd": round(gw.spent_usd, 4), "budget_usd": a.budget,
         "budget_never_exceeded": gw.spent_usd <= a.budget, "rows": out,
     }

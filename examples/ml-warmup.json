@@ -1,7 +1,7 @@
 {
   "schemaVersion": "v1",
-  "title": "Öğrenme oranı ısınması küçük transformer modellerinde gerekli mi?",
-  "note": "Örnek veri: sayılar temsilidir, gerçek bir deneyden gelmez. İtiraz, ön kayıt değişikliği, pilot, çapraz model doğrulama, kısmi tekrar ve türetilmiş hipotez durumlarını gösterir.",
+  "title": "Is learning-rate warmup necessary for small transformer models?",
+  "note": "Example data: the numbers are illustrative and do not come from a real experiment. Shows an objection, a preregistration amendment, a pilot, cross-model verification, a partial reproduction and a derived hypothesis.",
   "objects": [
     {
       "id": "Q-0012",
@@ -10,14 +10,14 @@
       "createdAt": "2026-11-02T09:00:00Z",
       "createdBy": {
         "kind": "human",
-        "userId": "u-ornek"
+        "userId": "u-example"
       },
-      "title": "Öğrenme oranı ısınması küçük transformer modellerinde gerekli mi?",
+      "title": "Is learning-rate warmup necessary for small transformer models?",
       "domain": "ml",
-      "scope": "≤50M parametreli dil modelleri, AdamW, tek GPU",
+      "scope": "Language models with ≤50M parameters, AdamW, single GPU",
       "tags": [
-        "optimizasyon",
-        "ısınma"
+        "optimization",
+        "warmup"
       ]
     },
     {
@@ -32,13 +32,13 @@
         "modelFamily": "anthropic"
       },
       "questionId": "Q-0012",
-      "statement": "≤50M modellerde düşük öğrenme oranlarında (≤1e-3) ısınma nihai doğrulama kaybını anlamlı biçimde değiştirmez.",
-      "falsifiabilityNote": "Isınmasız koşulda 3 seed ortalamasında kayıp farkı 0.05'ten büyükse hipotez çürür.",
+      "statement": "For ≤50M models at low learning rates (≤1e-3), warmup does not meaningfully change the final validation loss.",
+      "falsifiabilityNote": "The hypothesis is refuted if the loss difference without warmup, averaged over 3 seeds, exceeds 0.05.",
       "status": "supported",
       "approval": {
         "by": {
           "kind": "human",
-          "userId": "u-ornek"
+          "userId": "u-example"
         },
         "at": "2026-11-02T10:20:00Z",
         "decision": "approved",
@@ -57,13 +57,13 @@
         "modelFamily": "anthropic"
       },
       "questionId": "Q-0012",
-      "statement": "Yüksek öğrenme oranında (3e-3) ısınmasız eğitim ıraksar.",
-      "falsifiabilityNote": "Isınmasız 3e-3 çalıştırmalarının hiçbiri ıraksamazsa hipotez çürür.",
+      "statement": "At a high learning rate (3e-3), training without warmup diverges.",
+      "falsifiabilityNote": "The hypothesis is refuted if none of the 3e-3 runs without warmup diverges.",
       "status": "inconclusive",
       "approval": {
         "by": {
           "kind": "human",
-          "userId": "u-ornek"
+          "userId": "u-example"
         },
         "at": "2026-11-02T10:20:00Z",
         "decision": "approved",
@@ -84,7 +84,7 @@
       "targetId": "H-0002",
       "category": "methodology",
       "severity": "high",
-      "body": "H2 tek bir öğrenme oranında test edilecek; sonuç oranın yüksekliğine bağlı olabilir, en az 3 oran denenmeli.",
+      "body": "H2 would be tested at a single learning rate; the outcome may depend on how high the rate is, so at least 3 rates should be tried.",
       "blindReview": false,
       "status": "accepted",
       "resolution": {
@@ -95,7 +95,7 @@
           "modelFamily": "anthropic"
         },
         "at": "2026-11-02T11:10:00Z",
-        "text": "Plan 3 oran × 3 seed olarak güncellendi.",
+        "text": "The plan was updated to 3 rates × 3 seeds.",
         "followUpId": "E-0031"
       }
     },
@@ -113,7 +113,7 @@
       "kind": "objection",
       "to": "experiment_designer",
       "subjectId": "CR-0001",
-      "body": "Tek öğrenme oranı yetersiz.",
+      "body": "A single learning rate is not enough.",
       "round": 1,
       "requiresResponse": true
     },
@@ -132,7 +132,7 @@
       "to": "critic",
       "subjectId": "CR-0001",
       "inReplyTo": "MSG-0001",
-      "body": "Kabul; plan r2: 3 oran × 3 seed.",
+      "body": "Accepted; plan r2: 3 rates × 3 seeds.",
       "round": 1
     },
     {
@@ -148,15 +148,15 @@
       },
       "hypothesisId": "H-0001",
       "primaryMetric": "val_loss_final",
-      "successCriterion": "1e-3 ve altında ısınmalı ile ısınmasız arasında 3 seed ortalama kayıp farkı ≤ 0.05.",
-      "analysisPlan": "Her koşul için 3 seed ortalaması ve %95 güven aralığı; tek yönlü değil iki yönlü karşılaştırma.",
+      "successCriterion": "At 1e-3 and below, the 3-seed mean loss difference between warmup and no warmup is ≤ 0.05.",
+      "analysisPlan": "3-seed mean and 95% confidence interval per condition; a two-sided, not one-sided, comparison.",
       "seeds": 3,
       "lockedAt": "2026-11-02T11:25:00Z",
       "amendments": [
         {
           "at": "2026-11-03T08:00:00Z",
-          "reason": "Pilot sonrası adım sayısı bütçeye sığdırıldı",
-          "change": "10k yerine 8k adım",
+          "reason": "Step count fitted to the budget after the pilot",
+          "change": "8k steps instead of 10k",
           "by": {
             "kind": "agent",
             "role": "experiment_designer",
@@ -166,7 +166,7 @@
           "afterResultsSeen": false
         }
       ],
-      "contentHash": "16436939ca10abe41b77cc9f2df1cdeb025a9c46f7d1c9eb0f80280ad46f0b69"
+      "contentHash": "cfcbad7fc7c4c950e9a72b803098c52485ba88e9b2fdb6dbfe840e19814d4aaa"
     },
     {
       "id": "E-0031",
@@ -184,9 +184,9 @@
         "H-0002"
       ],
       "domain": "ml",
-      "method": "Üç öğrenme oranı (3e-4, 1e-3, 3e-3) × ısınmalı/ısınmasız × 3 seed; 20M parametreli transformer.",
+      "method": "Three learning rates (3e-4, 1e-3, 3e-3) × with/without warmup × 3 seeds; 20M-parameter transformer.",
       "baselines": [
-        "sabit öğrenme oranı, ısınmalı"
+        "constant learning rate, with warmup"
       ],
       "metrics": [
         {
@@ -195,7 +195,7 @@
         }
       ],
       "code": {
-        "repo": "https://github.com/ornek/isinma-deneyi",
+        "repo": "https://github.com/example/warmup-experiment",
         "commit": "a3f9c21",
         "license": "Apache-2.0"
       },
@@ -211,9 +211,9 @@
       },
       "noveltyCheck": {
         "verdict": "partially_done",
-        "summary": "Büyük modeller için çalışılmış; ≤50M ölçekte sistematik karşılaştırma bulunamadı.",
+        "summary": "Studied for large models; no systematic comparison found at the ≤50M scale.",
         "priorWork": [
-          "arXiv:örnek"
+          "arXiv:example"
         ],
         "userChoice": "proceed"
       },
@@ -222,7 +222,7 @@
       "approval": {
         "by": {
           "kind": "human",
-          "userId": "u-ornek"
+          "userId": "u-example"
         },
         "at": "2026-11-02T11:30:00Z",
         "decision": "approved",
@@ -243,7 +243,7 @@
       "kind": "approval_request",
       "to": "human",
       "subjectId": "E-0031",
-      "body": "E-0031 planı ve bütçesi onayınızı bekliyor.",
+      "body": "The E-0031 plan and budget await your approval.",
       "approvalRequest": {
         "action": "approve_experiment",
         "estimatedUsd": 3.2,
@@ -251,7 +251,7 @@
         "decision": {
           "by": {
             "kind": "human",
-            "userId": "u-ornek"
+            "userId": "u-example"
           },
           "at": "2026-11-02T11:30:00Z",
           "decision": "approved",
@@ -363,13 +363,13 @@
       "runIds": [
         "RUN-0002"
       ],
-      "summary": "1e-3'te ısınmalı ve ısınmasız koşulların 3 seed ortalama kayıp farkı 0.02 (ön kayıttaki eşik 0.05).",
+      "summary": "At 1e-3, the 3-seed mean loss difference between the warmup and no-warmup conditions is 0.02 (preregistered threshold 0.05).",
       "metrics": {
         "loss_gap": 0.02
       },
       "limitations": [
-        "Tek model boyutu (20M)",
-        "Yalnızca AdamW"
+        "Single model size (20M)",
+        "AdamW only"
       ]
     },
     {
@@ -387,13 +387,13 @@
       "runIds": [
         "RUN-0003"
       ],
-      "summary": "3e-3'te ısınmasız eğitim ıraksamadı ama kayıp 2.91'de takıldı.",
+      "summary": "At 3e-3, training without warmup did not diverge, but the loss plateaued at 2.91.",
       "negative": true,
       "metrics": {
         "val_loss_final": 2.91
       },
       "limitations": [
-        "Takılma ile ıraksama ayrımı tek bir eşikle yapıldı"
+        "Plateau vs. divergence was decided by a single threshold"
       ]
     },
     {
@@ -433,7 +433,7 @@
         "RUN-0004"
       ],
       "reproduced": "yes",
-      "tolerance": "kayıp ±0.02",
+      "tolerance": "loss ±0.02",
       "crossModel": true
     },
     {
@@ -473,10 +473,10 @@
         "RUN-0005"
       ],
       "reproduced": "partial",
-      "tolerance": "kayıp ±0.02",
+      "tolerance": "loss ±0.02",
       "crossModel": true,
       "differences": [
-        "Temiz ortamda kayıp 3.20; takılma tekrarlandı ama seviyesi farklı"
+        "Loss 3.20 in the clean environment; the plateau reproduced but at a different level"
       ]
     },
     {
@@ -525,7 +525,7 @@
       "kind": "proposal",
       "to": "human",
       "subjectId": "E-0031",
-      "body": "Isınma süresi ablasyonu öneriyorum: 0/100/500/2000 adım × 3 seed."
+      "body": "I propose a warmup-length ablation: 0/100/500/2000 steps × 3 seeds."
     },
     {
       "id": "H-0004",
@@ -539,8 +539,8 @@
         "modelFamily": "anthropic"
       },
       "questionId": "Q-0012",
-      "statement": "Yüksek öğrenme oranındaki takılma, Adam'ın β2 değeri düşürüldüğünde ortadan kalkar.",
-      "falsifiabilityNote": "β2=0.95 ile ısınmasız 3e-3 çalıştırmaları yine 2.9 civarında takılırsa hipotez çürür.",
+      "statement": "The plateau at a high learning rate disappears when Adam's β2 is lowered.",
+      "falsifiabilityNote": "The hypothesis is refuted if 3e-3 runs without warmup and β2=0.95 still plateau around 2.9.",
       "status": "draft",
       "derivedFrom": [
         "RES-0032"

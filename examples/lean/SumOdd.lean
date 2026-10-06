@@ -2,7 +2,7 @@ import Mathlib
 
 open Finset BigOperators
 
-/-- İlk n tek sayının toplamı n²'dir: 1 + 3 + ... + (2n - 1) = n². -/
+/-- The sum of the first n odd numbers is n²: 1 + 3 + ... + (2n - 1) = n². -/
 theorem sum_first_odds (n : ℕ) : ∑ i ∈ range n, (2 * i + 1) = n ^ 2 := by
   induction n with
   | zero => simp

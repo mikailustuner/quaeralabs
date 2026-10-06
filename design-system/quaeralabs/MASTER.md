@@ -1,30 +1,30 @@
-# QuaeraLabs tasarım sistemi (v3, 2026-10-05)
+# QuaeraLabs design system (v3, 2026-10-05)
 
-Kaynaklar:
-- ui-ux-pro-max önerisi: "Swiss Modernism 2.0" (ızgara, rasyonel boşluklar, sade).
-- Araştırmacı oylaması sonrası verilen referans: dar sol panel, sıcak nötr tonlar, ortada büyük giriş kutusu, serif karşılama başlığı.
+Sources:
+- ui-ux-pro-max recommendation: "Swiss Modernism 2.0" (grid, rational spacing, minimal).
+- Reference given after the researcher vote: narrow left panel, warm neutral tones, large input box in the center, serif welcome heading.
 
-Referansın düzeni ve renk tonu uyarlandı; marka, simge ve yazı tipleri QuaeraLabs'e aittir. Önceki sürüm (v2: iOS gri + yeşil vurgu) bu belgeyle değiştirildi.
+The reference's layout and color tone were adapted; the brand, icon and typefaces belong to QuaeraLabs. This document replaces the previous version (v2: iOS gray + green accent).
 
-## Kararlar
-- **Dil:** arayüz İngilizce. Model çıktılarının dili `QUAERA_LANGUAGE` ile seçilir (varsayılan English).
-- **Tema:** açık varsayılan. Koyu tema sistem tercihine göre ya da kenar çubuğundaki simgeli seçiciyle (System / Light / Dark) gelir. Seçim yalnızca tarayıcıda saklanır.
-- **Renk (tokenlar `web/src/styles.css`):**
-  - Açık tema: sıcak kâğıt arka plan #FAF9F5, sol panel #F3F1EA, kartlar beyaz, metin #1F1E1B.
-  - Koyu tema: #1F1E1C / #1A1917 / #262523, metin #ECEAE4.
-  - Vurgu kil turuncusu: açıkta #A9502F, koyuda #E2896A.
-  - Anlamsal renkler: başarılı/desteklendi = yeşil, çürütüldü/hata = kırmızı, uyarı/itiraz = koyu sarı, bilgi/yöntem = mavi, açık soru = mor.
-  - Her metin/zemin çifti ölçüldü: en düşük 4.79:1 (WCAG AA).
-- **Yazı:** başlıklar ve karşılama Source Serif 4; gövde Inter; kod ve Lean Geist Mono; matematik KaTeX.
-- **Yerleşim:**
-  - Sol panel (276 px): marka + daraltma, arama, New research, gezinme, "What the lab learned" (bağlamsal hafıza), tarihe göre gruplanmış tek satırlık kısa proje adları, alt satırda yerel laboratuvar + tema.
-  - Mobilde panel çekmece olarak açılır (Esc ve arka plana dokunma kapatır).
-  - Ana sayfa: ortalanmış serif karşılama + büyük giriş kutusu. Alan, bütçe ve otonomi kutunun altında; örnek sorular çip olarak.
-  - Proje sayfası:
-    - üstte kısa ad (yeniden adlandırılabilir), tam soru (dizgili) ve aşama çubuğu;
-    - ana sütunda karar kartı, kanıt özeti, deney/ispat ve etkinlik;
-    - sağ sütunda Proje yöneticisi, bütçe, aktif ajan, ekip ve sınırlar;
-    - altta yapışkan giriş kutusu: varsayılan alıcı yönetici, istenirse ekibe not.
-- **Köşe yarıçapı:** kart 14 px, iç öğe 10 px, düğme 9 px, giriş kutuları 18 px, rozet/çip tam yuvarlak. Cam/bulanıklık yok.
-- **Hareket:** az; 150–200 ms; `prefers-reduced-motion` saygı görür.
-- **Erişilebilirlik:** AA kontrast her iki temada, görünür odak halkası, tüm etkileşimler klavyeyle, çekmece/diyalog odak tuzağı ve Esc, kaydırılabilir bölgeler odaklanabilir. axe denetimi uçtan uca testte açık ve koyu temada koşar.
+## Decisions
+- **Language:** the UI is in English. The language of model output is chosen with `QUAERA_LANGUAGE` (default English).
+- **Theme:** light by default. The dark theme follows the system preference or the icon selector in the sidebar (System / Light / Dark). The choice is stored only in the browser.
+- **Color (tokens in `web/src/styles.css`):**
+  - Light theme: warm paper background #FAF9F5, left panel #F3F1EA, white cards, text #1F1E1B.
+  - Dark theme: #1F1E1C / #1A1917 / #262523, text #ECEAE4.
+  - Clay orange accent: #A9502F in light, #E2896A in dark.
+  - Semantic colors: success/supported = green, refuted/error = red, warning/objection = dark yellow, info/method = blue, open question = purple.
+  - Every text/background pair was measured: lowest 4.79:1 (WCAG AA).
+- **Type:** headings and welcome in Source Serif 4; body in Inter; code and Lean in Geist Mono; math in KaTeX.
+- **Layout:**
+  - Left panel (276 px): brand + collapse, search, New research, navigation, "What the lab learned" (contextual memory), single-line short project names grouped by date, local lab + theme on the bottom row.
+  - On mobile the panel opens as a drawer (Esc and tapping the backdrop close it).
+  - Home page: centered serif welcome + large input box. Domain, budget and autonomy below the box; example questions as chips.
+  - Project page:
+    - at the top, the short name (renamable), the full question (typeset) and the stage bar;
+    - in the main column, the decision card, evidence summary, experiment/proof and activity;
+    - in the right column, the Project manager, budget, active agent, team and limits;
+    - at the bottom, a sticky input box: the default recipient is the manager, optionally a note to the team.
+- **Corner radius:** card 14 px, inner element 10 px, button 9 px, input boxes 18 px, badge/chip fully rounded. No glass/blur.
+- **Motion:** minimal; 150–200 ms; `prefers-reduced-motion` is respected.
+- **Accessibility:** AA contrast in both themes, visible focus ring, all interactions keyboard-accessible, focus trap and Esc for drawer/dialog, scrollable regions focusable. The axe audit runs in the end-to-end test in light and dark themes.

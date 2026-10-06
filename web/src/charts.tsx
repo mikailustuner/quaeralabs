@@ -1,9 +1,9 @@
-// Bağımlılıksız, erişilebilir SVG grafikler: her grafiğin metin özeti (aria-label) ve tablo karşılığı vardır.
+// Dependency-free, accessible SVG charts: every chart has a text summary (aria-label) and a table equivalent.
 
 const COLORS = ["var(--accent)", "var(--blue)", "var(--orange)", "var(--purple)", "var(--red)", "var(--faint)"];
 const fmt = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 10 ? x.toFixed(1) : Math.abs(x) >= 1 ? x.toFixed(2) : x.toFixed(3));
 
-/** Sınıf bazında histogram (veri profili): her sınıf ayrı renkte, üst üste yarı saydam alanlar. */
+/** Per-class histogram (data profile): each class in its own colour, overlapping semi-transparent areas. */
 export function Histogram({ edges, byClass, title }: { edges: number[]; byClass: Record<string, number[]>; title: string }) {
   const W = 320, H = 150, P = { l: 30, r: 8, t: 8, b: 22 };
   const classes = Object.keys(byClass);
@@ -33,7 +33,7 @@ export function Histogram({ edges, byClass, title }: { edges: number[]; byClass:
   );
 }
 
-/** Seed başına birincil metrik: noktalar, ortalama çizgisi, %95 GA bandı ve (varsa) ön kayıtlı eşik çizgisi. */
+/** Primary metric per seed: points, mean line, 95% CI band and (if any) the preregistered threshold line. */
 export function SeedChart({ points, mean, ci, threshold, label }: {
   points: { seed: number; value: number; ok: boolean }[]; mean?: number; ci?: number[]; threshold?: number | null; label: string;
 }) {
@@ -69,7 +69,8 @@ export function SeedChart({ points, mean, ci, threshold, label }: {
   );
 }
 
-/** Başarı ölçütü metninden sayısal eşiği çıkarmaya çalışır (ör. "ortalama > 0.75"). Bulunamazsa null — çizgi çizilmez. */
+/** Tries to extract a numeric threshold from the success criterion text (e.g. "mean > 0.75"). Returns null if none is found, and no line is drawn.
+ * The Turkish comparison words in the regex are kept on purpose so criteria from older Turkish projects still match. */
 export function thresholdOf(criterion: string | undefined): number | null {
   if (!criterion) return null;
   const m = criterion.match(/(?:>=|<=|>|<|≥|≤|en az|en fazla|üzerinde|altında|at least|at most|above|below)\s*%?\s*(-?\d+(?:[.,]\d+)?)/i);

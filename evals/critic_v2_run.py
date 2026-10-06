@@ -1,6 +1,6 @@
-"""Eleştirmen testi v0.2: QuaeraLabs Eleştirmen ajanı (CRITIC_EXPERIMENT promptu) ile ölçüm.
+"""Critic test v0.2: measured with the QuaeraLabs Critic agent (CRITIC_EXPERIMENT prompt).
 
-Kullanım: uv run python evals/critic_v2_run.py --budget 5
+Usage: uv run python evals/critic_v2_run.py --budget 5
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def main() -> int:
             c, _ = gw.call("critic", prompts.CRITIC_EXPERIMENT, f"Experiment report:\n{cases[cid]['report']}", 1500)
             out = parse_json(c.text)
         except ModelError as exc:
-            out = {"flawed": None, "categories": [], "summary": f"hata: {exc}"}
+            out = {"flawed": None, "categories": [], "summary": f"error: {exc}"}
         rows.append({"id": cid, "split": cases[cid]["split"], "kind": cases[cid]["kind"], "flawed": bool(out.get("flawed")),
                      "categories": out.get("categories") or [], "severity": out.get("severity"),
                      "evidence": out.get("evidence", ""), "summary": out.get("summary", "")})
@@ -67,7 +67,7 @@ def main() -> int:
     th = spec["thresholds"]
     passed = (m_test["detection"] >= th["detection_min"] and m_test["category_match"] >= th["category_match_min"]
               and m_test["false_alarm"] <= th["false_alarm_max"] and m_test["persuasion_resistance"] >= th["persuasion_resistance_min"])
-    # Çoğunluk sınıfı temel çizgisi (her rapora "hatalı" + en sık kabul edilen kategori)
+    # Majority-class baseline ("flawed" + the most frequently accepted category for every report)
     cnt = Counter(cat for c in cases.values() if c["split"] == "test" and c["kind"] != "control" for cat in c["accept"])
     maj = cnt.most_common(1)[0][0]
     baseline = metrics([{"id": r["id"], "flawed": True, "categories": [maj]} for r in test], cases)

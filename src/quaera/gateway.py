@@ -1,13 +1,13 @@
 """Model gateway (ADR 0003).
 
-Tüm model çağrıları buradan geçer. Gateway:
-- rol başına model seçer (ajan tanımındaki costProfile),
-- çapraz model kuralını uygular (mustDifferFrom),
-- her çağrıdan ÖNCE en kötü durum maliyetini hesaplar; tavanı aşacak çağrıyı yapmaz,
-- gerçek maliyeti olay kaydına yazar; %80'de uyarı üretir.
+All model calls go through here. The gateway:
+- picks a model per role (costProfile in the agent definition),
+- enforces the cross-model rule (mustDifferFrom),
+- computes the worst-case cost BEFORE every call; it does not make a call that would exceed the cap,
+- writes the actual cost to the event log; emits a warning at 80%.
 
-Bütçe garantisi: tahmin = (girdi token üst sınırı × girdi fiyatı) + (çıktı token sınırı × çıktı fiyatı).
-Çıktı token sınırı sağlayıcıya iletilir, böylece gerçek maliyet tahmini aşamaz.
+Budget guarantee: estimate = (input token upper bound × input price) + (output token limit × output price).
+The output token limit is passed to the provider, so the actual cost cannot exceed the estimate.
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ import threading
 from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
-# USD / milyon token (girdi, çıktı). Kaynak: Anthropic fiyat tablosu (claude-api referansı, 2026-09-25):
-# Opus 5.5 4/20, Sonnet 5.5 2/10, Haiku 4.5 1/5. Önbelleğe yazma girdinin ~1,25 katı.
-# Bütçe tahmini için kullanılır; sağlayıcı gerçek maliyeti raporlar ve olay kaydına o yazılır.
+# USD / million tokens (input, output). Source: Anthropic price table (claude-api reference, 2026-09-25):
+# Opus 5.5 4/20, Sonnet 5.5 2/10, Haiku 4.5 1/5. A cache write costs ~1.25x the input price.
+# Used for the budget estimate; the provider reports the actual cost and that is what goes into the event log.
 PRICES = {
     "haiku": (1.0, 5.0),
     "sonnet": (2.0, 10.0),
@@ -30,12 +30,12 @@ PRICES = {
     "scripted": (0.0, 0.0),
 }
 CACHE_WRITE = 1.25
-# `claude` CLI her çağrıya kendi iskeletini ekler ve önbelleğe yazar (Faz 2'de ~5 bin token ölçüldü).
+# The `claude` CLI adds its own scaffolding to every call and writes it to the cache (~5k tokens measured in Phase 2).
 PROVIDER_OVERHEAD_TOKENS = 8000
-# CLAUDE_CODE_MAX_OUTPUT_TOKENS kesin bir sınır değil (2500 istenip 2797 üretildiği görüldü): çıktı için 2 kat varsayılır.
+# CLAUDE_CODE_MAX_OUTPUT_TOKENS is not a hard limit (2500 requested, 2797 produced was seen): assume 2x for output.
 OUTPUT_SAFETY = 2.0
 
-# Maliyet profili -> sağlayıcıya özgü model takma adı
+# Cost profile -> provider-specific model alias
 PROFILE_MODELS = {
     "anthropic": {"cheap": "haiku", "balanced": "sonnet", "best": "opus"},
     "scripted": {"cheap": "scripted", "balanced": "scripted", "best": "scripted"},
@@ -69,7 +69,7 @@ class Provider(Protocol):
 
 
 def estimate_input_tokens(*texts: str) -> int:
-    # Muhafazakâr üst sınır: Türkçe ve kod için ~2.5 karakter/token.
+    # Conservative upper bound: ~2.5 characters/token for Turkish text and code.
     return int(sum(len(t) for t in texts) / 2.5)
 
 
@@ -86,10 +86,10 @@ THINKING_HEADROOM = {"low": 2000, "medium": 4000, "high": 8000, "xhigh": 16000, 
 
 
 class ClaudeCLIProvider:
-    """Kullanıcının giriş yapmış `claude` CLI'si üzerinden Anthropic modelleri.
+    """Anthropic models through the user's logged-in `claude` CLI.
 
-    Araçlar kapalı, oturum kaydedilmez, kullanıcı ayarları ve MCP sunucuları yüklenmez.
-    Çıktı token sınırı CLAUDE_CODE_MAX_OUTPUT_TOKENS ile, harcama --max-budget-usd ile sınırlanır.
+    Tools are off, the session is not saved, user settings and MCP servers are not loaded.
+    Output tokens are capped with CLAUDE_CODE_MAX_OUTPUT_TOKENS, spending with --max-budget-usd.
     """
 
     family = "anthropic"
@@ -135,16 +135,16 @@ class ClaudeCLIProvider:
 
 
 class LiteLLMProvider:
-    """API anahtarıyla çalışan sağlayıcılar (OpenAI, Google, Mistral, yerel modeller…) için LiteLLM adaptörü.
+    """LiteLLM adapter for API-key providers (OpenAI, Google, Mistral, local models…).
 
-    `models`: maliyet profili -> LiteLLM model adı, ör. {"cheap": "openai/<model>", "balanced": ..., "best": ...}.
-    Aile, model adının önekidir (openai/…, gemini/…). Fiyat LiteLLM'in maliyet tablosundan okunur; tabloda olmayan
-    bir model için tahmin yapılamayacağından çağrı reddedilir (bütçe garantisi).
-    `mock_response` yalnızca testler içindir: ağ çağrısı yapılmaz.
+    `models`: cost profile -> LiteLLM model name, e.g. {"cheap": "openai/<model>", "balanced": ..., "best": ...}.
+    The family is the model name's prefix (openai/…, gemini/…). Prices are read from LiteLLM's cost table; a model
+    missing from the table cannot be estimated, so the call is refused (budget guarantee).
+    `mock_response` is for tests only: no network call is made.
     """
 
     def __init__(self, models: dict[str, str], mock_response: str | None = None, timeout_s: int = 600):
-        import litellm  # isteğe bağlı bağımlılık: uv sync --extra providers
+        import litellm  # optional dependency: uv sync --extra providers
         self.litellm = litellm
         self.models = models
         self.family = next(iter(models.values())).split("/", 1)[0]
@@ -169,13 +169,13 @@ class LiteLLMProvider:
     def complete(self, model: str, system: str, prompt: str, max_output_tokens: int, budget_usd: float,
                  effort: str | None = None) -> Completion:
         extra = {"mock_response": self.mock_response} if self.mock_response else {}
-        if effort and self._supports_reasoning(model):   # akıl yürütmeyen modeller bu parametreyi reddeder
+        if effort and self._supports_reasoning(model):   # non-reasoning models reject this parameter
             extra["reasoning_effort"] = {"xhigh": "high", "max": "high"}.get(effort, effort)   # LiteLLM: low/medium/high
         try:
             resp = self.litellm.completion(model=model, messages=[{"role": "system", "content": system},
                                                                   {"role": "user", "content": prompt}],
                                            max_tokens=max_output_tokens, timeout=self.timeout_s, **extra)
-        except Exception as exc:  # sağlayıcı hataları tek tip ModelError'a çevrilir
+        except Exception as exc:  # provider errors are turned into a single ModelError type
             raise ModelError(f"{model}: {exc}") from exc
         usage = resp.usage
         p_in, p_out = self.price(model)
@@ -185,7 +185,7 @@ class LiteLLMProvider:
 
 
 class ScriptedProvider:
-    """Testler için: önceden yazılmış cevapları sırayla ya da bir fonksiyonla döndürür."""
+    """For tests: returns prewritten answers in order or from a function."""
 
     def __init__(self, responder: Callable[[str, str], str], family: str = "scripted", cost_per_call: float = 0.0):
         self.responder = responder
@@ -214,9 +214,9 @@ class Gateway:
     role_families: dict[str, str] = field(default_factory=dict)
     profile_overrides: dict[str, str] = field(default_factory=dict)
     effort_overrides: dict[str, str] | None = None
-    calibration: dict[str, float] = field(default_factory=dict)   # model -> gözlenen en yüksek gerçek/tahmin oranı (>1 ise)
-    # Paralel çağrılar (ör. iki Hipotez ajanı aynı anda): her çağrı başlamadan kendi üst sınırını ayırır; sağlayıcıya
-    # yalnızca bu sınır verilir. Ayrılmış sınırların toplamı kalan bütçeyi geçemediği için tavan paralelde de aşılamaz.
+    calibration: dict[str, float] = field(default_factory=dict)   # model -> highest observed actual/estimate ratio (if >1)
+    # Parallel calls (e.g. two Hypothesis agents at once): each call reserves its own upper bound before starting; only
+    # that bound is given to the provider. The reserved bounds cannot sum past the remaining budget, so the cap holds in parallel too.
     reserved_usd: float = 0.0
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -224,7 +224,7 @@ class Gateway:
         return max(0.0, self.cap_usd - self.spent_usd)
 
     def _family_for(self, role: str) -> tuple[str, bool]:
-        """Rol için sağlayıcı ailesi seçer. Dönüş: (aile, çapraz model sağlandı mı)."""
+        """Picks a provider family for the role. Returns: (family, whether cross-model was achieved)."""
         avoid = {self.role_families.get(r) for r in self.agent_specs[role]["model"].get("mustDifferFrom", [])}
         avoid.discard(None)
         families = list(self.providers)
@@ -241,16 +241,16 @@ class Gateway:
 
     def call(self, role: str, system: str, prompt: str, max_output_tokens: int = 8000,
              family: str | None = None) -> tuple[Completion, bool]:
-        """`family`: belirli bir sağlayıcı ailesi (paralel çalışan aynı rolün ikinci örneği farklı modelle çalışsın diye)."""
+        """`family`: a specific provider family (so a second parallel instance of the same role runs on a different model)."""
         profile = self.profile_overrides.get(role) or self.agent_specs[role]["model"]["costProfile"]
         family, cross = (family, False) if family in self.providers else self._family_for(role)
         provider = self.providers[family]
         model = provider.model_for(profile) if hasattr(provider, "model_for") else PROFILE_MODELS.get(family, {}).get(profile, profile)
         price = provider.price(model) if hasattr(provider, "price") else None
         effort = (self.effort_overrides or {}).get(role) or self.agent_specs[role]["model"].get("effort")
-        effort = None if effort == "default" else effort        # "default": sağlayıcı varsayılanı (ölçümde taban için)
-        # Düşünme token'ları çıktı olarak faturalanır: yüksek eforda en kötü durum tahmini büyütülür.
-        # (Kesin tavan yine sağlayıcıya verilen kalan bütçedir; bu çarpan yalnızca erken durdurmayı doğru yapar.)
+        effort = None if effort == "default" else effort        # "default": provider default (baseline for measurement)
+        # Thinking tokens are billed as output: at high effort the worst-case estimate is scaled up.
+        # (The hard cap is still the remaining budget given to the provider; this factor only makes early stopping right.)
         estimate = (worst_case_cost(model, system, prompt, max_output_tokens, price) * EFFORT_FACTOR.get(effort, 1.0)
                     * self.calibration.get(model, 1.0))
         with self.lock:
@@ -261,7 +261,7 @@ class Gateway:
                 raise BudgetExceeded(
                     f"{role} call may cost up to ${estimate:.3f} in the worst case; remaining budget ${max(0.0, available):.3f}"
                 )
-            # Tahmin + kalan payın yarısı: tahmin yanılsa da sağlayıcı bu sınırı aşamaz; yarısı paralel çağrılara kalır.
+            # Estimate + half the remaining margin: even if the estimate is wrong the provider cannot exceed this; the other half stays for parallel calls.
             limit = estimate + (available - estimate) / 2
             self.reserved_usd += limit
         try:
@@ -283,7 +283,7 @@ class Gateway:
             self.spent_usd += completion.cost_usd
         self.role_families.setdefault(role, family)
         if estimate > 0 and completion.cost_usd > estimate:
-            # Tahmin aşıldı: bu model için sonraki tahminleri gözlenen oranla (+%10) büyüt ve kayda geçir.
+            # Estimate exceeded: scale later estimates for this model by the observed ratio (+10%) and record it.
             ratio = completion.cost_usd / estimate * 1.1 * self.calibration.get(model, 1.0)
             self.calibration[model] = max(self.calibration.get(model, 1.0), ratio)
             self.record("budget.estimate_exceeded", {"role": role, "model": model, "costUsd": round(completion.cost_usd, 6),
@@ -301,15 +301,15 @@ class Gateway:
 
 
 def parse_json(text: str):
-    """Model çıktısından JSON çıkarır (kod bloğu içinde ya da düz).
+    """Extracts JSON from model output (inside a code block or plain).
 
-    Model JSON'dan önce düz metin yazabilir ve o metinde köşeli parantez geçebilir ("t ∈ [0, 1]"). Bu yüzden önce
-    kod bloğu, sonra metindeki ilk geçerli JSON *nesnesi*, en son liste denenir; sondaki fazlalık yok sayılır.
+    The model may write plain text before the JSON, and that text may contain square brackets ("t ∈ [0, 1]"). So the
+    code block is tried first, then the first valid JSON *object* in the text, and the list last; trailing extra text is ignored.
     """
     dec = json.JSONDecoder()
     blocks = [m.group(1).strip() for m in re.finditer(r"```(?:json)?\s*(.*?)```", text, re.S)]
     for cand in blocks + [text]:
-        try:                                   # metnin tamamı JSON ise (nesne ya da liste) olduğu gibi
+        try:                                   # if the whole text is JSON (object or list), take it as is
             value = json.loads(cand.strip())
             if isinstance(value, (dict, list)):
                 return value

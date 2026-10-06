@@ -1,10 +1,10 @@
-"""Sandbox MCP sunucusu: deney kodunu yazma, çalıştırma ve temiz ortam kurma.
+"""Sandbox MCP server: writing and running experiment code, and setting up a clean environment.
 
-Her proje bir çalışma dizinine sahiptir (`<proje>/work`); kod orada bir git deposunda tutulur.
-- sandbox_write: dosya yazar ve commit eder; commit kimliğini döndürür.
-- sandbox_exec: komutu bwrap içinde çalıştırır. Ağ kapalı, ML ortamı ve veri salt okunur, yalnızca çalışma dizini yazılabilir.
-  GPU yalnızca `gpu=true` ile ve araç kaydının izin kontrolünden sonra açılır.
-- sandbox_create_clean: belirli bir commit'i sıfırdan, yeni bir dizine çıkarır (Doğrulayıcı'nın temiz ortamı).
+Every project has a working directory (`<project>/work`); the code is kept there in a git repository.
+- sandbox_write: writes a file and commits it; returns the commit ID.
+- sandbox_exec: runs a command inside bwrap. No network, the ML environment and data are read-only, only the working directory is writable.
+  GPU is enabled only with `gpu=true` and after the tool registry's permission check.
+- sandbox_create_clean: extracts a given commit from scratch into a new directory (the Verifier's clean environment).
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ mcp = MCPServer("sandbox")
 
 
 def _base_python_binds() -> list[str]:
-    """Sanal ortamın temel yorumlayıcısı: hem sembolik bağın göründüğü yol hem gerçek yol bağlanır."""
+    """The virtualenv's base interpreter: both the path as seen through the symlink and the real path are bound."""
     cfg = ML_ENV / "pyvenv.cfg"
     if not cfg.exists():
         return []
@@ -49,13 +49,13 @@ def _git(work: Path, *args: str) -> str:
 def _safe(work: Path, rel: str) -> Path:
     path = (work / rel).resolve()
     if work.resolve() not in path.parents and path != work.resolve():
-        raise ValueError(f"çalışma dizini dışına yazılamaz: {rel}")
+        raise ValueError(f"cannot write outside the working directory: {rel}")
     return path
 
 
 @mcp.tool()
 def sandbox_write(workdir: str, path: str, content: str, message: str = "quaera") -> str:
-    """Çalışma dizinine dosya yazar ve git ile commit eder. Dönüş: {"commit": "<sha>"}."""
+    """Writes a file into the working directory and commits it with git. Returns: {"commit": "<sha>"}."""
     work = Path(workdir)
     work.mkdir(parents=True, exist_ok=True)
     if not (work / ".git").exists():
@@ -72,14 +72,14 @@ def sandbox_write(workdir: str, path: str, content: str, message: str = "quaera"
 @mcp.tool()
 def sandbox_exec(workdir: str, command: list[str], data_dir: str | None = None, timeout_s: int = 600,
                  gpu: bool = False) -> str:
-    """Komutu sandbox içinde çalıştırır. Dönüş: {"returncode", "stdout", "stderr", "timed_out", "gpu"}."""
+    """Runs a command inside the sandbox. Returns: {"returncode", "stdout", "stderr", "timed_out", "gpu"}."""
     work = Path(workdir).resolve()
     args = ["bwrap", "--die-with-parent", "--new-session", "--unshare-all", "--cap-drop", "ALL"]
     for p in SYSTEM_RO:
         if os.path.exists(p):
             args += ["--ro-bind", p, p]
     args += ["--ro-bind", str(ML_ENV.resolve()), str(ML_ENV.resolve())]
-    args += _base_python_binds()   # sanal ortamın python'u uv'nin kurduğu temel yorumlayıcıya sembolik bağdır
+    args += _base_python_binds()   # the virtualenv's python is a symlink to the base interpreter installed by uv
     if data_dir:
         args += ["--ro-bind", str(Path(data_dir).resolve()), "/data"]
     args += ["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", str(work), str(work), "--chdir", str(work)]
@@ -105,7 +105,7 @@ def sandbox_exec(workdir: str, command: list[str], data_dir: str | None = None, 
 
 @mcp.tool()
 def sandbox_create_clean(workdir: str, commit: str) -> str:
-    """Belirtilen commit'i sıfırdan yeni bir dizine çıkarır. Dönüş: {"workdir": "<yeni dizin>"}."""
+    """Extracts the given commit from scratch into a new directory. Returns: {"workdir": "<new directory>"}."""
     clean = Path(tempfile.mkdtemp(prefix="quaera-clean-"))
     archive = subprocess.run(["git", "-C", workdir, "archive", commit], capture_output=True, check=True).stdout
     subprocess.run(["tar", "-x", "-C", str(clean)], input=archive, check=True)

@@ -1,4 +1,4 @@
-"""ML döngüsünün davranış testleri: betiklenmiş modeller, gerçek Python yürütmesi (sandbox'sız, geçici dizinde)."""
+"""Behaviour tests for the ML loop: scripted models, real Python execution (no sandbox, in a temporary directory)."""
 
 import json
 import shutil
@@ -27,7 +27,7 @@ BROKEN = "import nonexistent_module\n"
 
 
 class SandboxTools:
-    """sandbox.* araçlarını geçici dizinde gerçek Python ile çalıştırır; izin kontrolü gerçek."""
+    """Runs the sandbox.* tools with real Python in a temporary directory; permission checks are real."""
 
     def __init__(self, permissions):
         self.permissions = permissions
@@ -77,36 +77,36 @@ class MLScript:
         if key == "LITERATURE_PLAN":
             return '{"arxiv_queries": [], "openalex_queries": [], "mathlib_queries": []}'
         if key == "LITERATURE_SUMMARY":
-            return '{"summary": "İlgili sonuç yok.", "verdict": "unknown", "basis": "search", "cited": []}'
+            return '{"summary": "No relevant results.", "verdict": "unknown", "basis": "search", "cited": []}'
         if key == "RANK_HYPOTHESES":
-            return '{"ranking": [{"index": 0, "testability": 8, "plausibility": 7, "novelty": 4, "scope": 9, "cost": 8, "reason": "Sınanabilir."}]}'
+            return '{"ranking": [{"index": 0, "testability": 8, "plausibility": 7, "novelty": 4, "scope": 9, "cost": 8, "reason": "Testable."}]}'
         if key == "HYPOTHESIS_ML":
-            return json.dumps({"hypotheses": [{"statement": "Doğrusal model %75'i geçemez.", "falsifiabilityNote": "Doğrusal doğruluk > 0.75 olursa çürür.",
+            return json.dumps({"hypotheses": [{"statement": "A linear model cannot exceed 75%.", "falsifiabilityNote": "Refuted if linear accuracy > 0.75.",
                                                "scope": {"relation": "full", "note": ""}}]})
         if key == "DESIGN_ML":
-            seeds = 2 if i == 1 else 3   # ilk plan 2 seed (Eleştirmen itiraz eder), revizyon 3 seed
-            return json.dumps({"method": "Lojistik regresyon ve MLP karşılaştırması.", "baselines": ["MLP"],
+            seeds = 2 if i == 1 else 3   # first plan 2 seeds (the Critic objects), revision 3 seeds
+            return json.dumps({"method": "Compare logistic regression with an MLP.", "baselines": ["MLP"],
                                "metrics": [{"name": "linear_acc", "direction": "higher_is_better"}, {"name": "mlp_acc", "direction": "higher_is_better"}],
-                               "primaryMetric": "linear_acc", "successCriterion": "linear_acc ortalaması < 0.75 ise destek.",
-                               "analysisPlan": "Seed ortalaması ve %95 GA.", "seeds": seeds, "estimatedMinutes": 1, "_tag": f"plan{i}"})
+                               "primaryMetric": "linear_acc", "successCriterion": "Supported if mean linear_acc < 0.75.",
+                               "analysisPlan": "Seed mean and 95% CI.", "seeds": seeds, "estimatedMinutes": 1, "_tag": f"plan{i}"})
         if key == "CRITIC_EXPERIMENT":
             if "PLAN" in prompt:
                 bad = self.plan_objection and '"_tag": "plan1"' in prompt
                 return json.dumps({"flawed": bad, "categories": ["statistics"] if bad else [], "severity": "high" if bad else None,
-                                   "evidence": "2 seed yetersiz", "summary": "Seed sayısı az." if bad else "Plan uygun."})
+                                   "evidence": "2 seeds are not enough", "summary": "Too few seeds." if bad else "Plan is fine."})
             bad = self.result_objection and "contradicts" not in prompt and self.n[key] <= 3
             return json.dumps({"flawed": bad, "categories": ["overclaim"] if bad else [], "severity": self.result_severity if bad else None,
-                               "evidence": "", "summary": "Sonuç abartılı." if bad else "Sorun yok."})
+                               "evidence": "", "summary": "The result is overstated." if bad else "No issues."})
         if key == "ENGINEER_ML":
             return f"```python\n{BROKEN if (self.broken_first and i == 1) else SCRIPT}```"
         if key == "ANALYST":
-            return json.dumps({"relation": "supports", "summary": "linear_acc ≈ 0.51 < 0.75.", "negative": False, "limitations": ["Tek veri seti."]})
+            return json.dumps({"relation": "supports", "summary": "linear_acc ≈ 0.51 < 0.75.", "negative": False, "limitations": ["Single dataset."]})
         if key == "ANALYST_RESPONSE":
-            return json.dumps({"accept": self.analyst_accepts, "response": "Kabul.", "relation": "inconclusive",
-                               "summary": "Temkinli yorum.", "limitations": ["Tek veri seti."]})
+            return json.dumps({"accept": self.analyst_accepts, "response": "Accepted.", "relation": "inconclusive",
+                               "summary": "Cautious interpretation.", "limitations": ["Single dataset."]})
         if key == "WRITER":
-            return json.dumps({"discussion": ["Doğrusal model yaklaşık %51 doğrulukta kaldı [RES-0001].", "Bu cümlenin kaynağı yok."],
-                               "answer": "no", "answerReason": "Doğrusal doğruluk %75'in altında [RES-0001, VER-0001]."})
+            return json.dumps({"discussion": ["The linear model stayed at about 51% accuracy [RES-0001].", "This sentence has no source."],
+                               "answer": "no", "answerReason": "Linear accuracy is below 75% [RES-0001, VER-0001]."})
 
 
 def make(tmp_path, script, cap=5.0, approver=None):
@@ -116,7 +116,7 @@ def make(tmp_path, script, cap=5.0, approver=None):
     gw = Gateway({"scripted": ScriptedProvider(script)}, cap, perms.agents)
     orch = MLOrchestrator(store, gw, SandboxTools(perms), approver or AutoApprover(100), perms, log=lambda m: None,
                           reports_dir=tmp_path / "p")
-    store.put({"type": "question", "createdBy": orch.human(), "title": "Doğrusal model %75'i geçebilir mi?", "domain": "ml",
+    store.put({"type": "question", "createdBy": orch.human(), "title": "Can a linear model exceed 75%?", "domain": "ml",
                "scope": "/data/train.npz"})
     return orch
 
@@ -129,15 +129,15 @@ def test_ml_loop_end_to_end(tmp_path):
     assert s.check_final() == []
     h = s.get(orch.state("hypothesis_id"))
     assert h["status"] == "supported"
-    # Plan itirazı → revizyon (3 seed) → çözüldü
+    # Plan objection → revision (3 seeds) → resolved
     assert s.latest("preregistration")[-1]["seeds"] == 3
     assert any(c["status"] == "resolved" for c in s.latest("critique"))
-    # Bozuk pilot → düzeltme; 3 tam çalıştırma; doğrulama birebir
+    # Broken pilot → fix; 3 full runs; verification matches exactly
     runs = s.latest("run")
     assert [r["status"] for r in runs if r["kind"] == "pilot"] == ["failed", "succeeded"]
     assert len([r for r in runs if r["kind"] == "full"]) == 3
     assert s.latest("verification")[-1]["reproduced"] == "yes"
-    # Yazar: kaynaksız cümle atıldı, cevap kaynağa bağlı
+    # Writer: the unsourced sentence was dropped, the answer is tied to a source
     w = s.events("writer.output")[-1]["payload"]
     assert w["answer"] == "no" and len(w["kept"]) == 1 and len(w["dropped"]) == 1
     assert "Answer to the question" in report and "**No.**" in report and "computed by code" in report
@@ -156,14 +156,14 @@ def test_result_objection_debate_rounds(tmp_path):
 
 
 def test_medium_result_flaw_is_not_dropped(tmp_path):
-    # Canlı hata enjeksiyonunda bulunan hata: "orta" ciddiyetteki aşırı genelleme itiraza dönüşmüyordu.
+    # Bug found by live fault injection: a "medium" severity overgeneralization did not become an objection.
     orch = make(tmp_path, MLScript(plan_objection=False, result_objection=True, broken_first=False, result_severity="medium"))
     orch.run()
     s = orch.store
     crits = [c for c in s.latest("critique") if c["targetId"].startswith("RES")]
     assert crits and crits[0]["severity"] == "medium" and all(c["status"] == "accepted" for c in crits)
     assert any(m["kind"] == "response" and m["createdBy"]["role"] == "analyst" for m in s.latest("message"))
-    assert s.get(orch.state("result_id"))["summary"] == "Temkinli yorum."
+    assert s.get(orch.state("result_id"))["summary"] == "Cautious interpretation."
     assert s.check_final() == []
 
 

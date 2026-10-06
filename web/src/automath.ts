@@ -1,12 +1,12 @@
-// Düz metindeki matematiği tanır: ajanlar her zaman $…$ yazmaz ("∑_{k ≥ N} 1/a k < ε", "a : ℕ → ℕ",
-// "Summable (fun k => (1:ℝ) / (a k : ℝ))"). Matematik parçaları KaTeX için $…$ içine, Lean ifadeleri `…` içine alınır.
-// Kod blokları, satır içi kod, mevcut $…$ ve bağlantılar korunur. KaTeX'in ayrıştıramadığı parça kod olarak gösterilir.
+// Recognises math in plain text: agents do not always write $…$ ("∑_{k ≥ N} 1/a k < ε", "a : ℕ → ℕ",
+// "Summable (fun k => (1:ℝ) / (a k : ℝ))"). Math fragments are wrapped in $…$ for KaTeX, Lean expressions in `…`.
+// Code blocks, inline code, existing $…$ and links are preserved. A fragment KaTeX cannot parse is shown as code.
 import katex from "katex";
 
 const LEAN_MARK = /(\bfun\b|=>|↦|\b(?:Filter|Set|Finset|Nat|Int|Real|Function|Polynomial|MeasureTheory)\.\w|\bSummable\b|\bTendsto\b|\bnhds\b|\batTop\b|\bHasSum\b|:\s*[ℝℕℤℚℂ]\)|:=|∑'|↑)/;
 const STRONG = /[∑∏∫√≤≥≠≈→←↔⇒∞∈∉⊂⊆⊃⊇∪∩∀∃∧∨¬ℕℤℚℝℂεδαβγλμσπθφωΣΠΔ∂·×÷±∘²³¹⁰⁴⁵⁶⁷⁸⁹ⁿ₀₁₂₃₄₅₆₇₈₉ₙₖᵢⱼₘ|{}=<>^]|[A-Za-z0-9)]_[{A-Za-z0-9]/;
 const FUNCS = new Set(["limsup", "liminf", "lim", "sup", "inf", "max", "min", "log", "ln", "exp", "sin", "cos", "tan", "gcd", "lcm", "deg", "det", "mod"]);
-const LONE_VARS = /^[b-df-hj-np-zB-HJ-NP-Z]$/;          // tek başına italik yazılacak harfler (a, e, i, o, u: sözcük olabilir)
+const LONE_VARS = /^[b-df-hj-np-zB-HJ-NP-Z]$/;          // letters italicised when standing alone (a, e, i, o, u: could be words)
 const OPEN = "([{⟨", CLOSE = ")]}⟩";
 
 type Kind = "lean" | "strong" | "var" | "num" | "op" | "word";
@@ -26,7 +26,8 @@ function classify(core: string, group: boolean): Kind {
   if (/^-?\d+(?:[.,]\d+)?$/.test(core)) return "num";
   if (/^[A-Za-z](?:'|\d+)?$/.test(core) || /^\d+[A-Za-z]$/.test(core) || FUNCS.has(core)) return "var";
   if (STRONG.test(core)) {
-    // Gruplar ve sembollü parçalar: içinde Türkçe/İngilizce bir sözcük (≥4 harf, matematik işlevi değil) varsa metindir.
+    // Groups and symbol fragments: text if they contain a Turkish/English word (≥4 letters, not a math function).
+    // The Turkish letters in the character class are intentional, so Turkish words are recognised too.
     const words = core.match(/[A-Za-zçğıöşüÇĞİÖŞÜ]{4,}/g) || [];
     return words.every((w) => FUNCS.has(w) || /^[a-z]*card$/.test(w)) ? "strong" : "word";
   }
@@ -35,7 +36,7 @@ function classify(core: string, group: boolean): Kind {
   return "word";
 }
 
-/** Boşluklarla ayrılmış parçalar; açık parantezli parça kapanana kadar birleştirilir. */
+/** Whitespace-separated fragments; a fragment with an open bracket is joined until it closes. */
 function units(text: string): (Unit | string)[] {
   const raw = text.split(/(\s+)/);
   const out: (Unit | string)[] = [];
@@ -71,7 +72,7 @@ const SYM: [RegExp, string][] = [
 const SUP: Record<string, string> = { "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "ⁿ": "n" };
 const SUB: Record<string, string> = { "ₙ": "n", "ₖ": "k", "ᵢ": "i", "ⱼ": "j", "ₘ": "m", "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9" };
 
-/** Düz matematik → TeX. Küme parantezleri (_{…}/^{…} dışında) \{ \} olur; kümelerdeki " | " \mid olur. */
+/** Plain math → TeX. Braces (outside _{…}/^{…}) become \{ \}; " | " inside sets becomes \mid. */
 export function toTex(src: string): string {
   let s = src.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+/g, (m) => `^{${[...m].map((c) => SUP[c]).join("")}}`)
     .replace(/[₀₁₂₃₄₅₆₇₈₉ₙₖᵢⱼₘ]+/g, (m) => `_{${[...m].map((c) => SUB[c]).join("")}}`);
@@ -89,7 +90,7 @@ export function toTex(src: string): string {
     } else out += ch;
   }
   s = out.replace(/ \| /g, " \\mid ");
-  // "a k" (Lean'de a uygulanmış k'ye) KaTeX'te "ak" olarak birleşmesin: tek harfler arasında ince boşluk.
+  // Keep "a k" (a applied to k in Lean) from merging into "ak" in KaTeX: thin space between single letters.
   s = s.replace(/(?<![\\A-Za-z])([A-Za-z]) +(?=[A-Za-z](?![A-Za-z]))/g, "$1\\,");
   for (const [re, rep] of SYM) s = s.replace(re, rep);
   s = s.replace(/(?<![\\A-Za-z])([A-Za-z]{2,})(?![A-Za-z{])/g, (w) => {
@@ -109,7 +110,7 @@ function emitMath(text: string): string {
   return text.includes("`") ? text : `\`${text}\``;
 }
 
-/** Bir metin parçasında (kod/matematik dışı) matematik ve Lean parçalarını işaretler. */
+/** Marks math and Lean fragments in a piece of text (outside code/math). */
 function markPlain(text: string): string {
   const us = units(text);
   const res: string[] = [];
@@ -119,7 +120,7 @@ function markPlain(text: string): string {
   while (i < us.length) {
     const u = us[i];
     if (!isU(u)) { res.push(u); i++; continue; }
-    // Lean span: Lean işaretli bir parçayla ya da CamelCase/noktalı adla başlar, gruplar ve adlarla sürer.
+    // Lean span: starts with a Lean-marked fragment or a CamelCase/dotted name and continues with groups and names.
     const leanHead = u.kind === "lean" || (/^[A-Z][A-Za-z]+$/.test(u.core) && !u.tail && isU(us[next(i)]) && (us[next(i)] as Unit).kind === "lean");
     if (leanHead) {
       let j = i, end = i, hasLean = false;
@@ -142,7 +143,7 @@ function markPlain(text: string): string {
         continue;
       }
     }
-    // Matematik: sembol, değişken, sayı ve işleçlerden oluşan en uzun dizi.
+    // Math: the longest run of symbols, variables, numbers and operators.
     if (u.kind !== "word" && u.kind !== "lean") {
       let j = i, end = i, strong = 0, ops = 0, atoms = 0;
       while (j < us.length) {
@@ -151,11 +152,11 @@ function markPlain(text: string): string {
         if (v.kind === "word" || v.kind === "lean") break;
         strong += +(v.kind === "strong"); ops += +(v.kind === "op"); atoms += +(v.kind === "var" || v.kind === "num");
         end = j;
-        if (v.tail && /[.;!?]/.test(v.tail)) break;    // cümle sonu
+        if (v.tail && /[.;!?]/.test(v.tail)) break;    // end of sentence
         if (v.tail === "," && !(isU(us[next(j)]) && /^[0-9A-Za-z]$/.test((us[next(j)] as Unit).core) && us.slice(j + 1, next(j) + 3).some((x) => isU(x) && x.kind !== "word"))) break;
         j = next(j);
       }
-      // baştaki/sondaki yalnız işleçler metinde kalır
+      // lone leading/trailing operators stay in the text
       let a = i, b = end;
       while (a <= b && (!isU(us[a]) || (us[a] as Unit).kind === "op")) a++;
       while (b >= a && (!isU(us[b]) || ((us[b] as Unit).kind === "op" && !(us[b] as Unit).tail))) b--;
@@ -184,13 +185,13 @@ function markPlain(text: string): string {
 
 const PROTECT = /(```[\s\S]*?```|`[^`\n]+`|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|https?:\/\/\S+|<\/?[A-Za-z][\w-]*(?:\s[^<>\n]*)?>)/g;
 
-/** Markdown kaynağında korunmayan düz metin parçalarına matematik/Lean işaretlemesi uygular (satır satır). */
+/** Applies math/Lean markup to the unprotected plain-text parts of the Markdown source (line by line). */
 export function autoMath(src: string): string {
   return src.split(PROTECT).map((part, i) => {
     if (i % 2 === 1) return part;
-    part = part.replace(/\$(?=\d)/g, "\\$");            // para tutarı ($1.17) matematik ayracı sanılmasın
+    part = part.replace(/\$(?=\d)/g, "\\$");            // don't mistake a money amount ($1.17) for a math delimiter
     return part.split("\n").map((line) => {
-      if (/^\s*\|/.test(line) || /^\s*(```|~~~)/.test(line)) return line;                  // tablo satırları
+      if (/^\s*\|/.test(line) || /^\s*(```|~~~)/.test(line)) return line;                  // table rows
       const m = line.match(/^(\s*(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)*)(.*)$/s);
       return m ? m[1] + markPlain(m[2]) : markPlain(line);
     }).join("\n");

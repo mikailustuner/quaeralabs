@@ -1,4 +1,4 @@
-"""Web sunucusu, web onaycısı, @ notları ve kanıt paketi testleri (model çağrısı yok)."""
+"""Tests for the web server, web approver, @ notes and evidence package (no model calls)."""
 
 import io
 import json
@@ -18,22 +18,22 @@ from test_orchestrator import Script, make
 
 @pytest.fixture()
 def home(tmp_path, monkeypatch):
-    projects = tmp_path / "projects"            # hafıza ve vakalar HOME'un üst dizinine yazılır: tmp_path içinde kalsın
+    projects = tmp_path / "projects"            # memory and cases are written to HOME's parent: keep them inside tmp_path
     projects.mkdir()
     monkeypatch.setattr(cli, "HOME", projects)
     monkeypatch.setattr(server, "HOME", projects)
     monkeypatch.setattr(package, "KEY_PATH", tmp_path / "signing-key")
-    # Kısa ad / yönetici sohbeti testlerde asla gerçek modele gitmesin.
+    # Short titles / manager chat must never reach a real model in tests.
     from quaera.gateway import ScriptedProvider
     monkeypatch.setattr(server, "MANAGER_PROVIDERS", {"scripted": ScriptedProvider(lambda s, p: "Test title")})
     return projects
 
 
 def finished_project(home):
-    orch = make(home, Script(), name="tek-sayilar")
+    orch = make(home, Script(), name="odd-numbers")
     orch.run()
     orch.store.set_meta("budgetCapUsd", 5.0)
-    return "tek-sayilar", orch
+    return "odd-numbers", orch
 
 
 def test_project_list_detail_graph_report(home):
@@ -61,23 +61,23 @@ def test_branch_shows_parent_name(home):
 
 def test_create_validates_input(home):
     c = TestClient(server.create_app())
-    assert c.post("/api/projects", json={"question": "kısa", "domain": "math", "budget": 1}).status_code == 400
-    assert c.post("/api/projects", json={"question": "Yeterince uzun bir soru mu?", "domain": "ml", "budget": 1}).status_code == 400
-    assert c.post("/api/projects", json={"question": "Yeterince uzun bir soru mu?", "domain": "math", "budget": 999}).status_code == 400
-    r = c.post("/api/projects", json={"question": "Uzun soru " * 200, "domain": "math", "budget": 1})
+    assert c.post("/api/projects", json={"question": "short", "domain": "math", "budget": 1}).status_code == 400
+    assert c.post("/api/projects", json={"question": "Is this a long enough question?", "domain": "ml", "budget": 1}).status_code == 400
+    assert c.post("/api/projects", json={"question": "Is this a long enough question?", "domain": "math", "budget": 999}).status_code == 400
+    r = c.post("/api/projects", json={"question": "Long question " * 200, "domain": "math", "budget": 1})
     assert r.status_code == 400 and "1500" in r.json()["error"]
-    assert list(home.iterdir()) == []                      # reddedilen istek yarım proje bırakmaz
+    assert list(home.iterdir()) == []                      # a rejected request leaves no half-created project
 
 
 def test_human_message_reaches_agent_once(home):
     pid, orch = finished_project(home)
     c = TestClient(server.create_app())
-    assert c.post(f"/api/projects/{pid}/messages", json={"to": "critic", "text": "Sınır durumlarını kontrol et."}).status_code == 201
+    assert c.post(f"/api/projects/{pid}/messages", json={"to": "critic", "text": "Check the edge cases."}).status_code == 201
     assert c.post(f"/api/projects/{pid}/messages", json={"to": "hacker", "text": "x"}).status_code == 400
     note = orch.human_notes("critic")
-    assert "Sınır durumlarını kontrol et." in note
-    assert orch.human_notes("critic") == ""          # yalnızca bir kez iletilir
-    assert orch.human_notes("engineer") == ""         # başka role gitmez
+    assert "Check the edge cases." in note
+    assert orch.human_notes("critic") == ""          # delivered only once
+    assert orch.human_notes("engineer") == ""         # does not go to another role
 
 
 def test_web_approver_waits_for_human_and_autonomy_modes(home):
@@ -119,18 +119,18 @@ def test_evidence_package_signed_and_tamper_evident(home):
 
     no_label = rewrite("quaera-manifest.json", lambda b: b.replace("QuaeraLabs AI agent team".encode(), b"some team"))
     assert package.verify_package(no_label)
-    edited_report = rewrite("rapor.md", lambda b: b + b"\nekleme")
+    edited_report = rewrite("report.md", lambda b: b + b"\nekleme")
     assert any("modified" in p for p in package.verify_package(edited_report))
 
 
 def test_cross_site_and_rebinding_requests_are_rejected(home):
     c = TestClient(server.create_app())
-    body = '{"question": "Yeterince uzun bir soru mu?", "domain": "math", "budget": 1}'
-    # basit (ön kontrolsüz) çapraz site isteği: text/plain gövde
+    body = '{"question": "Is this a long enough question?", "domain": "math", "budget": 1}'
+    # simple (no preflight) cross-site request: text/plain body
     assert c.post("/api/projects", content=body, headers={"content-type": "text/plain"}).status_code == 403
     assert c.post("/api/projects", content=body, headers={"content-type": "application/json",
-                                                           "origin": "https://kotu.example"}).status_code == 403
-    assert c.get("/api/projects", headers={"host": "kotu.example:8765"}).status_code == 403
+                                                           "origin": "https://evil.example"}).status_code == 403
+    assert c.get("/api/projects", headers={"host": "evil.example:8765"}).status_code == 403
     assert c.get("/api/projects", headers={"sec-fetch-site": "cross-site"}).status_code == 403
     assert c.get("/api/projects", headers={"origin": "http://127.0.0.1:8765", "sec-fetch-site": "same-origin"}).status_code == 200
 
@@ -140,15 +140,15 @@ def test_allowed_hosts_admit_a_private_proxy_name(home, monkeypatch):
     c = TestClient(server.create_app())
     assert c.get("/api/projects", headers={"host": "lab.example.ts.net:8443", "origin": "https://lab.example.ts.net:8443",
                                            "sec-fetch-site": "same-origin"}).status_code == 200
-    assert c.get("/api/projects", headers={"host": "kotu.example"}).status_code == 403
-    assert c.get("/api/projects", headers={"host": "lab.example.ts.net", "origin": "https://kotu.example"}).status_code == 403
+    assert c.get("/api/projects", headers={"host": "evil.example"}).status_code == 403
+    assert c.get("/api/projects", headers={"host": "lab.example.ts.net", "origin": "https://evil.example"}).status_code == 403
 
 
 def test_report_problem_creates_local_triage_case(home):
     pid, _ = finished_project(home)
     c = TestClient(server.create_app())
-    assert c.post(f"/api/projects/{pid}/triage", json={"note": "kısa", "expect": {"answer": "no"}}).status_code == 400
-    r = c.post(f"/api/projects/{pid}/triage", json={"note": "Sonuç tek veri setine dayanıyor ama genellenmiş.",
+    assert c.post(f"/api/projects/{pid}/triage", json={"note": "short", "expect": {"answer": "no"}}).status_code == 400
+    r = c.post(f"/api/projects/{pid}/triage", json={"note": "The result rests on a single dataset but was generalized.",
                                                      "expect": {"mustObject": True}})
     assert r.status_code == 201 and (home.parent / "triage" / f"{r.json()['case']}.yaml").exists()
 
@@ -170,15 +170,15 @@ def test_branch_with_changes_runs_and_shows_in_tree(home, monkeypatch):
     scripted_build(monkeypatch)
     c = TestClient(server.create_app())
     assert c.post(f"/api/projects/{pid}/branch", json={"kind": "hypothesis", "reason": "x"}).status_code == 400
-    r = c.post(f"/api/projects/{pid}/branch", json={"kind": "approach", "reason": "Tümevarımla deneyelim.",
-                                                     "note": "Tümevarım kullan.", "autonomy": "under", "autoLimit": 5})
+    r = c.post(f"/api/projects/{pid}/branch", json={"kind": "approach", "reason": "Let's try induction.",
+                                                     "note": "Use induction.", "autonomy": "under", "autoLimit": 5})
     assert r.status_code == 201
     child = r.json()["id"]
     server.RUNNER.threads[child].join(30)
     t = c.get(f"/api/projects/{child}/tree").json()
     assert t["root"] == pid and {n["id"] for n in t["nodes"]} == {pid, child}
     node = next(n for n in t["nodes"] if n["id"] == child)
-    assert node["branch"]["kind"] == "approach" and node["branch"]["reason"] == "Tümevarımla deneyelim."
+    assert node["branch"]["kind"] == "approach" and node["branch"]["reason"] == "Let's try induction."
     assert node["outcome"] == "supported" and t["stats"]["branches"] == 2
     assert c.post(f"/api/projects/{pid}/iterate", json={"maxBranches": 9, "budgetPerBranch": 1}).status_code == 400
 

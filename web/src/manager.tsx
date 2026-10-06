@@ -1,5 +1,5 @@
-// Proje yöneticisi sohbeti: araştırmayı yalnızca izleyen ajan. Direktör'ün dikkatini dağıtmadan insanın sorularını yanıtlar.
-// Yönetici ekibe hiçbir şey göndermez; bir not önerirse ("Send to Director") göndermek insanın tıklamasıyla olur.
+// Project manager chat: an agent that only watches the research. It answers the human's questions without distracting the Director.
+// The manager sends nothing to the team; if it suggests a note ("Send to Director"), sending it takes the human's click.
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ChatTurn, api, money, time } from "./api";
 import { Avatar } from "./components";
@@ -61,14 +61,14 @@ function Turn({ t, pid, onToast }: { t: ChatTurn; pid: string; onToast?: (m: str
   );
 }
 
-/** Sohbet akışı + giriş; hem çekmecede hem yan panelde kullanılır. */
+/** Chat thread + input; used both in the drawer and in the side panel. */
 export function ManagerThread({ pid, m, onToast, autoFocus = false, input: withInput = true, onPick }: {
   pid: string; m: ManagerState; onToast?: (m: string) => void; autoFocus?: boolean; input?: boolean; onPick?: (s: string) => void;
 }) {
   const [text, setText] = useState("");
   const log = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
-  // Yalnızca sohbet kutusu kaydırılır (scrollIntoView sayfayı da kaydırırdı).
+  // Only the chat box scrolls (scrollIntoView would scroll the page too).
   useEffect(() => { const el = log.current; if (el) el.scrollTop = el.scrollHeight; }, [m.turns.length, m.waiting]);
   useEffect(() => { if (autoFocus) input.current?.focus(); }, [autoFocus]);
   const send = async (e?: FormEvent) => {
@@ -109,7 +109,7 @@ export function ManagerThread({ pid, m, onToast, autoFocus = false, input: withI
   );
 }
 
-/** Tam ekran sohbet çekmecesi (Esc ile kapanır, odak içeride kalır). */
+/** Full-screen chat drawer (closes with Esc; focus stays inside). */
 export function ManagerDrawer({ open, pid, m, onClose, onToast }: { open: boolean; pid: string; m: ManagerState; onClose: () => void; onToast?: (m: string) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {

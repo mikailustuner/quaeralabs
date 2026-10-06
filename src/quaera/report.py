@@ -1,7 +1,7 @@
-"""Rapor yazıcısı (Faz 1: şablonla çalışan Yazar).
+"""Report writer (Phase 1: the template-driven Writer).
 
-Rapordaki her iddia bir araştırma nesnesinin kimliğine bağlanır. Rapor, QuaeraLabs AI
-etiketini taşır ve yazılmadan önce projenin tüm kuralları (final=True) kontrol edilir.
+Every claim in the report is tied to a research object's id. The report carries the QuaeraLabs AI
+label, and all of the project's rules (final=True) are checked before it is written.
 """
 
 from __future__ import annotations
@@ -153,7 +153,7 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
         lines += ["## Rule violations", "", *[f"- {e}" for e in errors], ""]
     text = "\n".join(lines)
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / "rapor.md"
+    path = out_dir / "report.md"
     path.write_text(text, encoding="utf-8")
     (out_dir / "bundle.json").write_text(json.dumps(store.bundle(), ensure_ascii=False, indent=2), encoding="utf-8")
     store.append("report.written", {"kind": "agent", "role": "writer", "model": "quaera/deterministic", "modelFamily": "quaera"},
@@ -162,7 +162,7 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
 
 
 def discovery_section(store: Store) -> list[str]:
-    """Keşif kipi: stratejiler (kim önerdi, kim inceledi), lemma programı ve her lemmanın Lean durumu."""
+    """Discovery mode: strategies (who proposed, who reviewed), the lemma program and each lemma's Lean status."""
     proposed = [e["payload"] for e in store.events("strategy.proposed")]
     if not proposed:
         return []

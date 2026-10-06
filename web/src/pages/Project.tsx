@@ -16,7 +16,7 @@ export function Project({ pid, tab }: { pid: string; tab: string }) {
   const [toast, setToast] = useState<string | null>(null);
   const seen = useRef(0);
 
-  // Onay/aşama/rapor olaylarında ayrıntıyı (bekleyen onaylar, rapor, çalışma durumu) yeniden çek.
+  // On approval/stage/report events, refetch the details (pending approvals, report, run status).
   useEffect(() => {
     const fresh = events.slice(seen.current);
     seen.current = events.length;
@@ -82,7 +82,7 @@ export function Project({ pid, tab }: { pid: string; tab: string }) {
 }
 
 
-/** Kısa proje adı (Proje yöneticisi verir); kullanıcı yeniden adlandırabilir. */
+/** Short project name (given by the Project manager); the user can rename it. */
 function Title({ pid, title, onSaved }: { pid: string; title: string; onSaved: () => void }) {
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState(title);
@@ -110,7 +110,7 @@ function Title({ pid, title, onSaved }: { pid: string; title: string; onSaved: (
   );
 }
 
-/** Alfa: bir araştırmadaki hatayı yerel bir vaka olarak kaydeder (quaera triage). Hiçbir şey dışarı gönderilmez. */
+/** Alpha: saves a problem in a research run as a local case (quaera triage). Nothing is sent anywhere. */
 function ReportProblem({ pid, onDone }: { pid: string; onDone: (m: string) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [note, setNote] = useState("");

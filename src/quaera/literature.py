@@ -1,6 +1,6 @@
-"""Literatür adımı: arama planı → arXiv, OpenAlex ve Mathlib araması → alaka süzme ve yenilik kararı → kaynak doğrulama.
+"""Literature step: search plan → arXiv, OpenAlex and Mathlib search → relevance filtering and novelty verdict → citation check.
 
-Orkestratör ve değerlendirme seti (evals/literature_run.py) aynı fonksiyonu kullanır.
+The orchestrator and the evaluation set (evals/literature_run.py) use the same function.
 """
 
 from __future__ import annotations
@@ -40,17 +40,17 @@ class LiteratureResult:
 
 
 def _safe(tools, errors: list, *args, **kw):
-    """Dış literatür servisleri (arXiv, OpenAlex) geçici olarak çökebilir: hata araştırmayı durdurmaz, kaydedilir."""
+    """External literature services (arXiv, OpenAlex) can go down temporarily: an error does not stop the research, it is recorded."""
     try:
         return tools.call_json(*args, **kw)
-    except Exception as exc:  # ağ/servis hataları: sonuç yokmuş gibi devam
+    except Exception as exc:  # network/service errors: continue as if there were no results
         errors.append({"tool": args[1], "query": kw.get("query"), "error": str(exc)[:200]})
         return []
 
 
 def run_literature(question: str, scope: str, domain: str, llm: Callable[[str, str, int], tuple[str, dict]],
                    tools) -> LiteratureResult:
-    """`llm(system, prompt, max_tokens) -> (metin, aktör)`; `tools` rol izinleri kontrol edilen araç kaydıdır."""
+    """`llm(system, prompt, max_tokens) -> (text, actor)`; `tools` is the tool registry that enforces role permissions."""
     tool_errors: list = []
     plan, actor = _json(llm, prompts.LITERATURE_PLAN, f"Research question: {question}\nScope: {scope}\nDomain: {domain}", 1500)
     found: dict[str, dict] = {}
@@ -91,14 +91,14 @@ def run_literature(question: str, scope: str, domain: str, llm: Callable[[str, s
             result.rejected.append({"ref": ref, "reason": status})
         else:
             result.verified.append({"ref": ref, "kind": kind, "title": found[ref]["title"]})
-    # Özet serbest metindir: model "cited" listesine koymadığı ya da doğrulamadan geçemeyen kaynakları da yazabilir.
-    # Rapora yalnızca doğrulanmış kaynak girsin diye özetteki diğer arXiv kimlikleri ve DOI'ler çıkarılır
-    # (dürüstlük denetiminde bulundu: evals/results/audit-*.json).
+    # The summary is free text: the model may also mention sources it left out of "cited" or that failed verification.
+    # So that only verified sources reach the report, other arXiv IDs and DOIs in the summary are removed
+    # (found in the honesty audit: evals/results/audit-*.json).
     result.summary, removed = scrub_unverified(result.summary, {v["ref"] for v in result.verified})
     for ref in removed:
         if ref not in {r["ref"] for r in result.rejected}:
             result.rejected.append({"ref": ref, "reason": "cited in the summary but not verified; removed from the summary"})
-    # Doğrulanmış kaynak yoksa "search" dayanağı iddia edilemez.
+    # Without a verified source, a "search" basis cannot be claimed.
     if not result.verified and result.basis == "search" and result.verdict in ("already_done", "partially_done", "novel"):
         result.basis = "model_knowledge"
     return result
@@ -109,7 +109,7 @@ DOI_TEXT = re.compile(r"\b10\.\d{4,9}/(?:[^\s\[\]<>\"',;()]|\([^\s()]*\))+", re.
 
 
 def norm_ref(ref: str) -> str:
-    """Karşılaştırma için: küçük harf, arXiv önekleri ve arXiv'in DataCite DOI biçimi tek biçime."""
+    """For comparison: lowercase, and arXiv prefixes and arXiv's DataCite DOI form normalized to one form."""
     r = ref.strip().rstrip(".").lower()
     r = re.sub(r"^10\.48550/arxiv\.", "", r)
     r = re.sub(r"^arxiv:\s*", "", r)

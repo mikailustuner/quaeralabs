@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:experiment",
-  "title": "Deney (E)",
-  "description": "Bir veya daha fazla hipotezi sınayan plan. Harcama yapılabilmesi için onaylı olmalı ve bir ön kayda bağlanmalıdır.",
+  "title": "Experiment (E)",
+  "description": "A plan that tests one or more hypotheses. Before any spending it must be approved and tied to a preregistration.",
   "allOf": [
     {
       "$ref": "urn:quaeralabs:v1:common#/$defs/base"
@@ -172,13 +172,13 @@
         "pilotCalibratedUsd": {
           "type": "number",
           "minimum": 0,
-          "description": "Pilot çalıştırmadan sonra düzeltilmiş tahmin"
+          "description": "Estimate corrected after the pilot run"
         }
       },
       "additionalProperties": false
     },
     "noveltyCheck": {
-      "description": "Harcama onayından önce Literatür ajanının 'bu daha önce yapıldı mı?' raporu.",
+      "description": "The Literature agent's 'has this been done before?' report, made before the spending approval.",
       "type": "object",
       "required": [
         "verdict",
@@ -210,7 +210,7 @@
           ]
         },
         "basis": {
-          "description": "Kararın dayanağı: doğrulanmış arama sonuçları mı, modelin kendi bilgisi mi (doğrulanmamış)?",
+          "description": "Basis of the decision: verified search results, or the model's own knowledge (unverified)?",
           "enum": [
             "search",
             "model_knowledge",

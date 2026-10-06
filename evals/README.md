@@ -1,24 +1,24 @@
-# Değerlendirme setleri
+# Evaluation sets
 
-| Set | Dosya | Durum | Ne ölçer |
+| Set | File | Status | What it measures |
 | --- | --- | --- | --- |
-| Eleştirmen testi | `sets/critic-test.yaml` | v0.1 · 30 hatalı + 6 temiz vaka | Yerleştirilmiş hataları yakalama ve temiz raporlarda yanlış alarm vermeme |
-| Kaynak doğrulama | `sets/citations.yaml` | v0.1 · 8 gerçek + 6 uydurma kimlik | Uydurma kaynağı kabul etmeme (sıfır tolerans) |
-| Bilinen bulgular | `sets/known-findings.yaml` | Seçim protokolü hazır, vakalar alan danışmanında | Ajan ekibinin yayımlanmış bulguları sonucu bilmeden yeniden keşfetmesi |
-| miniF2F (Lean 4) | `sets/minif2f.yaml` | Kaynak tanımlı, sürüm Faz 1'de sabitlenecek | Biçimsel ispat bulma oranı |
+| Critic test | `sets/critic-test.yaml` | v0.1 · 30 flawed + 6 clean cases | Catching planted flaws without raising false alarms on clean reports |
+| Citation verification | `sets/citations.yaml` | v0.1 · 8 real + 6 fabricated IDs | Never accepting a fabricated source (zero tolerance) |
+| Known findings | `sets/known-findings.yaml` | Selection protocol ready, cases with the domain advisor | The agent team rediscovering published findings without knowing the result |
+| miniF2F (Lean 4) | `sets/minif2f.yaml` | Source defined, version to be pinned in Phase 1 | Formal proof success rate |
 
-## Çalıştırma
+## Running
 
 ```bash
-uv run python evals/run_evals.py                 # tümü
+uv run python evals/run_evals.py                 # all
 uv run python evals/run_evals.py --only citations
 ```
 
-Sonuçlar `results/baseline-<tarih>.json` dosyasına yazılır. Uydurma bir kaynak kabul edilirse komut 1 ile çıkar.
+Results are written to `results/baseline-<date>.json`. If a fabricated source is accepted, the command exits with 1.
 
-## Başlangıç değerleri
+## Baselines
 
-Güncel değerler ve yorumları: [../docs/faz0-durum.md](../docs/faz0-durum.md#başlangıç-değerleri).
+Current values and their interpretation: [../docs/status-phase0.md](../docs/status-phase0.md#baselines).
 
-- **Çoğunluk sınıfı temel çizgisi** her rapora en sık kategoriyle itiraz eder. Vakalardan bağımsız bir alt sınırdır; bir LLM Eleştirmen hem yakalama hem yanlış alarm oranında bunu geçmelidir.
-- Faz 0'da kural tabanlı bir Eleştirmen de denendi ancak kuralları vakaları okuyarak yazıldığı için sete uydurulmuş sonuç verdi (30/30) ve kaldırıldı. Bu nedenle setin vakaları geliştirme sırasında ajan promptlarına ya da kurallara asla girdi olarak verilmemelidir; bir sonraki sürümde ayrı bir gizli test bölümü ayrılmalıdır.
+- The **majority-class baseline** objects to every report with the most frequent category. It is a case-independent lower bound; an LLM Critic must beat it on both catch rate and false-alarm rate.
+- In Phase 0 a rule-based Critic was also tried, but because its rules were written by reading the cases it overfit the set (30/30) and was removed. For this reason the cases in this set must never be given as input to agent prompts or rules during development; the next version should set aside a separate hidden test split.

@@ -25,7 +25,7 @@ export function StateBox({ kind, children, action }: { kind: "loading" | "empty"
   );
 }
 
-/** Basit eşzamansız yükleyici: loading / error / data durumlarını açıkça döndürür. */
+/** Simple async loader: returns the loading / error / data states explicitly. */
 export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]) {
   const [state, set] = useState<{ data?: T; error?: string; loading: boolean }>({ loading: true });
   const [n, reload] = useState(0);

@@ -1,16 +1,16 @@
-"""Ek model sağlayıcıları: kullanıcının kurulu Codex CLI ve OpenCode CLI araçları (ADR 0017).
+"""Extra model providers: the user's installed Codex CLI and OpenCode CLI tools (ADR 0017).
 
-Amaç çapraz kontrol: Eleştirmen ve Doğrulayıcı, Mühendis'ten farklı bir model ailesiyle çalışabilsin; Keşif
-kipinde fikir üretimi birden fazla aileyle paralel yürüsün.
+The goal is cross-checking: the Critic and the Verifier can run on a different model family than the Engineer, and
+idea generation in Discovery mode can run in parallel across several families.
 
-Güvenlik: her çağrı boş, geçici bir dizinde çalışır.
-- Codex `--sandbox read-only --ephemeral` ile çağrılır: dosya yazamaz, oturum kaydı tutmaz.
-- OpenCode yalnızca okuyabilen `plan` ajanıyla çağrılır.
-Modelden yalnızca metin yanıtı alınır; QuaeraLabs araçları (Lean, sandbox) yine kendi izin katmanından geçer.
+Security: every call runs in an empty, temporary directory.
+- Codex is called with `--sandbox read-only --ephemeral`: it cannot write files and keeps no session log.
+- OpenCode is called with the read-only `plan` agent.
+Only a text answer is taken from the model; QuaeraLabs tools (Lean, sandbox) still go through their own permission layer.
 
-Ücret: iki araç da kullanıcının aboneliği ya da ücretsiz modellerle çalışır; çağrı başına ücret bildirmez.
-Olay kaydına costUsd=0 ve `billing: "subscription"` yazılır. Bütçe tavanı yalnızca ölçülen (API) harcamayı
-sınırlar; bu sağlayıcıların çağrı sayısı keşif turlarının sayısıyla sınırlanır.
+Cost: both tools run on the user's subscription or on free models; they report no per-call charge.
+The event log records costUsd=0 and `billing: "subscription"`. The budget cap limits only metered (API) spending;
+the number of calls to these providers is limited by the number of discovery rounds.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from pathlib import Path
 
 from .gateway import Completion, ModelError
 
-# Maliyet profili -> Codex akıl yürütme eforu (model, kullanıcının Codex ayarındaki model ya da QUAERA_CODEX_MODEL).
+# Cost profile -> Codex reasoning effort (the model is the one in the user's Codex config, or QUAERA_CODEX_MODEL).
 CODEX_EFFORT = {"cheap": "low", "balanced": "medium", "best": "high"}
 EFFORT_MAP = {"low": "low", "medium": "medium", "high": "high", "xhigh": "high", "max": "high"}
 NO_TOOLS = ("You are being called as a plain text model by the QuaeraLabs research system. Do not run commands, "
@@ -37,7 +37,7 @@ def _workdir() -> str:
 
 
 class CodexCLIProvider:
-    """OpenAI modelleri, kullanıcının giriş yapmış `codex` CLI'si üzerinden (`codex exec --json`)."""
+    """OpenAI models through the user's logged-in `codex` CLI (`codex exec --json`)."""
 
     family = "openai"
     billing = "subscription"
@@ -93,10 +93,10 @@ def parse_codex(stdout: str, stderr: str, model: str) -> Completion:
 
 
 class OpenCodeCLIProvider:
-    """OpenCode CLI üzerinden yapılandırılmış herhangi bir model (`opencode run --format json`).
+    """Any model configured in the OpenCode CLI (`opencode run --format json`).
 
-    Aile, modelin sağlayıcı önekinden türetilir (ör. `opencode/big-pickle` → `opencode`); model verilmezse
-    OpenCode'un varsayılanı kullanılır ve aile `opencode` sayılır.
+    The family is derived from the model's provider prefix (e.g. `opencode/big-pickle` → `opencode`); without a model,
+    OpenCode's default is used and the family counts as `opencode`.
     """
 
     billing = "subscription"
@@ -105,7 +105,7 @@ class OpenCodeCLIProvider:
         self.binary, self.timeout_s = binary, timeout_s
         self.model = model or os.environ.get("QUAERA_OPENCODE_MODEL") or None
         prefix = (self.model or "opencode/").split("/", 1)[0]
-        # OpenAI ya da Anthropic modeli seçilirse aile o olur: çapraz kontrol gerçekten farklı aileye gitsin diye.
+        # If an OpenAI or Anthropic model is chosen, that is the family: so the cross-check really goes to a different family.
         self.family = {"openai": "openai", "anthropic": "anthropic"}.get(prefix, "opencode")
 
     def model_for(self, profile: str) -> str:
@@ -145,7 +145,7 @@ def parse_opencode(stdout: str, stderr: str, model: str, family: str) -> Complet
             continue
         part = ev.get("part") or {}
         if ev.get("type") == "text" and part.get("text"):
-            parts[part.get("id") or str(len(parts))] = part["text"]   # aynı parçanın güncellemesi öncekinin yerini alır
+            parts[part.get("id") or str(len(parts))] = part["text"]   # an update of the same part replaces the earlier one
         elif ev.get("type") == "error":
             error = json.dumps(ev.get("error") or part or ev)[:300]
         elif ev.get("type") == "step_finish" and isinstance(part.get("tokens"), dict):
@@ -217,7 +217,7 @@ def parse_agy(stdout: str, stderr: str, model: str) -> Completion:
                       output_tokens=int(usage.get("output_tokens", 0) or 0))   # already includes thinking tokens
 
 
-# --- tespit ----------------------------------------------------------------------------------
+# --- detection -------------------------------------------------------------------------------
 
 def _version(binary: str) -> str | None:
     try:
@@ -228,7 +228,7 @@ def _version(binary: str) -> str | None:
 
 
 def detect() -> list[dict]:
-    """Bu makinedeki model CLI'leri: ad, aile, sürüm, hazır mı ve neden. Model çağrısı yapmaz (ücretsiz, hızlı)."""
+    """Model CLIs on this machine: name, family, version, whether ready and why. Makes no model call (free, fast)."""
     found = []
     claude = shutil.which("claude")
     found.append({"id": "claude", "name": "Claude Code CLI", "family": "anthropic", "binary": claude,
@@ -256,13 +256,13 @@ def detect() -> list[dict]:
 
 
 def enabled_ids() -> set[str] | None:
-    """QUAERA_PROVIDERS=claude,codex,opencode ile seçilir; tanımsız ya da 'auto' ise hazır olanların hepsi."""
+    """Selected with QUAERA_PROVIDERS=claude,codex,opencode; if unset or 'auto', all ready ones."""
     raw = os.environ.get("QUAERA_PROVIDERS", "auto").strip().lower()
     return None if raw in ("", "auto") else {x.strip() for x in raw.split(",") if x.strip()}
 
 
 def build_cli_providers(only: set[str] | None = None) -> dict:
-    """Hazır olan CLI sağlayıcıları aile adıyla. Aynı aileden ikinci sağlayıcı eklenmez (çapraz kontrol aile bazlıdır)."""
+    """Ready CLI providers keyed by family. A second provider of the same family is not added (cross-checks are per family)."""
     from .gateway import ClaudeCLIProvider
     allow = only if only is not None else enabled_ids()
     out: dict = {}
@@ -282,7 +282,7 @@ def build_cli_providers(only: set[str] | None = None) -> dict:
 
 
 def probe(provider, profile: str = "cheap") -> dict:
-    """Gerçek ama küçük bir çağrı ile sağlayıcıyı sınar (ayarlar sayfasındaki "Test" düğmesi)."""
+    """Tests the provider with a real but small call (the "Test" button on the settings page)."""
     started = time.monotonic()
     model = provider.model_for(profile) if hasattr(provider, "model_for") else "haiku"
     try:

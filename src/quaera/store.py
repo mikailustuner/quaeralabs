@@ -1,11 +1,11 @@
-"""Yerel veri deposu (ADR 0004).
+"""Local data store (ADR 0004).
 
-- Her proje tek bir SQLite dosyasıdır; yanında içerik adresli bir dosya deposu (cas/) durur.
-- `events` tablosu yalnızca eklenebilir: UPDATE ve DELETE tetikleyicilerle engellenir.
-- Araştırma nesneleri her yazmada şemaya ve proje genelindeki kurallara karşı doğrulanır;
-  kuralı bozan yazma reddedilir.
-- Yazma yetkisi rol bazında kontrol edilir (izin matrisi, agents/*.yaml).
-- Mevcut durum olaylardan yeniden üretilebilir; dallanma bir olay noktasına kadar yeniden oynatmadır.
+- Every project is a single SQLite file, with a content-addressed file store (cas/) next to it.
+- The `events` table is append-only: UPDATE and DELETE are blocked by triggers.
+- Research objects are validated against the schema and the project-wide rules on every write;
+  a write that breaks a rule is rejected.
+- Write access is checked per role (permission matrix, agents/*.yaml).
+- The current state can be rebuilt from the events; branching is a replay up to an event.
 """
 
 from __future__ import annotations
@@ -39,13 +39,13 @@ CREATE TABLE IF NOT EXISTS objects (
     PRIMARY KEY (id, revision)
 );
 CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events
-BEGIN SELECT RAISE(ABORT, 'olay kaydı değiştirilemez'); END;
+BEGIN SELECT RAISE(ABORT, 'event log cannot be modified'); END;
 CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events
-BEGIN SELECT RAISE(ABORT, 'olay kaydı silinemez'); END;
+BEGIN SELECT RAISE(ABORT, 'event log cannot be deleted'); END;
 CREATE TRIGGER IF NOT EXISTS objects_no_update BEFORE UPDATE ON objects
-BEGIN SELECT RAISE(ABORT, 'yayınlanmış revizyon değiştirilemez'); END;
+BEGIN SELECT RAISE(ABORT, 'published revision cannot be modified'); END;
 CREATE TRIGGER IF NOT EXISTS objects_no_delete BEFORE DELETE ON objects
-BEGIN SELECT RAISE(ABORT, 'revizyon silinemez'); END;
+BEGIN SELECT RAISE(ABORT, 'revision cannot be deleted'); END;
 """
 
 PREFIX = {
@@ -56,7 +56,7 @@ PREFIX = {
 
 
 class IntegrityError(Exception):
-    """Yazma, şemayı ya da proje kurallarını bozuyor."""
+    """The write breaks the schema or the project rules."""
 
 
 def now() -> str:
@@ -68,7 +68,7 @@ class Store:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.cas_dir = self.path.parent / "cas"
-        # Sunucuda araştırma ayrı bir iş parçacığında çalışır: bağlantı paylaşılır, erişim bir kilitle sıralanır.
+        # On the server the research runs in a separate thread: the connection is shared and access is serialized by a lock.
         self.lock = threading.RLock()
         self.db = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False, timeout=30)
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -92,7 +92,7 @@ class Store:
         row = self.db.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return json.loads(row[0]) if row else default
 
-    # --- olaylar ---------------------------------------------------------------
+    # --- events ----------------------------------------------------------------
     def append(self, kind: str, actor: dict, payload: dict) -> int:
         with self.lock:
             return self._append_impl(kind, actor, payload)
@@ -117,7 +117,7 @@ class Store:
         rows = self.db.execute(sql + " ORDER BY seq", args).fetchall()
         return [{"seq": s, "at": a, "kind": k, "actor": json.loads(ac), "payload": json.loads(p)} for s, a, k, ac, p in rows]
 
-    # --- nesneler --------------------------------------------------------------
+    # --- objects ---------------------------------------------------------------
     def next_id(self, type_: str) -> str:
         with self.lock:
             return self._next_id_impl(type_)
@@ -146,11 +146,11 @@ class Store:
         return json.loads(row[0]) if row else None
 
     def put(self, obj: dict, by: dict | None = None, final: bool = False) -> dict:
-        """Nesnenin yeni bir revizyonunu yazar. id yoksa atanır, revizyon otomatik artar.
+        """Writes a new revision of the object. A missing id is assigned; the revision increments automatically.
 
-        `by`: revizyonu yazan aktör (varsayılan: createdBy). Örneğin bir hipotezin onay
-        revizyonunu insan yazar ama hipotezin yazarı hâlâ Hipotez ajanıdır.
-        Yazmadan önce: rol yazma izni, nesne şeması ve proje genelindeki kurallar kontrol edilir.
+        `by`: the actor writing the revision (default: createdBy). E.g. a human writes the approval
+        revision of a hypothesis, but the hypothesis author is still the Hypothesis agent.
+        Before writing: the role's write permission, the object schema and the project-wide rules are checked.
         """
         with self.lock:
             return self._put_impl(obj, by, final)
@@ -159,8 +159,8 @@ class Store:
         obj = json.loads(json.dumps(obj))
         actor = by or obj["createdBy"]
         self.permissions.check_graph_write(actor, obj["type"], obj.get("kind") if obj["type"] == "message" else None)
-        # Kimlik/revizyon ataması ve yazma tek bir yazma kilidi altında: sunucu isteği (insan mesajı) ile araştırma
-        # iş parçacığı aynı veritabanına ayrı bağlantılardan yazar; BEGIN IMMEDIATE olmadan ikisi aynı kimliği alabiliyordu.
+        # Id/revision assignment and the write happen under one write lock: a server request (human message) and the
+        # research thread write to the same database over separate connections; without BEGIN IMMEDIATE both could get the same id.
         self.db.execute("BEGIN IMMEDIATE")
         try:
             if "id" not in obj:
@@ -172,7 +172,7 @@ class Store:
             errors = contracts.schema_errors(contracts.TYPE_TO_SCHEMA[obj["type"]], obj, obj["id"])
             if not errors:
                 snapshot = [o for o in self.latest() if o["id"] != obj["id"]] + [obj]
-                bundle = {"schemaVersion": "v1", "title": self.meta("title", "proje"), "objects": snapshot}
+                bundle = {"schemaVersion": "v1", "title": self.meta("title", "project"), "objects": snapshot}
                 errors = contracts.check_bundle(bundle, "depo", final=final)
             if errors:
                 raise IntegrityError("; ".join(errors))
@@ -188,12 +188,12 @@ class Store:
         return obj
 
     def bundle(self) -> dict:
-        return {"schemaVersion": "v1", "title": self.meta("title", "proje"), "objects": self.latest()}
+        return {"schemaVersion": "v1", "title": self.meta("title", "project"), "objects": self.latest()}
 
     def check_final(self) -> list[str]:
-        return contracts.check_bundle(self.bundle(), "proje", final=True)
+        return contracts.check_bundle(self.bundle(), "project", final=True)
 
-    # --- içerik adresli dosya deposu -------------------------------------------
+    # --- content-addressed file store -----------------------------------------
     def put_blob(self, data: bytes) -> str:
         digest = hashlib.sha256(data).hexdigest()
         path = self.cas_dir / digest[:2] / digest
@@ -205,16 +205,16 @@ class Store:
     def blob(self, digest: str) -> bytes:
         return (self.cas_dir / digest[:2] / digest).read_bytes()
 
-    # --- dallanma ----------------------------------------------------------------
+    # --- branching ---------------------------------------------------------------
     def branch(self, target: Path, at_seq: int) -> "Store":
-        """`at_seq` dahil olmak üzere o noktaya kadarki olayları yeni bir projeye yeniden oynatır."""
+        """Replays the events up to and including `at_seq` into a new project."""
         with self.lock:
             return self._branch_impl(target, at_seq)
 
     def _branch_impl(self, target: Path, at_seq: int) -> "Store":
         new = Store(target, self.permissions)
         if new.events():
-            raise IntegrityError(f"{target} boş değil")
+            raise IntegrityError(f"{target} is not empty")
         for key, value in self.db.execute("SELECT key, value FROM meta"):
             new.set_meta(key, json.loads(value))
         new.set_meta("branchOf", {"project": str(self.path), "atSeq": at_seq})
@@ -249,3 +249,9 @@ def iter_types(objs: Iterable[dict], type_: str) -> list[dict]:
 
 
 __all__ = ["Store", "IntegrityError", "PermissionDenied", "now"]
+
+
+def report_file(project: Path) -> Path:
+    """The project's Markdown report. Older projects named it `rapor.md`; that name is still read."""
+    new, old = project / "report.md", project / "rapor.md"
+    return old if old.exists() and not new.exists() else new

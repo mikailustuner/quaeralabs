@@ -1,6 +1,6 @@
-"""Orkestratörün davranış testleri: gerçek model ve Lean yerine betiklenmiş sağlayıcı ve sahte araçlar.
+"""Behaviour tests for the orchestrator: a scripted provider and fake tools instead of a real model and Lean.
 
-Gerçek Lean ile uçtan uca test: tests/test_lean.py (işaret: lean).
+End-to-end test with real Lean: tests/test_lean.py (marker: lean).
 """
 
 import json
@@ -21,7 +21,7 @@ PROOF = STATEMENT.replace("by sorry", "by\n  induction n with\n  | zero => simp\
 
 
 class FakeTools:
-    """ToolRegistry yerine: izin kontrolü gerçek, araç sonuçları sahte."""
+    """Stands in for ToolRegistry: permission checks are real, tool results are fake."""
 
     def __init__(self, permissions):
         self.permissions = permissions
@@ -40,7 +40,7 @@ class FakeTools:
             return "real"
         if tool == "sandbox.write":
             return json.dumps({"commit": "0000000"})
-        if tool == "sandbox.exec":   # keşif betiği: Script'in yazdığı tek satırı "çalıştırır"
+        if tool == "sandbox.exec":   # exploration script: "runs" the single line the Script wrote
             return json.dumps({"returncode": 0, "stdout": 'QUAERA_EXPLORE {"checked": "n ≤ 200", "counterexample": null, '
                                                          '"observations": ["the sum is always n*n"]}\n', "stderr": ""})
         if tool == "lean.compile":
@@ -50,7 +50,7 @@ class FakeTools:
                 problems.append("Proof contains `sorry`.")
             if "BADPROOF" in src:
                 errors.append("line 5: unsolved goals")
-            if "first | " in src:     # otomasyon taktik zincirleri: sahte Lean bunları ispat saymaz (gerçek Lean'de sınanır)
+            if "first | " in src:     # automation tactic chains: the fake Lean does not count them as proofs (tested on real Lean)
                 errors.append("line 3: automation failed (fake)")
             if approved and statement_of(src, "quaera_main") != normalize(approved):
                 problems.append("The approved theorem statement was changed; it must be kept exactly.")
@@ -68,7 +68,7 @@ class FakeTools:
 
 
 class Script:
-    """Prompt'a göre cevap veren betik. Sayaçlar hangi rolün kaç kez çağrıldığını tutar."""
+    """A script that answers based on the prompt. Counters track how many times each role was called."""
 
     def __init__(self, crash_on_prove=False, critic_objects_first=True):
         self.n = {}
@@ -79,7 +79,7 @@ class Script:
         keys = ("LITERATURE_PLAN", "LITERATURE_SUMMARY", "HYPOTHESIS", "FORMALIZE", "PROVE", "CRITIC_STATEMENT", "CRITIC_RESULT",
                 "BACKTRANSLATE", "REFUTE", "EXPLORE_MATH", "RANK_HYPOTHESES", "SKETCH")
         key = next((k for k in keys if getattr(prompts, k) == system), None)
-        if key is None:   # lemma ispatı istemi: ana ispat istemi, teorem adı lemma adıyla değiştirilmiş
+        if key is None:   # lemma proof prompt: the main proof prompt with the theorem name replaced by the lemma name
             key = next(k for k in keys if getattr(prompts, k) == re.sub(r"`quaera_step_\d+`", "`quaera_main`", system))
         self.n[key] = self.n.get(key, 0) + 1
         i = self.n[key]
@@ -110,7 +110,7 @@ class Script:
             return '{"translation": "For every natural number n, the sum of the first n odd numbers is n·n.", "oddities": []}'
         if key == "REFUTE":
             return "TRUE"
-        if key == "SKETCH":   # tek lemmalı taslak; sahte Lean'de lemma ispatlanamaz (ispat ana teoremi değiştirir)
+        if key == "SKETCH":   # single-lemma sketch; the lemma cannot be proved on the fake Lean (the proof changes the main theorem)
             return ("```lean\nimport Mathlib\n\nlemma quaera_step_1 (n : ℕ) : n * n = n ^ 2 := by sorry\n\n"
                     + STATEMENT.split("import Mathlib", 1)[1].replace("sorry", "BADPROOF").lstrip() + "```")
         if key == "RANK_HYPOTHESES":
@@ -142,15 +142,15 @@ def test_full_loop_supported(tmp_path):
     h = store.get(orch.state("hypothesis_id"))
     assert h["status"] == "supported"
     assert store.check_final() == []
-    # İtiraz → yanıt → çözüldü
+    # Objection → response → resolved
     crit = store.latest("critique")
     assert crit and crit[0]["status"] == "resolved"
     msgs = store.latest("message")
     objection = next(m for m in msgs if m["kind"] == "objection")
     assert any(m.get("inReplyTo") == objection["id"] for m in msgs)
-    # Literatür: arama sonuçlarında olmayan kaynak reddedildi
+    # Literature: a source missing from the search results was rejected
     assert [e["payload"]["ref"] for e in store.events("citation.rejected")] == ["arXiv:2222.22222"]
-    # Pilot, başarısız ve başarılı ispat denemeleri, doğrulama çalıştırması
+    # Pilot, failed and successful proof attempts, verification run
     kinds = [(r["kind"], r["status"]) for r in store.latest("run")]
     assert ("pilot", "succeeded") in kinds and ("full", "failed") in kinds and ("full", "succeeded") in kinds
     assert ("verification", "succeeded") in kinds
@@ -163,7 +163,7 @@ def test_resume_after_crash_does_not_repeat_finished_stages(tmp_path):
     with pytest.raises(RuntimeError):
         orch.run()
     formalize_calls = script.n["FORMALIZE"]
-    orch2 = make(tmp_path, script)  # aynı proje dosyası: yeniden açılış
+    orch2 = make(tmp_path, script)  # same project file: reopened
     orch2.run()
     assert script.n["FORMALIZE"] == formalize_calls
     assert script.n["LITERATURE_PLAN"] == 1
@@ -190,9 +190,9 @@ def test_branch_continues_independently(tmp_path):
     orch = make(tmp_path, Script())
     orch.run()
     seq = next(e["seq"] for e in orch.store.events("stage.done") if e["payload"]["stage"] == "formalize")
-    branch = orch.store.branch(tmp_path / "dal" / "quaera.db", seq)
+    branch = orch.store.branch(tmp_path / "branch" / "quaera.db", seq)
     assert "prove" not in [e["payload"]["stage"] for e in branch.events("stage.done")]
-    orch_b = make(tmp_path, Script(critic_objects_first=False), name="dal")
+    orch_b = make(tmp_path, Script(critic_objects_first=False), name="branch")
     orch_b.run()
     assert orch_b.store.meta("branchOf")["atSeq"] == seq
     assert orch_b.store.get(orch_b.state("hypothesis_id"))["status"] == "supported"
@@ -204,12 +204,12 @@ def test_store_enforces_permissions_and_rules(tmp_path):
     eng = {"kind": "agent", "role": "engineer", "model": "x/y", "modelFamily": "x"}
     with pytest.raises(PermissionDenied):
         store.put({"type": "critique", "createdBy": eng, "targetId": "Q-0001", "category": "other",
-                   "severity": "low", "body": "mühendis eleştiri yazamaz", "status": "open"})
+                   "severity": "low", "body": "the engineer cannot write critiques", "status": "open"})
     with pytest.raises(PermissionDenied):
         orch.tools.call("engineer", "arxiv.search", query="x")
     with pytest.raises(IntegrityError):
         store.put({"type": "hypothesis", "createdBy": {**eng, "role": "hypothesis"}, "questionId": "Q-0001",
-                   "statement": "Onaysız kabul edilmiş hipotez", "falsifiabilityNote": "geçersiz olmalı", "status": "accepted"})
+                   "statement": "Hypothesis accepted without approval", "falsifiabilityNote": "must be invalid", "status": "accepted"})
     with pytest.raises(Exception):
         store.db.execute("DELETE FROM events")
 
@@ -219,7 +219,7 @@ def test_model_error_retries_then_stops_with_report(tmp_path):
 
     script = Script()
 
-    def flaky(system, prompt):   # genel model çağrıları: iki denemeden sonra kontrollü durma (ispat araması ayrı: test_prover)
+    def flaky(system, prompt):   # general model calls: controlled stop after two attempts (proof search is separate: test_prover)
         if system == prompts.FORMALIZE:
             raise ModelError("provider error", cost_usd=0.01)
         return script(system, prompt)
@@ -258,18 +258,18 @@ def test_restricted_hypothesis_is_not_reported_as_full_answer(tmp_path):
         out = script(system, prompt)
         if system == prompts.HYPOTHESIS:
             data = json.loads(out)
-            data["hypotheses"][0]["scope"] = {"relation": "restricted", "note": "Yalnızca n ≤ 100 için."}
+            data["hypotheses"][0]["scope"] = {"relation": "restricted", "note": "Only for n ≤ 100."}
             return json.dumps(data)
         if system == prompts.CRITIC_STATEMENT:
             data = json.loads(out)
-            data.update(weakerThanQuestion=True, scopeNote="Sonsuz durum açık kalıyor.")
+            data.update(weakerThanQuestion=True, scopeNote="The infinite case remains open.")
             return json.dumps(data)
         return out
 
     orch = make(tmp_path, restricted)
     report = open(orch.run(), encoding="utf-8").read()
     assert "restricted version of the question was proved" in report and "original question remains open" in report
-    assert "Yalnızca n ≤ 100 için." in report and "Sonsuz durum açık kalıyor." in report
+    assert "Only for n ≤ 100." in report and "The infinite case remains open." in report
     h = orch.store.get(orch.state("hypothesis_id"))
     assert h["scopeRelation"]["relation"] == "restricted"
 
@@ -280,7 +280,7 @@ def test_gateway_calibrates_after_underestimate():
     gw = Gateway({"anthropic": ScriptedProvider(lambda s, p: "{}", "anthropic", cost_per_call=10.0)}, 100.0, perms.agents,
                  lambda k, p: events.append((k, p)))
     gw.provider_cost_cap = None
-    # Sağlayıcı tahminden pahalı bir maliyet raporlarsa (ScriptedProvider bütçeyi tahminle kırpar; burada kırpmayı devre dışı bırakıyoruz)
+    # If the provider reports a cost above the estimate (ScriptedProvider clamps to the estimate; we disable the clamping here)
     gw.providers["anthropic"].complete = lambda m, s, p, n, budget_usd, effort=None: __import__("quaera.gateway", fromlist=["Completion"]).Completion("{}", "x", "anthropic", 1.0)
     first = gw.call("literature", "s", "p", 100)
     assert any(k == "budget.estimate_exceeded" for k, _ in events)
@@ -288,7 +288,7 @@ def test_gateway_calibrates_after_underestimate():
     assert factor > 1.0
     gw.call("literature", "s", "p", 100)
     est2 = [p for k, p in events if k == "model.call"][-1]["estimateUsd"]
-    assert est2 >= 1.0  # yeni tahmin gözlenen maliyeti kapsıyor
+    assert est2 >= 1.0  # the new estimate covers the observed cost
 
 
 def test_literature_service_outage_does_not_stop_research(tmp_path):

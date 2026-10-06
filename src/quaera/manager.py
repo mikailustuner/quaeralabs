@@ -1,12 +1,12 @@
-"""Proje yöneticisi: araştırmayı yalnızca izleyen, insanla sohbet eden ajan.
+"""Project manager: an agent that only watches the research and chats with the human.
 
-Amaç Direktör'ün dikkatini dağıtmamak: insan "şu an ne oluyor, neden bu hipotez, ne kadar harcadık" gibi soruları
-buraya sorar; yanıt projenin olay kaydından üretilir, araştırma döngüsüne hiçbir şey girmez.
-- Yönetici hiçbir nesne yazamaz, araç çalıştıramaz, ekibe mesaj gönderemez (agents/manager.yaml).
-- İnsan ekibe bir şey söylemek isterse yönetici bir not *taslağı* önerir (FORWARD satırı); notu Direktör'e
-  göndermek insanın tıklamasıyla olur ve normal insan mesajı olarak kayda geçer.
-- Sohbetin kendi bütçesi vardır (QUAERA_MANAGER_CAP_USD, proje başına varsayılan 0,50 $); araştırma bütçesinden
-  düşülmez, `manager.call` olaylarıyla ayrı izlenir. Kısa proje adı da bu bütçeden üretilir.
+The point is to keep the Director undistracted: the human asks questions like "what is happening now, why this hypothesis,
+how much have we spent" here; the reply is built from the project's event log and nothing enters the research loop.
+- The manager cannot write objects, run tools or message the team (agents/manager.yaml).
+- If the human wants to tell the team something, the manager proposes a *draft* note (FORWARD line); sending it to the
+  Director takes the human's click and is recorded as a normal human message.
+- The chat has its own budget (QUAERA_MANAGER_CAP_USD, default $0.50 per project); it is not taken from the research
+  budget and is tracked separately through `manager.call` events. The short project title also comes from this budget.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ TITLE_SYSTEM = ("You name research projects. Reply with ONLY a short English tit
 
 
 def fallback_title(question: str) -> str:
-    """Model kullanılamazsa: sorunun ilk kelimeleri (en fazla ~40 karakter)."""
+    """When no model is available: the first words of the question (at most ~40 characters)."""
     words, out = question.replace("\n", " ").split(), ""
     for w in words:
         if len(out) + len(w) + 1 > 40:
@@ -55,7 +55,7 @@ def fallback_title(question: str) -> str:
 
 
 def digest(store: Store) -> str:
-    """Yöneticiye verilen proje özeti: soru, aşamalar, hipotezler, sonuçlar, bekleyen kararlar, son olaylar."""
+    """Project digest given to the manager: question, stages, hypotheses, results, pending decisions, recent events."""
     from .ml_loop import ML_STAGES
     from .orchestrator import STAGES
     objs = store.latest()
@@ -131,7 +131,7 @@ class Manager:
         if providers is None:
             from .cli import make_providers
             providers = make_providers()
-        # Başarısız çağrılar da ücretlenebilir (ör. çıktı sınırı aşıldı): bütçe hesabına onlar da girer.
+        # Failed calls can be billed too (e.g. output limit exceeded): they count against the budget as well.
         spent = sum(e["payload"].get("costUsd", 0) for kind in ("manager.call", "manager.error") for e in self.store.events(kind))
         kinds = {"model.call": "manager.call", "model.error": "manager.error", "budget.blocked": "manager.blocked"}
         self.gateway = Gateway(providers, cap_usd, Permissions.load().agents,
@@ -159,7 +159,7 @@ class Manager:
                                      for e in items})
 
     def ask(self, text: str) -> dict:
-        """İnsanın mesajını kaydeder, yanıtı üretir. Bütçe ya da model hatasında açıklayıcı bir yanıt kaydedilir."""
+        """Records the human's message and generates the reply. On a budget or model error an explanatory reply is recorded."""
         self.store.append("manager.chat", {"kind": "human", "userId": "local"}, {"from": "human", "text": text})
         turns = self.history()[-10:]
         convo = "\n".join(f"{'Human' if t['from'] == 'human' else 'You'}: {t['text']}" for t in turns)
@@ -182,10 +182,10 @@ class Manager:
         return {"seq": seq, "at": now(), **reply}
 
     def name(self) -> str:
-        """Projeye kısa, özetleyici bir ad verir (shortTitle). Model kullanılamazsa sorunun başı."""
+        """Gives the project a short, descriptive title (shortTitle). Without a model: the start of the question."""
         question = self.store.meta("title") or self.project.name
         title = None
-        try:   # düşünme token'ları da çıktı sınırına sayılır: kısa bir ad için bile sınır geniş tutulur (yalnızca üretilen ücretlenir)
+        try:   # thinking tokens count toward the output limit: keep it generous even for a short title (only generated tokens are billed)
             comp, _ = self.gateway.call("manager", TITLE_SYSTEM, f"Research question:\n{question}", max_output_tokens=1500)
             line = comp.text.strip().splitlines()[0] if comp.text.strip() else ""
             title = line.strip(" \"'“”*#.").strip()[:48] or None

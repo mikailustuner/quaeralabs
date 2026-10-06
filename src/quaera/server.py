@@ -1,8 +1,8 @@
-"""Yerel web sunucusu (Faz 3): `quaera serve`.
+"""Local web server (Phase 3): `quaera serve`.
 
-Yalnızca 127.0.0.1'de dinler. Arayüz (web/dist) ile JSON API ve canlı olay akışı (SSE) sunar.
-Araştırmalar arka planda bir iş parçacığında çalışır; onay noktalarında `WebApprover` insan kararını bekler.
-Bekleyen onaylar olay kaydına `approval.pending` olarak yazılır; arayüz bunları kart olarak gösterir.
+Listens on 127.0.0.1 only. Serves the UI (web/dist), a JSON API and a live event stream (SSE).
+Research runs in a background thread; at approval points `WebApprover` waits for the human decision.
+Pending approvals are written to the event log as `approval.pending`; the UI shows them as cards.
 """
 
 from __future__ import annotations
@@ -26,13 +26,13 @@ from . import __version__
 from .cli import HOME, build, slugify, stages_for
 from .ml_loop import ML_STAGES
 from .orchestrator import STAGES, Approver, Decision
-from .store import Store, now
+from .store import Store, now, report_file
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB_DIST = ROOT / "web" / "dist"
 
 
-# --- web onaycısı ----------------------------------------------------------------
+# --- web approver ----------------------------------------------------------------
 
 @dataclass
 class PendingApproval:
@@ -46,7 +46,7 @@ class PendingApproval:
 
 
 class WebApprover(Approver):
-    """İnsan kararını arayüzden bekler. Otonomi kipi 'under' ya da 'cap' ise tutar kuralına göre kendisi karar verir."""
+    """Waits for the human decision from the UI. In autonomy mode 'under' or 'cap' it decides itself by the amount rule."""
 
     def __init__(self, store: Store, autonomy: str = "manual", limit_usd: float = 0.0, gateway=None):
         self.store, self.autonomy, self.limit_usd, self.gateway = store, autonomy, limit_usd, gateway
@@ -59,7 +59,7 @@ class WebApprover(Approver):
                 return Decision(True, "auto_under_limit", 0, f"within the pre-approved ${self.limit_usd:.2f} limit")
             if self.autonomy == "cap" and self.gateway and cost_usd <= self.gateway.remaining() + 1e-9:
                 return Decision(True, "auto_to_budget_cap", 0, "auto-approved within the budget cap")
-        pid = f"onay-{len(self.store.events('approval.pending')) + 1}"
+        pid = f"approval-{len(self.store.events('approval.pending')) + 1}"
         p = PendingApproval(pid, action, summary, cost_usd, options)
         self.pending[pid] = p
         self.store.append("approval.pending", {"kind": "human", "userId": self.user},
@@ -73,10 +73,10 @@ class WebApprover(Approver):
         return p.decision
 
 
-# --- çalışma yöneticisi -----------------------------------------------------------
+# --- run manager -----------------------------------------------------------------
 
 class Runner:
-    """Her proje için en fazla bir arka plan araştırma iş parçacığı."""
+    """At most one background research thread per project."""
 
     def __init__(self):
         self.threads: dict[str, threading.Thread] = {}
@@ -100,7 +100,7 @@ class Runner:
         def work():
             try:
                 orch.run()
-            except Exception as exc:  # arayüzde gösterilir; araştırma `resume` ile sürdürülebilir
+            except Exception as exc:  # shown in the UI; the research can be continued with `resume`
                 self.errors[pid] = str(exc)[:500]
                 orch.store.append("run.crashed", orch.det("director"), {"error": str(exc)[:500]})
                 return
@@ -118,7 +118,7 @@ class Runner:
 
     def start_iterate(self, pid: str, max_branches: int, budget_per_branch: float | None, autonomy: str, limit_usd: float,
                       total_budget: float | None = None) -> None:
-        """Yineleme döngüsü bir arka plan iş parçacığında; her yeni dalın kendi web onaycısı olur (onay kartları çalışır)."""
+        """The iterate loop runs in a background thread; every new branch gets its own web approver (approval cards work)."""
         def work():
             self.iterate_loop(pid, max_branches, budget_per_branch, autonomy, limit_usd, total_budget)
 
@@ -156,7 +156,7 @@ class Runner:
 
 
 RUNNER = Runner()
-MANAGER_PROVIDERS: dict | None = None     # testler ve e2e sunucusu sahte sağlayıcı verir; None ise make_providers()
+MANAGER_PROVIDERS: dict | None = None     # tests and the e2e server inject fake providers; None means make_providers()
 
 
 def manager_for(pid: str):
@@ -167,7 +167,7 @@ def manager_for(pid: str):
 
 
 def name_project(pid: str) -> None:
-    """Kısa proje adı arka planda üretilir; proje oluşturmayı bekletmez."""
+    """The short project title is generated in the background; project creation does not wait for it."""
     def work():
         m = manager_for(pid)
         try:
@@ -177,7 +177,7 @@ def name_project(pid: str) -> None:
     threading.Thread(target=work, daemon=True, name=f"quaera-name-{pid}").start()
 
 
-# --- yardımcılar --------------------------------------------------------------------
+# --- helpers ------------------------------------------------------------------------
 
 def project_ids() -> list[str]:
     HOME.mkdir(parents=True, exist_ok=True)
@@ -223,7 +223,7 @@ def summary(pid: str) -> dict:
 
 
 def graph(store: Store) -> dict:
-    """Kanıt grafiği: araştırma nesneleri düğüm, referanslar kenar."""
+    """Evidence graph: research objects are nodes, references are edges."""
     objs = store.latest()
     ids = {o["id"] for o in objs}
     nodes, edges = [], []
@@ -252,7 +252,7 @@ def graph(store: Store) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
-# --- uç noktalar --------------------------------------------------------------------
+# --- endpoints ----------------------------------------------------------------------
 
 async def api_projects(request: Request):
     return JSONResponse(sorted((summary(p) for p in project_ids()), key=lambda x: x["createdAt"] or "", reverse=True))
@@ -264,7 +264,7 @@ async def api_create(request: Request):
     domain = body.get("domain", "math")
     mode = body.get("mode", "verify")
     budget = float(body.get("budget", 0))
-    # Keşif kipi açık problemler içindir: daha yüksek tavana izin verilir (yine kesin tavan; insan belirler).
+    # Discovery mode is for open problems: a higher cap is allowed (still a hard cap; the human sets it).
     max_budget = 500 if mode == "discover" else 50
     if len(question) < 8 or domain not in ("math", "ml") or mode not in ("verify", "discover") or not (0 < budget <= max_budget):
         return JSONResponse({"error": f"a question (≥8 characters), a domain (math/ml), a mode (verify/discover) and a budget of 0–{max_budget} USD are required"}, 400)
@@ -285,11 +285,11 @@ async def api_create(request: Request):
     errors = contracts.schema_errors("question", {"type": "question", "id": "Q-0001", "revision": 1, "createdAt": now(),
                                                   "createdBy": {"kind": "human", "userId": WebApprover.user},
                                                   "title": question, "domain": domain, "scope": scope}, "question")
-    if errors:   # proje dizini oluşturulmadan reddedilir: yarım kalmış proje bırakılmaz
+    if errors:   # rejected before the project directory exists: no half-created project is left behind
         return JSONResponse({"error": "; ".join(errors)}, 400)
     path = HOME / pid
     path.mkdir(parents=True, exist_ok=True)
-    pre = Store(path / "quaera.db")          # kip ve aileler build'den önce yazılır: doğru orkestratör ve sağlayıcılar seçilsin
+    pre = Store(path / "quaera.db")          # mode and families are written before build so the right orchestrator and providers are chosen
     pre.set_meta("mode", mode)
     if body.get("keepTrying"):
         pre.set_meta("keepTrying", True)     # after an inconclusive run: new branches until the budget is spent
@@ -308,7 +308,7 @@ async def api_create(request: Request):
 
 
 async def api_manager(request: Request):
-    """Proje yöneticisiyle sohbet. GET: geçmiş ve sohbet bütçesi. POST {text}: yanıt (araştırmayı etkilemez)."""
+    """Chat with the Project manager. GET: history and chat budget. POST {text}: reply (does not affect the research)."""
     pid = request.path_params["pid"]
     try:
         m = manager_for(pid)
@@ -350,7 +350,7 @@ async def api_project(request: Request):
             "pending": [p.__dict__ | {"event": None} for p in RUNNER.approvers.get(pid, WebApprover(s)).pending.values()]
             if pid in RUNNER.approvers else [],
             "costs": [e["payload"] for e in s.events("model.call")],
-            "report": (HOME / pid / "rapor.md").read_text(encoding="utf-8") if (HOME / pid / "rapor.md").exists() else None}
+            "report": report_file(HOME / pid).read_text(encoding="utf-8") if report_file(HOME / pid).exists() else None}
     for p in data["pending"]:
         p.pop("event", None)
         p["decision"] = None
@@ -368,7 +368,7 @@ async def api_events(request: Request):
 
 
 async def api_stream(request: Request):
-    """SSE: yeni olayları en fazla ~1 sn gecikmeyle iletir."""
+    """SSE: forwards new events with at most ~1 s delay."""
     pid = request.path_params["pid"]
     after = int(request.query_params.get("after", 0))
 
@@ -410,7 +410,7 @@ async def api_approve(request: Request):
 
 
 async def api_message(request: Request):
-    """İnsan bir ajana yazar (@rol). Mesaj ajanın sonraki çağrısında bağlam olarak verilir."""
+    """The human writes to an agent (@role). The message is given as context on the agent's next call."""
     pid = request.path_params["pid"]
     body = await request.json()
     to, text = body.get("to"), (body.get("text") or "").strip()
@@ -434,9 +434,9 @@ async def api_run(request: Request):
 
 
 async def api_branch(request: Request):
-    """İki biçim: {"at": seq} olay noktasından aynen dallanır (Faz 3);
+    """Two forms: {"at": seq} branches off unchanged at an event (Phase 3);
     {"kind": hypothesis|approach|note, "reason", "hypothesis"?, "note"?, "atStage"?, "autonomy"?, "autoLimit"?}
-    değişiklikli dal açar ve hemen çalıştırır (araştırma ağacı)."""
+    opens a modified branch and runs it right away (research tree)."""
     pid = request.path_params["pid"]
     body = await request.json()
     if body.get("kind"):
@@ -451,7 +451,7 @@ async def api_branch(request: Request):
         RUNNER.start(child, body.get("autonomy", "manual"), float(body.get("autoLimit", 0)))
         return JSONResponse({"id": child}, 201)
     at = int(body["at"])
-    name = f"{pid}-dal-{at}"
+    name = f"{pid}-branch-{at}"
     s = open_store(pid)
     s.branch(HOME / name / "quaera.db", at)
     if (HOME / pid / "work").exists():
@@ -462,7 +462,7 @@ async def api_branch(request: Request):
 
 
 async def api_report_md(request: Request):
-    path = HOME / request.path_params["pid"] / "rapor.md"
+    path = report_file(HOME / request.path_params["pid"])
     if not path.exists():
         return PlainTextResponse("no report yet", 404)
     return PlainTextResponse(path.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8")
@@ -477,18 +477,18 @@ async def api_export(request: Request):
 
 
 async def api_replay(request: Request):
-    """Tekrar oynatma için olay kaydı + paket: API anahtarı gerektirmez."""
+    """Event log + package for replay: needs no API key."""
     pid = request.path_params["pid"]
     s = open_store(pid)
     data = {"quaeraVersion": __version__, "project": pid, "title": s.meta("title"), "domain": s.meta("domain"),
             "stages": stages_for(s), "mode": s.meta("mode", "verify"), "events": s.events(),
-            "report": (HOME / pid / "rapor.md").read_text(encoding="utf-8") if (HOME / pid / "rapor.md").exists() else None}
+            "report": report_file(HOME / pid).read_text(encoding="utf-8") if report_file(HOME / pid).exists() else None}
     s.close()
     return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="{pid}-replay.json"'})
 
 
 async def api_blob(request: Request):
-    """Projenin içerik adresli deposundan metin: ajanın tam yanıtı, deney kodu, Lean dosyası. Yalnızca o projenin deposu."""
+    """Text from the project's content-addressed store: an agent's full reply, experiment code, a Lean file. Only that project's store."""
     import re
     pid, sha = request.path_params["pid"], request.path_params["sha"]
     if not re.fullmatch(r"[0-9a-f]{64}", sha):
@@ -517,7 +517,7 @@ async def api_tree(request: Request):
 
 
 async def api_iterate(request: Request):
-    """Sonuçsuz dalları Direktör'ün önerisiyle yineler; her yeni dal web onayından (ya da otonomi kuralından) geçer."""
+    """Retries inconclusive branches as the Director suggests; every new branch passes web approval (or the autonomy rule)."""
     pid = request.path_params["pid"]
     open_store(pid).close()
     body = await request.json()
@@ -534,7 +534,7 @@ async def api_iterate(request: Request):
 
 
 async def api_triage(request: Request):
-    """Arayüzden "Sorun bildir": vaka yerelde ~/.quaera/triage/ altına yazılır; dışarı gönderilmez."""
+    """"Report a problem" from the UI: the case is written locally under ~/.quaera/triage/; nothing is sent out."""
     from . import triage
     pid = request.path_params["pid"]
     open_store(pid).close()
@@ -547,7 +547,7 @@ async def api_triage(request: Request):
 
 
 async def api_memory(request: Request):
-    """Arama (q) ya da q yoksa hafızadaki tüm projeler (en yeni önce)."""
+    """Search (q), or without q every project in memory (newest first)."""
     from .memory import EVAL_PREFIXES, LabMemory, outcome
     q = request.query_params.get("q", "").strip()
     mem = LabMemory(HOME.parent / "memory.db")
@@ -565,7 +565,7 @@ async def api_memory(request: Request):
 
 
 async def api_learnings(request: Request):
-    """Bağlamsal hafıza: projeler arası öğrenilenler (en yeni önce)."""
+    """Contextual memory: lessons learned across projects (newest first)."""
     from .memory import LabMemory
     qp = request.query_params
     mem = LabMemory(HOME.parent / "memory.db")
@@ -575,7 +575,7 @@ async def api_learnings(request: Request):
     finally:
         mem.close()
     titles: dict[str, str] = {}
-    for it in items:   # öğrenilen kaydedildikten sonra proje yeniden adlandırılmış olabilir: güncel kısa ad
+    for it in items:   # the project may have been renamed after the lesson was saved: use the current short title
         if it["project"] not in titles:
             try:
                 s = open_store(it["project"])
@@ -603,11 +603,11 @@ async def api_settings(request: Request):
     })
 
 
-PROVIDER_PROBES: dict = {}     # testler sahte sağlayıcı verir: {"codex": provider}
+PROVIDER_PROBES: dict = {}     # tests inject fake providers: {"codex": provider}
 
 
 async def api_provider_test(request: Request):
-    """Ayarlar → "Test": sağlayıcıya küçük gerçek bir soru sorar (Codex/OpenCode aboneliği; Claude'da ~0,01 $)."""
+    """Settings → "Test": asks the provider a small real question (Codex/OpenCode subscription; ~$0.01 on Claude)."""
     from .gateway import ClaudeCLIProvider
     from .providers import AntigravityCLIProvider, CodexCLIProvider, OpenCodeCLIProvider, detect, probe
     pid = request.path_params["id"]
@@ -628,12 +628,12 @@ async def index(request: Request):
     return FileResponse(page)
 
 
-# --- yerel güvenlik -------------------------------------------------------------------
-# Sunucu kimlik doğrulaması olmadan yalnızca 127.0.0.1'de çalışır. Tarayıcıda açık başka bir sitenin
-# (CSRF) ya da DNS yeniden bağlama saldırısının araştırma başlatıp bütçe harcamasını önlemek için:
-#   - Host başlığı yalnızca 127.0.0.1 / localhost olabilir (DNS rebinding),
-#   - Origin varsa aynı kaynak olmalı; tarayıcının Sec-Fetch-Site: cross-site işaretli istekleri (img, form, bağlantı) reddedilir,
-#   - POST gövdesi application/json olmalı (çapraz kaynaklı isteklerde ön kontrol zorunlu olur ve reddedilir).
+# --- local security -------------------------------------------------------------------
+# The server runs without authentication, on 127.0.0.1 only. To stop another site open in the browser
+# (CSRF) or a DNS rebinding attack from starting research and spending budget:
+#   - the Host header may only be 127.0.0.1 / localhost (DNS rebinding),
+#   - if Origin is present it must be same-origin; requests the browser marks Sec-Fetch-Site: cross-site (img, form, link) are rejected,
+#   - the POST body must be application/json (cross-origin requests then need a preflight, which is rejected).
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "testserver"}
 # Behind a private reverse proxy (e.g. `tailscale serve`) the proxy's host name can be allowed explicitly:
 # QUAERA_ALLOWED_HOSTS=myhost.tailnet.ts.net. The same-origin rules still apply.
@@ -700,7 +700,7 @@ def create_app() -> Starlette:
 
 def serve(port: int = 8765) -> None:
     import uvicorn
-    print(f"QuaeraLabs arayüzü: http://127.0.0.1:{port}")
+    print(f"QuaeraLabs UI: http://127.0.0.1:{port}")
     uvicorn.run(create_app(), host="127.0.0.1", port=port, log_level="warning")
 
 

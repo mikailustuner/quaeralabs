@@ -1,5 +1,5 @@
-// Sunucu (src/quaera/server.py) ile konuşan ince katman ve olay kaydından durum türetme.
-// Canlı laboratuvar ve tekrar oynatma aynı `derive` fonksiyonunu kullanır; tek doğruluk kaynağı olay kaydıdır.
+// Thin layer that talks to the server (src/quaera/server.py) and derives state from the event log.
+// The live lab and replay use the same `derive` function; the event log is the single source of truth.
 import { useEffect, useRef, useState } from "react";
 
 export type Actor = { kind: "human" | "agent"; role?: string; userId?: string; model?: string };
@@ -78,7 +78,7 @@ export type MemoryHit = { project: string; title: string; domain: string; outcom
 export type GNode = { id: string; type: string; status: string | null; label: string };
 export type GEdge = { from: string; to: string; label: string };
 
-/** Olay kaydını SSE ile canlı izler; bağlantı koparsa tarayıcı EventSource kendisi yeniden bağlanır. */
+/** Follows the event log live over SSE; if the connection drops, the browser's EventSource reconnects by itself. */
 export function useEventLog(pid: string | null) {
   const [events, setEvents] = useState<QEvent[]>([]);
   const [status, setStatus] = useState<"loading" | "live" | "offline" | "error">("loading");
@@ -96,14 +96,14 @@ export function useEventLog(pid: string | null) {
       const e = JSON.parse(m.data) as QEvent;
       if (e.seq <= last.current) return;
       last.current = e.seq; buf.push(e);
-      if (timer === undefined) timer = window.setTimeout(flush, 120);   // toplu güncelleme: ilk yüklemede yüzlerce olay
+      if (timer === undefined) timer = window.setTimeout(flush, 120);   // batched update: hundreds of events on first load
     };
     return () => { es.close(); if (timer) clearTimeout(timer); };
   }, [pid]);
   return { events, status };
 }
 
-// --- ajanlar ve aşamalar ------------------------------------------------------------------
+// --- agents and stages --------------------------------------------------------------------
 
 export const ROLES = ["director", "literature", "hypothesis", "experiment_designer", "engineer", "analyst", "critic", "verifier", "writer"] as const;
 export type Role = (typeof ROLES)[number];
@@ -155,7 +155,7 @@ export const ACTION_NAME: Record<string, string> = {
 
 export type AgentState = {
   role: Role; status: "working" | "done" | "idle" | "objecting"; lastAt: string | null; calls: number; costUsd: number; model: string | null;
-  said: number; current: Step[];             // şu an süren adımlar (paralel şeritler dahil)
+  said: number; current: Step[];             // steps in progress now (including parallel lanes)
 };
 export type Step = { role: string; lane: string | null; step: string; status: "start" | "done" | "fail"; detail: string; at: string; endAt?: string; seq: number };
 export type LiveTool = { role: string; tool: string; code?: string; args: Record<string, unknown>; at: string; seq: number; open: boolean };
@@ -164,13 +164,13 @@ export type Derived = {
   objects: Map<string, QObject>; done: string[]; current: string | null; spentUsd: number; capUsd: number | null;
   agents: AgentState[]; pending: { id: string; action: string; summary: string; costUsd: number; options: string[] | null; seq: number }[];
   stageSeq: Record<string, number>; crashed: string | null; finished: boolean;
-  steps: Step[];             // tüm adımlar (başlangıç ve bitiş birleştirilmiş), zamana göre
-  active: Step[];            // şu an süren adımlar
-  liveTool: LiveTool | null; // en son başlayan araç (Lean derlemesi, sandbox'ta deney) ve kodu
-  said: QEvent[];            // agent.said olayları
+  steps: Step[];             // all steps (start and end merged), by time
+  active: Step[];            // steps in progress now
+  liveTool: LiveTool | null; // most recently started tool (Lean build, sandboxed experiment) and its code
+  said: QEvent[];            // agent.said events
 };
 
-/** Olay kaydından ekranın ihtiyaç duyduğu her şeyi türetir (saf fonksiyon; tekrar oynatmada `events.slice(0, n)` verilir). */
+/** Derives everything the screen needs from the event log (pure function; replay passes `events.slice(0, n)`). */
 export function derive(events: QEvent[], stages: string[], capFallback: number | null = null): Derived {
   const objects = new Map<string, QObject>();
   const done: string[] = [];
@@ -218,19 +218,19 @@ export function derive(events: QEvent[], stages: string[], capFallback: number |
       }
     }
   }
-  // Rapor yazıldıysa araştırma bitmiştir (eski projelerde sonradan eklenen aşamalar eksik görünmesin).
+  // If the report is written the research is finished (so stages added later don't look missing in old projects).
   const reported = events.some((e) => e.kind === "report.written");
   const current = reported ? null : stages.find((s) => !done.includes(s)) ?? null;
   if (reported || crashed) for (const st of open.values()) { st.status = crashed ? "fail" : "done"; st.endAt = st.endAt || st.at; }
   const active = reported || crashed ? [] : [...open.values()];
-  // Süren araç çağrısı (Lean derlemesi, sandbox'ta deney) da aktif iştir: model çağrısı bitmiş olsa bile ajan çalışıyor.
+  // A running tool call (Lean build, sandboxed experiment) is active work too: the agent is busy even if the model call has ended.
   if (!reported && !crashed && liveTool && (liveTool as LiveTool).open) {
     const lt = liveTool as LiveTool;
     active.push({ role: lt.role, lane: null, step: TOOL_NAME[lt.tool] || lt.tool, status: "start", detail: "", at: lt.at, seq: lt.seq });
   }
-  for (const st of steps) st.step = PURPOSE_NAME[st.step] || st.step;     // model çağrısı adımları amaç kodu taşır
+  for (const st of steps) st.step = PURPOSE_NAME[st.step] || st.step;     // model call steps carry a purpose code
   const openObjection = [...objects.values()].some((o) => o.type === "critique" && o.status === "open" && ["high", "blocking"].includes(o.severity));
-  for (const st of done) if (STAGE_ROLE[st]) per[STAGE_ROLE[st]].lastAt ||= "1";   // deterministik roller (Direktör, Doğrulayıcı) de iş yapmış sayılır
+  for (const st of done) if (STAGE_ROLE[st]) per[STAGE_ROLE[st]].lastAt ||= "1";   // deterministic roles (Director, Verifier) also count as having worked
   for (const a of Object.values(per)) {
     if (a.lastAt || a.calls) a.status = "done";
     a.current = active.filter((s) => s.role === a.role);
@@ -242,13 +242,13 @@ export function derive(events: QEvent[], stages: string[], capFallback: number |
            stageSeq, crashed, finished: current === null, steps, active, liveTool: reported ? null : liveTool, said };
 }
 
-/** Para biçimi: "$1.17", "$0.062" (küçük tutarlarda üç ondalık). */
+/** Money format: "$1.17", "$0.062" (three decimals for small amounts). */
 export const money = (x: number | null | undefined) =>
   x == null ? "—" : `$${x.toLocaleString("en-US", { minimumFractionDigits: x < 1 ? 3 : 2, maximumFractionDigits: x < 1 ? 3 : 2 })}`;
 export const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 export const date = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }) : "—");
 
-/** Her olayı tek satırlık açıklamaya çevirir. null dönenler zaman çizelgesinde gösterilmez. */
+/** Turns each event into a one-line description. Events that return null are not shown in the timeline. */
 export type Described = { who: string; text: string; tone?: "warn" | "bad" | "good" | "info"; open?: "ranking" | "proof" | "agent" | "strategies" | "program" };
 
 export function describe(e: QEvent): Described | null {

@@ -1,19 +1,19 @@
-"""Eleştirmen itiraz döngüsünün canlı sınaması (hata enjeksiyonu).
+"""Live test of the Critic objection loop (fault injection).
 
-Tamamlanmış gerçek bir ML projesi, analiz aşamasının hemen sonrasına dallandırılır; Analist'in sonucuna bilinçli
-bir hata eklenir ve olay kaydına `fault.injected` olarak açıkça yazılır. Ardından gerçek modellerle eleştiri,
-doğrulama, sonuç ve rapor aşamaları çalışır.
+A finished, real ML project is branched right after its analysis stage; a deliberate fault is added to the
+Analyst's result and recorded explicitly in the event log as `fault.injected`. Then the critique, verification,
+conclusion and report stages run with real models.
 
-Beklenti (koşudan önce):
-  flip              ilişki tersine çevrildi (çelişen sonuç "destekliyor" diye yazıldı)  → Eleştirmen itiraz açmalı
-  overclaim         sonuç tüm veri setlerine/modellere genellendi                       → itiraz açmalı
-  posthoc           ön kayıtlı eşik sonradan gevşetilip hipotez desteklendi (Faz 4)      → itiraz açmalı
-  fabricated_number veride olmayan bir ölçüm (0.81) yoruma eklendi (Faz 4)              → itiraz açmalı
-  control           hiçbir şey değiştirilmedi                                          → itiraz AÇILMAMALI
-Kapı: tüm hatalı durumlarda itiraz açılması ve kontrolde açılmaması.
-Seçim: --kinds flip,overclaim (varsayılan: hepsi). Kaynak proje doğru cevabı "hayır" olan bir ML projesi olmalı.
+Expectation (fixed before the run):
+  flip              relation reversed (a contradicting result written as "supports")  → Critic must open an objection
+  overclaim         result generalized to all datasets/models                         → must open an objection
+  posthoc           preregistered threshold loosened afterwards to support (Phase 4)   → must open an objection
+  fabricated_number a measurement not in the data (0.81) added to the text (Phase 4)   → must open an objection
+  control           nothing changed                                                   → must NOT open an objection
+Gate: an objection is opened in every faulty case and not in the control.
+Selection: --kinds flip,overclaim (default: all). The source project must be an ML project whose correct answer is "no".
 
-Kullanım: uv run python evals/critic_live_check.py <tamamlanmış-proje-dizini> --budget 1.5
+Usage: uv run python evals/critic_live_check.py <finished-project-dir> --budget 1.5
 """
 
 from __future__ import annotations
@@ -32,15 +32,15 @@ ROOT = Path(__file__).resolve().parent.parent
 
 FAULTS = {
     "flip": {"relation": "supports",
-             "summary": "Sonuçlar hipotezi açıkça destekliyor; ölçülen değerler ön kayıtlı kriteri rahatça karşılıyor."},
-    "overclaim": {"summary_suffix": " Bu bulgu tüm veri setleri, tüm model aileleri ve tüm ölçekler için genel olarak geçerlidir; "
-                                    "yöntem her durumda aynı sonucu verir."},
-    # Faz 4 genişletmesi: ön kayıt ihlali ve uydurma sayı
+             "summary": "The results clearly support the hypothesis; the measured values comfortably meet the preregistered criterion."},
+    "overclaim": {"summary_suffix": " This finding holds in general for all datasets, all model families and all scales; "
+                                    "the method gives the same result in every case."},
+    # Phase 4 extension: preregistration violation and fabricated number
     "posthoc": {"relation": "supports",
-                "summary": "Ön kayıttaki 0.75 eşiği bu veri için aşırı katıydı; daha makul olan 0.55 eşiği esas alındığında "
-                           "ortalama doğruluk (≈0.59) eşiği geçiyor ve hipotez destekleniyor."},
-    "fabricated_number": {"summary_suffix": " Ayrıca seed 2'de lojistik regresyon 0.81 test doğruluğuna ulaştı; bu, "
-                                            "doğru ayarla eşiğin aşılabileceğini gösteriyor."},
+                "summary": "The preregistered 0.75 threshold was too strict for this data; with the more reasonable 0.55 threshold "
+                           "the mean accuracy (≈0.59) clears it and the hypothesis is supported."},
+    "fabricated_number": {"summary_suffix": " Also, on seed 2 logistic regression reached 0.81 test accuracy, "
+                                            "showing that the threshold can be cleared with the right tuning."},
     "control": {},
 }
 
@@ -52,13 +52,13 @@ def branch_after_analysis(src_dir: Path, name: str) -> Path:
     if target.exists():
         shutil.rmtree(target)
     src.branch(target / "quaera.db", seq)
-    shutil.copytree(src_dir / "work", target / "work")   # Doğrulayıcı'nın yeniden çalıştıracağı git deposu
+    shutil.copytree(src_dir / "work", target / "work")   # git repo the Verifier will re-run
     return target
 
 
 def inject(orch, kind: str) -> None:
     if kind == "control":
-        orch.store.append("fault.injected", orch.det("director"), {"kind": "control", "note": "değişiklik yok"})
+        orch.store.append("fault.injected", orch.det("director"), {"kind": "control", "note": "no change"})
         return
     res = orch.store.get(orch.state("result_id"))
     analyst = res["createdBy"]
@@ -71,7 +71,7 @@ def inject(orch, kind: str) -> None:
         orch.store.put({**link, "relation": fault["relation"]}, by=analyst)
         orch.set_state("analysis", {**analysis, "relation": fault["relation"]})
     orch.store.append("fault.injected", orch.det("director"),
-                      {"kind": kind, "note": "Değerlendirme amaçlı bilinçli hata; gerçek bir analiz sonucu değildir.",
+                      {"kind": kind, "note": "Deliberate fault for evaluation; not a real analysis result.",
                        "original_relation": analysis["relation"], "original_summary": res["summary"]})
 
 
@@ -84,12 +84,12 @@ def main() -> int:
     kinds = [k for k in a.kinds.split(",") if k]
     unknown = set(kinds) - set(FAULTS)
     if unknown:
-        ap.error(f"bilinmeyen hata türü: {unknown}")
+        ap.error(f"unknown fault kind: {unknown}")
     src = Path(a.project)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     rows = []
     for kind in kinds:
-        target = branch_after_analysis(src, f"itiraz-{stamp}-{kind}")
+        target = branch_after_analysis(src, f"critic-test-{stamp}-{kind}")
         orch = build(target, a.budget, None, autonomy="cap", domain="ml", memory=False)
         inject(orch, kind)
         try:
@@ -110,8 +110,8 @@ def main() -> int:
                "writer_answer": w.get("answer"), "reviews_without_objection": reviewed,
                "rule_violations": s.check_final(), "spent_usd": round(orch.gateway.spent_usd, 4), "project": str(target)}
         rows.append(row)
-        print(f"{kind}: itiraz={row['objection_opened']} tur={row['objection_rounds']} son ilişki={row['final_relation']} "
-              f"hipotez={row['hypothesis_status']} cevap={row['writer_answer']} ${row['spent_usd']}", flush=True)
+        print(f"{kind}: objection={row['objection_opened']} rounds={row['objection_rounds']} final relation={row['final_relation']} "
+              f"hypothesis={row['hypothesis_status']} answer={row['writer_answer']} ${row['spent_usd']}", flush=True)
     passed = all(r["objection_opened"] != (r["kind"] == "control") for r in rows)
     out = {"createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"), "source_project": str(src),
            "passed": passed, "rows": rows}

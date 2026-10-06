@@ -1,12 +1,12 @@
-"""Araştırma hafızası (Faz 4): bu makinedeki tamamlanmış projelerden yerel bir bilgi tabanı.
+"""Research memory (Phase 4): a local knowledge base built from the finished projects on this machine.
 
-Her proje rapor aşamasından sonra `~/.quaera/memory.db` içindeki bir SQLite FTS5 dizinine tek satır olarak yazılır:
-soru, hipotezler ve durumları, sonuçlar, doğrulama, itirazlar. Yeni bir araştırmada Hipotez ajanı benzer
-geçmiş projeleri **yönlendirme** için görür (ör. daha önce çürütülmüş bir hipotezi tekrar önermemek için).
+After the report stage every project is written as one row to a SQLite FTS5 index in `~/.quaera/memory.db`:
+question, hypotheses and their status, results, verification, objections. In a new project the Hypothesis agent
+sees similar past projects for **orientation** (e.g. so it does not propose an already refuted hypothesis again).
 
-Hafıza kanıt değildir: Yazar yalnızca projenin kendi nesnelerine atıf yapabilir (ml_loop/report), bu yüzden
-hafızadan gelen bir bilgi rapora kaynak olarak giremez. Bilinçli hata enjekte edilmiş değerlendirme projeleri
-(`fault.injected` olayı) dizine alınmaz. Veri makineden çıkmaz.
+Memory is not evidence: the Writer may only cite the project's own objects (ml_loop/report), so a fact coming
+from memory can never enter the report as a source. Eval projects with deliberately injected faults
+(`fault.injected` event) are not indexed. The data never leaves the machine.
 
 Hybrid recall: next to the FTS5 index, every project also gets a multilingual sentence embedding (fastembed,
 local ONNX model; optional `memory` extra). bm25 and cosine rankings are merged with reciprocal rank fusion, so
@@ -30,8 +30,8 @@ from typing import Callable
 from .store import Store
 
 WORD_RE = re.compile(r"[^\W_]{3,}", re.UNICODE)
-# Değerlendirme projeleri (sentetik görevler, itiraz testleri, vaka tekrarları, Putnam ölçümü) laboratuvar bilgisi değildir.
-EVAL_PREFIXES = ("sentetik-", "itiraz-", "vaka-", "putnam-")
+# Eval projects (synthetic tasks, critic tests, case replays, Putnam runs) are not lab knowledge.
+EVAL_PREFIXES = ("synthetic-", "critic-test-", "case-", "putnam-", "sentetik-", "itiraz-", "vaka-")   # last three: names used by older evaluation runs
 
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"   # 384-d, ~220 MB, 50+ languages
 # Vector-only hits below this cosine similarity are dropped, so an unrelated question recalls nothing. Measured on
@@ -84,16 +84,16 @@ class LabMemory:
         self.db.execute("CREATE VIRTUAL TABLE IF NOT EXISTS memory USING fts5("
                         "project UNINDEXED, domain UNINDEXED, title, body, summary UNINDEXED, "
                         "tokenize='unicode61 remove_diacritics 2')")
-        # Öğrenilenler: her deney sonucundan (proje bitmeden de) çıkarılan kısa, deterministik dersler.
+        # Learnings: short, deterministic lessons drawn from every experiment result (even before the project ends).
         self.db.execute("CREATE TABLE IF NOT EXISTS learnings (project TEXT, domain TEXT, title TEXT, kind TEXT, "
                         "text TEXT, at TEXT)")
         # One embedding of `title + body` per project (float32 blob); recomputed when the model changes.
         self.db.execute("CREATE TABLE IF NOT EXISTS memory_vec (project TEXT PRIMARY KEY, model TEXT, vec BLOB)")
         self.db.commit()
 
-    # --- dizinleme -------------------------------------------------------------------------
+    # --- indexing --------------------------------------------------------------------------
     def index_project(self, project: Path) -> bool:
-        """Projeyi (yeniden) dizine yazar. Dizine alınmadıysa False döner."""
+        """(Re)writes the project to the index. Returns False if it was not indexed."""
         if not (project / "quaera.db").exists():
             return False
         store = Store(project / "quaera.db")
@@ -113,7 +113,7 @@ class LabMemory:
         return entry is not None
 
     def learn(self, project: Path) -> int:
-        """Projenin öğrenilenlerini (yeniden) yazar. Rapor beklenmez: her deney sonucundan sonra çağrılır."""
+        """(Re)writes the project's learnings. Does not wait for the report: called after every experiment result."""
         if not (project / "quaera.db").exists():
             return 0
         store = Store(project / "quaera.db")
@@ -158,7 +158,7 @@ class LabMemory:
             self.learn(p)
         return sum(self.index_project(p) for p in projects)
 
-    # --- arama -----------------------------------------------------------------------------
+    # --- search ----------------------------------------------------------------------------
     def recall(self, text: str, k: int = 5, exclude: str | None = None, domain: str | None = None) -> list[dict]:
         """bm25 and (when an embedder is available) cosine rankings merged by reciprocal rank fusion."""
         where, args = "", []
@@ -176,7 +176,7 @@ class LabMemory:
                 score[project] = score.get(project, 0.0) + 1.0 / (RRF_K + rank + 1)
                 summaries[project] = summary
         out, titles = [], set()
-        for project in sorted(score, key=lambda p: -score[p]):   # aynı sorunun tekrar koşuları tek kayıt olarak döner
+        for project in sorted(score, key=lambda p: -score[p]):   # repeated runs of the same question come back as one entry
             e = json.loads(summaries[project])
             if e["title"] not in titles:
                 titles.add(e["title"])
@@ -187,11 +187,11 @@ class LabMemory:
         words = sorted({w.lower() for w in WORD_RE.findall(text)})
         if not words:
             return []
-        # Türkçe eklemeli bir dil: "eşiği"/"eşik", "doğruluk"/"doğrusal" tam kelimeyle eşleşmez. Kaba kök olarak
-        # uzun kelimelerin ilk 5 harfini önek sorgusu yapıyoruz (FTS5 `"kök"*`).
+        # Turkish is agglutinative: "eşiği"/"eşik", "doğruluk"/"doğrusal" do not match as whole words. As a rough stem
+        # we prefix-query the first 5 letters of long words (FTS5 `"stem"*`).
         stems = sorted({w[:5] if len(w) > 5 else w for w in words})
         query = " OR ".join(f'"{w}"*' for w in stems[:40])
-        # Sütun ağırlıkları (project, domain, title, body, summary): soru başlığı gövdeden 4 kat önemli.
+        # Column weights (project, domain, title, body, summary): the question title weighs 4x the body.
         sql = (f"SELECT m.project, m.summary FROM memory m WHERE memory MATCH ?{where} "
                "ORDER BY bm25(memory, 0, 0, 4.0, 1.0, 0) LIMIT ?")
         with self.lock:
@@ -246,7 +246,7 @@ class LabMemory:
 
 
 def summarize(store: Store, project: str) -> dict | None:
-    """Bir projeyi hafıza kaydına indirger. Bitmemiş ya da hata enjekte edilmiş projeler için None."""
+    """Reduces a project to a memory entry. None for unfinished or fault-injected projects."""
     if store.events("fault.injected") or not store.events("report.written"):
         return None
     objs = store.latest()
@@ -270,9 +270,9 @@ def summarize(store: Store, project: str) -> dict | None:
 
 
 def lessons(store: Store) -> list[dict]:
-    """Bir projeden öğrenilenler: hipotezlerin akıbeti, deney sonuçları, işe yarayan/yaramayan yöntem, uyarılar.
+    """Lessons from a project: fate of the hypotheses, experiment results, methods that worked or failed, caveats.
 
-    Model kullanılmaz; her madde projenin kendi kayıtlarından türetilir. Hata enjekte edilmiş projeler için boş liste.
+    No model is used; every item is derived from the project's own records. Empty list for fault-injected projects.
     """
     if store.events("fault.injected"):
         return []
@@ -330,7 +330,7 @@ def lessons(store: Store) -> list[dict]:
             add("refuted", f"Small-case search found a counterexample candidate: {p['counterexample']}", e["at"])
         for obs in (p.get("observations") or [])[:2]:
             add("observation", obs if isinstance(obs, str) else json.dumps(obs, ensure_ascii=False), e["at"])
-    # Keşif kipi: doğrulanan / çürütülen ara iddialar ve bırakılan stratejiler başka projelere yol gösterir.
+    # Discovery mode: verified / refuted intermediate claims and abandoned strategies guide other projects.
     titles = {e["payload"]["id"]: e["payload"]["title"] for e in store.events("strategy.proposed")}
     stmts = {e["payload"]["id"]: e["payload"].get("lean") or e["payload"]["statement"] for e in store.events("program.lemma")}
     for e in store.events("lemma.status"):
@@ -354,7 +354,7 @@ def lessons(store: Store) -> list[dict]:
 
 
 def outcome(e: dict) -> str:
-    """Hafıza kaydının tek satırlık özeti (ajana ve arayüze)."""
+    """One-line summary of a memory entry (for agents and the UI)."""
     parts = []
     for h in e["hypotheses"]:
         parts.append(f"hypothesis “{h['statement'][:160]}” → {h['status']}")

@@ -1,14 +1,14 @@
-"""Değerlendirme setlerini çalıştırır ve sonuçları evals/results/ altına yazar.
+"""Runs the evaluation sets and writes the results under evals/results/.
 
-Faz 0'da iki çalıştırıcı vardır:
-  - citations: kaynak doğrulayıcı (tools/citations.py), canlı arXiv ve Crossref API'leri.
-  - critic-majority: her rapora en sık kategoriyle itiraz eden çoğunluk sınıfı
-    temel çizgisi. LLM değildir; Eleştirmen ajanının geçmesi gereken ALT SINIRI belirler.
+Phase 0 has two runners:
+  - citations: the citation verifier (tools/citations.py), live arXiv and Crossref APIs.
+  - critic-majority: the majority-class baseline that objects to every report with
+    the most frequent category. Not an LLM; it sets the LOWER BOUND the Critic agent must beat.
 
-LLM tabanlı ajanların başlangıç değerleri bir API anahtarı ve harcama onayı gerektirir;
-bunlar Faz 1'de model gateway kurulduğunda bu araca eklenir.
+Baselines for LLM-based agents need an API key and spending approval;
+they are added to this tool in Phase 1 once the model gateway is in place.
 
-Kullanım: uv run python evals/run_evals.py [--only citations|critic-majority]
+Usage: uv run python evals/run_evals.py [--only citations|critic-majority]
 """
 
 from __future__ import annotations
@@ -28,10 +28,10 @@ SETS = ROOT / "evals" / "sets"
 RESULTS = ROOT / "evals" / "results"
 
 def run_critic_majority() -> dict:
-    """Çoğunluk sınıfı temel çizgisi: her rapora setteki en sık kategoriyle itiraz eder.
+    """Majority-class baseline: objects to every report with the set's most frequent category.
 
-    Vakalardan bağımsız, standart bir alt sınırdır. Bir LLM Eleştirmen bunu
-    hem yakalama oranında hem yanlış alarm oranında geçmelidir.
+    A standard, case-independent lower bound. An LLM Critic must beat it
+    on both catch rate and false-alarm rate.
     """
     cases = yaml.safe_load((SETS / "critic-test.yaml").read_text(encoding="utf-8"))["cases"]
     flawed = [c for c in cases if c["kind"] == "flawed"]
@@ -42,7 +42,7 @@ def run_critic_majority() -> dict:
     majority = max(sorted(counts), key=counts.get)
     caught = counts[majority]
     return {
-        "runner": "critic-majority (LLM değil; alt sınır)",
+        "runner": "critic-majority (not an LLM; lower bound)",
         "majority_category": majority,
         "category_counts": counts,
         "flawed_cases": len(flawed),
@@ -60,7 +60,7 @@ def run_citations() -> dict:
     correct = sum(r["got"] == r["expected"] for r in rows)
     fake_accepted = sum(r["expected"] == "fake" and r["got"] == "real" for r in rows)
     return {
-        "runner": "tools/citations.py (canlı arXiv + Crossref)",
+        "runner": "tools/citations.py (live arXiv + Crossref)",
         "cases": len(rows),
         "correct": correct,
         "accuracy": round(correct / len(rows), 3),
@@ -88,9 +88,9 @@ def main() -> int:
     for name, res in out["results"].items():
         summary = {k: v for k, v in res.items() if k not in ("rows",)}
         print(f"{name}: {json.dumps(summary, ensure_ascii=False)}")
-    print(f"Yazıldı: {path.relative_to(ROOT)}")
+    print(f"Written: {path.relative_to(ROOT)}")
 
-    # Sıfır tolerans kapısı: uydurma bir kaynak kabul edilirse başarısız.
+    # Zero-tolerance gate: fail if a fabricated source is accepted.
     cit = out["results"].get("citations")
     return 1 if cit and cit["fake_accepted"] else 0
 

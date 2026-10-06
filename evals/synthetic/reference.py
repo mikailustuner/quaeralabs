@@ -1,7 +1,7 @@
-"""Sentetik görevlerin doğru cevabını üreticiden bağımsız olarak, basit deneylerle doğrular.
+"""Checks the correct answer of each synthetic task with simple experiments, independently of the generator.
 
-Kullanım (ML ortamıyla): ml-env/bin/python evals/synthetic/reference.py
-Her görev için 3 farklı veri seed'inde ölçer; cevap üç seed'de de aynı olmalıdır.
+Usage (with the ML environment): ml-env/bin/python evals/synthetic/reference.py
+Measures every task on 3 different data seeds; the answer must be the same on all three.
 """
 
 import sys
@@ -27,12 +27,12 @@ def answer(task_id, d):
     if task_id == "syn-01":
         X, y = load(d, "train"); Xt, yt = load(d, "test")
         acc = LogisticRegression().fit(X, y).score(Xt, yt)
-        return ("yes" if acc > 0.75 else "no"), f"lojistik regresyon doğruluğu {acc:.3f}"
+        return ("yes" if acc > 0.75 else "no"), f"logistic regression accuracy {acc:.3f}"
     if task_id == "syn-02":
         X, y = load(d, "train"); Xt, yt = load(d, "test")
         full = LogisticRegression().fit(X, y).score(Xt, yt)
         drop = LogisticRegression().fit(X[:, :2], y).score(Xt[:, :2], yt)
-        return ("yes" if full - drop > 0.01 else "no"), f"tam {full:.3f}, sütun 2'siz {drop:.3f}"
+        return ("yes" if full - drop > 0.01 else "no"), f"full {full:.3f}, without column 2 {drop:.3f}"
     if task_id == "syn-03":
         X, y = load(d, "train")
         m = MLPClassifier(hidden_layer_sizes=(64, 64), max_iter=400, random_state=0).fit(X, y)
@@ -45,13 +45,13 @@ def answer(task_id, d):
         means = np.array([ys[b].mean() for b in bins])
         diffs = np.diff(means)
         mono = bool(np.all(diffs > 0) or np.all(diffs < 0))
-        return ("yes" if mono else "no"), f"10 kutunun ortalamaları: {np.round(means, 2).tolist()}"
+        return ("yes" if mono else "no"), f"means of 10 bins: {np.round(means, 2).tolist()}"
     if task_id == "syn-05":
         X, y = load(d, "train")
         pos, neg = X[:, 1] > 0, X[:, 1] <= 0
         bp = LinearRegression().fit(X[pos][:, :1], y[pos]).coef_[0]
         bn = LinearRegression().fit(X[neg][:, :1], y[neg]).coef_[0]
-        return ("yes" if np.sign(bp) != np.sign(bn) else "no"), f"eğim (sütun1>0) {bp:.2f}, (sütun1≤0) {bn:.2f}"
+        return ("yes" if np.sign(bp) != np.sign(bn) else "no"), f"slope (column1>0) {bp:.2f}, (column1<=0) {bn:.2f}"
     if task_id == "syn-06":
         X, y = load(d, "train"); Xt, yt = load(d, "test")
         lr = LogisticRegression().fit(X, y).score(Xt, yt)
@@ -61,23 +61,23 @@ def answer(task_id, d):
         X, y = load(d, "train"); Xt, yt = load(d, "test")
         full = LogisticRegression().fit(X, y).score(Xt, yt)
         drop = LogisticRegression().fit(X[:, 1:], y).score(Xt[:, 1:], yt)
-        return ("yes" if full - drop > 0.05 else "no"), f"tam {full:.3f}, sütun 0'sız {drop:.3f}"
+        return ("yes" if full - drop > 0.05 else "no"), f"full {full:.3f}, without column 0 {drop:.3f}"
     if task_id == "syn-08":
         X, y = load(d, "train"); Xt, yt = load(d, "test")
         maj = np.bincount(y).argmax()
         acc = float((yt == maj).mean())
-        return ("yes" if acc > 0.80 else "no"), f"çoğunluk doğruluğu {acc:.3f}"
+        return ("yes" if acc > 0.80 else "no"), f"majority accuracy {acc:.3f}"
     if task_id == "syn-09":
         X, y = load(d, "train"); Xt, yt = load(d, "test")
         lin = float(((LinearRegression().fit(X, y).predict(Xt) - yt) ** 2).mean())
         mlp = float(((MLPRegressor(hidden_layer_sizes=(64,), max_iter=2000, random_state=0).fit(X, y).predict(Xt) - yt) ** 2).mean())
-        return ("yes" if mlp < lin else "no"), f"doğrusal MSE {lin:.3f}, MLP MSE {mlp:.3f}"
+        return ("yes" if mlp < lin else "no"), f"linear MSE {lin:.3f}, MLP MSE {mlp:.3f}"
     if task_id == "syn-10":
         X, y = load(d, "train"); Xt, yt = load(d, "test")
         raw = DecisionTreeClassifier(max_depth=5, random_state=0).fit(X, y).score(Xt, yt)
         sc = StandardScaler().fit(X)
         scaled = DecisionTreeClassifier(max_depth=5, random_state=0).fit(sc.transform(X), y).score(sc.transform(Xt), yt)
-        return ("yes" if abs(raw - scaled) > 0.01 else "no"), f"ham {raw:.3f}, ölçekli {scaled:.3f}"
+        return ("yes" if abs(raw - scaled) > 0.01 else "no"), f"raw {raw:.3f}, scaled {scaled:.3f}"
     raise KeyError(task_id)
 
 
@@ -92,8 +92,8 @@ def main():
         consistent = len(set(answers)) == 1
         match = answers[0] == t.truth
         ok &= consistent and match
-        print(f"{t.id}: üretici cevabı={t.truth} · referans={answers} · {why} · {'✓' if consistent and match else '✗'}")
-    print("TÜMÜ TUTARLI" if ok else "TUTARSIZLIK VAR")
+        print(f"{t.id}: generator answer={t.truth} · reference={answers} · {why} · {'✓' if consistent and match else '✗'}")
+    print("ALL CONSISTENT" if ok else "INCONSISTENCY FOUND")
     return 0 if ok else 1
 
 

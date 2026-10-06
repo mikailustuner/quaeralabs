@@ -12,14 +12,14 @@ function read(): ThemeChoice {
   }
 }
 
-/** Tema: varsayılan sistem tercihi (açık ya da koyu); seçim yalnızca bu tarayıcıda saklanır. */
+/** Theme: defaults to the system preference (light or dark); the choice is stored only in this browser. */
 export function useTheme(): [ThemeChoice, (t: ThemeChoice) => void] {
   const [theme, setTheme] = useState<ThemeChoice>(read);
   useEffect(() => {
     const root = document.documentElement;
     if (theme === "system") delete root.dataset.theme;
     else root.dataset.theme = theme;
-    try { localStorage.setItem(KEY, theme); } catch { /* gizli pencere: yalnızca bu oturum */ }
+    try { localStorage.setItem(KEY, theme); } catch { /* private window: this session only */ }
   }, [theme]);
   return [theme, setTheme];
 }

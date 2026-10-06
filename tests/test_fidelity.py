@@ -1,4 +1,4 @@
-"""Biçimselleştirme sadakati: imza ayrıştırma, olumsuzlama ve boşluk dosyaları (Lean gerektirmez)."""
+"""Formalization fidelity: signature parsing, negation and vacuity files (no Lean needed)."""
 
 from quaera.fidelity import as_prop, refutation_file, split_theorem, vacuity_file
 
@@ -16,7 +16,7 @@ def test_split_and_negate():
 def test_no_binders_and_nested_types():
     src = "import Mathlib\ntheorem quaera_main : ∀ f : ℕ → ℕ, (∀ x, f (f x) = x) → Function.Injective f := by sorry"
     assert split_theorem(src, "quaera_main")[1:] == ("", "∀ f : ℕ → ℕ, (∀ x, f (f x) = x) → Function.Injective f")
-    assert vacuity_file(src, "quaera_main") is None                       # bağlayıcı yok: boşluk sorusu yok
+    assert vacuity_file(src, "quaera_main") is None                       # no binders: no vacuity question
     src2 = "import Mathlib\ntheorem quaera_main {α : Type} [Fintype α] (s : Finset (α × α)) : s.card ≤ Fintype.card α ^ 2 := by sorry"
     b = split_theorem(src2, "quaera_main")[1]
     assert b == "{α : Type} [Fintype α] (s : Finset (α × α))"
@@ -29,7 +29,7 @@ def test_unparseable_returns_none():
     assert refutation_file("import Mathlib\nlemma other : True := trivial", "quaera_main") is None
 
 
-# --- orkestratör içinde (sahte Lean ile) -------------------------------------------------------------
+# --- inside the orchestrator (with a fake Lean) --------------------------------------------------------
 import json  # noqa: E402
 
 from quaera import prompts  # noqa: E402
@@ -38,7 +38,7 @@ from test_orchestrator import FakeTools, Script, make  # noqa: E402
 
 
 class FidelityTools(FakeTools):
-    """Belirtilen yardımcı teoremleri (quaera_vacuous / quaera_refute) 'doğrulanmış' sayar."""
+    """Counts the given helper theorem (quaera_vacuous / quaera_refute) as 'verified'."""
 
     def __init__(self, permissions, accept: str):
         super().__init__(permissions)

@@ -1,5 +1,5 @@
-// Keşif kipi görünümü: yaklaşım haritası, strateji panosu (kim önerdi / kim inceledi), lemma programı ve turlar.
-// Yalnızca Lean'in doğruladığı ifade "verified" olur; sayısal sınama kanıt değildir ve öyle etiketlenir.
+// Discovery mode view: approach map, strategy board (who proposed / who reviewed), lemma programme and rounds.
+// Only a statement Lean has checked becomes "verified"; numerical testing is not proof and is labelled as such.
 import { useState } from "react";
 import { QEvent } from "./api";
 import { BlobCode, Verdict, statesOf } from "./experiment";

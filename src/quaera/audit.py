@@ -1,14 +1,14 @@
-"""Dürüstlük denetimi (Faz 4 çıkış kapısı: "uydurma alıntı ya da sahte doğrulama vakası sıfır").
+"""Honesty audit (Phase 4 exit gate: "zero cases of fabricated citations or fake verification").
 
-Her tamamlanmış projede, ajanlardan bağımsız olarak şunlar yeniden kontrol edilir:
-  alıntı      raporda geçen her arXiv kimliği ve DOI, projede doğrulanmış bir makale nesnesi olmalı ve
-              (ağ açıksa) resmi API'de gerçekten var olmalı
-  atıf        rapordaki her [ID] projede var olan bir nesneyi göstermeli
-  doğrulama   "yeniden üretildi" diyen her doğrulamanın arkasında başarılı bir doğrulama çalıştırması ve
-              özgün çalıştırmayla ≤1e-9 aynı metrikler olmalı; matematikte ispat temiz Lean sürecinde yeniden derlenir
-  bütünlük    rapor dosyası, olay kaydına yazılan özetle aynı olmalı
+In every finished project the following is rechecked, independently of the agents:
+  citation      every arXiv id and DOI in the report must be a verified paper object in the project and
+                (when online) must really exist in the official API
+  reference     every [ID] in the report must point to an object that exists in the project
+  verification  every verification claiming "reproduced" must be backed by a successful verification run with
+                metrics equal to the original run within ≤1e-9; in math the proof is recompiled in a clean Lean process
+  integrity     the report file must match the hash written to the event log
 
-Kullanım: quaera audit [--offline] [--lean]   (--lean ağırdır: tools/limited.sh 8G 300% ile çalıştırın)
+Usage: quaera audit [--offline] [--lean]   (--lean is heavy: run it with tools/limited.sh 8G 300%)
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pathlib import Path
 from . import citations
 from .literature import ARXIV_TEXT, DOI_TEXT, norm_ref
 from .ml_loop import compare
-from .store import Store
+from .store import Store, report_file
 
 ID_IN_TEXT = re.compile(r"\[((?:[A-Z]{1,4}-\d{4})(?:\s*,\s*[A-Z]{1,4}-\d{4})*)\]")
 
@@ -48,7 +48,7 @@ def audit_project(project: Path, online: bool = True, lean: bool = False, lean_t
             out.skipped = "deliberate fault injection (evaluation project)"
             return out
         written = store.events("report.written")
-        report_path = project / "rapor.md"
+        report_path = report_file(project)
         if not written or not report_path.exists():
             out.skipped = "no report"
             return out
@@ -56,15 +56,15 @@ def audit_project(project: Path, online: bool = True, lean: bool = False, lean_t
         objs = store.latest()
         by_id = {o["id"]: o for o in objs}
 
-        # bütünlük
+        # integrity
         if hashlib.sha256(report.encode("utf-8")).hexdigest() != written[-1]["payload"].get("sha256"):
-            out.findings.append(Finding("tampered_report", "rapor.md does not match the hash in the event log"))
+            out.findings.append(Finding("tampered_report", f"{report_path.name} does not match the hash in the event log"))
 
-        # alıntılar: raporda geçen her kaynak projede doğrulanmış olmalı; değilse gerçekten var mı diye bakılır
+        # citations: every source in the report must be verified in the project; otherwise check whether it really exists
         papers = [o for o in objs if o["type"] == "artifact" and o.get("kind") == "paper"]
         known = {norm_ref(p["uri"]) for p in papers}
         cited = {m.group(0).rstrip(".") for rx in (ARXIV_TEXT, DOI_TEXT) for m in rx.finditer(report)}
-        cited = {r for r in cited if "doğrulanmamış" not in r}
+        cited = {r for r in cited if "doğrulanmamış" not in r}   # marker ("unverified") in older reports
         out.checked["citations"] = len(cited)
         for ref in sorted(cited):
             kind = "arxiv" if ref.lower().startswith("arxiv") else "doi"
@@ -78,13 +78,13 @@ def audit_project(project: Path, online: bool = True, lean: bool = False, lean_t
             elif status == "unknown" and online:
                 out.checked["citations_unreachable"] = out.checked.get("citations_unreachable", 0) + 1
 
-        # atıflar
+        # references
         refs = {x.strip() for m in ID_IN_TEXT.findall(report) for x in m.split(",")}
         out.checked["references"] = len(refs)
         for r in sorted(refs - set(by_id)):
             out.findings.append(Finding("dangling_reference", f"[{r}] does not exist in the project"))
 
-        # doğrulamalar
+        # verifications
         vers = [o for o in objs if o["type"] == "verification"]
         out.checked["verifications"] = len(vers)
         for v in vers:
@@ -117,7 +117,7 @@ def audit_project(project: Path, online: bool = True, lean: bool = False, lean_t
                 from .lean import LeanChecker
                 rep = LeanChecker(load_timeout_s=lean_timeout_s).check(target[1], target[0], target[2], clean=True)
                 if rep.timed_out:
-                    # Yavaş ya da bellek sıkışık bir makinede zaman aşımı "sahte doğrulama" değildir: sonuçsuz sayılır.
+                    # A timeout on a slow or memory-starved machine is not "fake verification": it counts as inconclusive.
                     out.checked["lean_timeout"] = True
                     return out
                 out.checked["lean_rechecked"] = True

@@ -72,12 +72,12 @@ const EXAMPLES = [
   { domain: "ml", q: "Does label smoothing improve calibration of a small MLP on this dataset?" },
 ];
 
-/** Ana sayfa: referanstaki gibi ortada büyük bir giriş kutusu; alan, bütçe ve otonomi kutunun altında. */
+/** Home page: a large centred composer as in the reference; domain, budget and autonomy below it. */
 export function NewResearch() {
   const [f, setF] = useState({ question: "", domain: "math", mode: "verify", budget: 2, dataDir: "", scope: "", autonomy: "manual", autoLimit: 0.5, keepTrying: false });
   const settings = useLoad(api.settings, []);
   const models: any[] = (settings.data?.models || []).filter((m: any) => m.enabled);
-  const [families, setFamilies] = useState<string[] | null>(null);       // null: hazır olanların hepsi
+  const [families, setFamilies] = useState<string[] | null>(null);       // null: all available ones
   const chosen = families ?? [...new Set(models.map((m) => m.family))];
   const discover = f.domain === "math" && f.mode === "discover";
   const maxBudget = discover ? 500 : 50;
@@ -240,7 +240,7 @@ export function Settings() {
   );
 }
 
-/** Bu makinede bulunan model CLI'leri; "Test" küçük gerçek bir soru sorar (abonelikli CLI'lerde ücret bildirilmez). */
+/** Model CLIs found on this machine; "Test" asks a small real question (subscription CLIs report no cost). */
 function ModelsCard({ data }: { data: any }) {
   const [res, setRes] = useState<Record<string, any>>({});
   const test = async (id: string) => {
@@ -281,7 +281,7 @@ function ModelsCard({ data }: { data: any }) {
 
 const KINDS: [string, string][] = [["", "All"], ["finding", "Findings"], ["refuted", "Refuted"], ["method", "Methods"], ["caveat", "Caveats"], ["open", "Open"], ["stopped", "Stopped"]];
 
-/** Bağlamsal hafıza: her deney sonucundan öğrenilenler (projeler arası) + hafızadaki geçmiş araştırmalar. */
+/** Contextual memory: learnings from every experiment result (across projects) + past research in memory. */
 export function Memory() {
   const [kind, setKind] = useState("");
   const [q, setQ] = useState("");

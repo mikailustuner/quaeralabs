@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:critique",
-  "title": "Eleştiri (CR)",
-  "description": "Eleştirmenin itirazı. Açık bir itiraz cevapsız kapatılamaz: kabul edilir ya da gerekçeyle reddedilir.",
+  "title": "Critique (CR)",
+  "description": "The Critic's objection. An open objection cannot be closed unanswered: it is accepted or rejected with a reason.",
   "allOf": [
     { "$ref": "urn:quaeralabs:v1:common#/$defs/base" },
     {
@@ -18,7 +18,7 @@
     "category": { "enum": ["methodology", "statistics", "confound", "leakage", "implementation", "citation", "overclaim", "preregistration_violation", "other"] },
     "severity": { "enum": ["low", "medium", "high", "blocking"] },
     "body": { "type": "string", "minLength": 10 },
-    "blindReview": { "type": "boolean", "description": "Eleştirmen önce ham verileri, sonra yorumları okudu mu?" },
+    "blindReview": { "type": "boolean", "description": "Did the Critic read the raw data first and the interpretations afterwards?" },
     "status": { "enum": ["open", "accepted", "rejected_with_reason", "resolved"] },
     "resolution": {
       "type": "object",

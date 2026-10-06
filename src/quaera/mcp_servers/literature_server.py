@@ -1,4 +1,4 @@
-"""Literatür MCP sunucusu: arXiv ve OpenAlex araması, arXiv/DOI doğrulaması."""
+"""Literature MCP server: arXiv and OpenAlex search, arXiv/DOI verification."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ STOP = {"a", "an", "the", "of", "for", "and", "or", "in", "on", "to", "is", "are
 
 
 def arxiv_query(query: str) -> str:
-    """Anahtar kelimeleri AND ile bağlar; tırnak içindeki ifadeler tek terim kalır.
-    (`all:çok kelimeli sorgu` biçimi alaka sıralamasını bozup ilgisiz sonuçlar döndürüyordu.)"""
+    """Joins keywords with AND; quoted phrases stay a single term.
+    (The `all:multi word query` form broke relevance ranking and returned unrelated results.)"""
     phrases = re.findall(r'["\']([^"\']{3,})["\']', query)
     rest = re.sub(r'["\'][^"\']{3,}["\']', " ", query)
     words = [w for w in re.findall(r"[\w-]+", rest.lower()) if w not in STOP and len(w) > 1]
@@ -30,7 +30,7 @@ def arxiv_query(query: str) -> str:
 
 @mcp.tool()
 def arxiv_search(query: str, max_results: int = 8) -> str:
-    """arXiv'de arama yapar (anahtar kelimeler AND ile, alaka sıralı); başlık, kimlik, yıl ve özetin başını döndürür."""
+    """Searches arXiv (keywords joined with AND, sorted by relevance); returns the title, ID, year and the start of the abstract."""
     params = urllib.parse.urlencode({"search_query": arxiv_query(query), "max_results": min(max_results, 20),
                                      "sortBy": "relevance"})
     status, body = citations._get(f"https://export.arxiv.org/api/query?{params}")
@@ -49,7 +49,7 @@ def arxiv_search(query: str, max_results: int = 8) -> str:
 
 @mcp.tool()
 def openalex_search(query: str, max_results: int = 8) -> str:
-    """OpenAlex'te arama yapar; başlık, DOI ve yıl döndürür."""
+    """Searches OpenAlex; returns the title, DOI and year."""
     params = urllib.parse.urlencode({"search": query, "per-page": min(max_results, 20)})
     status, body = citations._get(f"https://api.openalex.org/works?{params}")
     if status != 200:
@@ -61,13 +61,13 @@ def openalex_search(query: str, max_results: int = 8) -> str:
 
 @mcp.tool()
 def arxiv_lookup(arxiv_id: str) -> str:
-    """Bir arXiv kimliğinin gerçekten var olup olmadığını kontrol eder: real / fake / unknown."""
+    """Checks whether an arXiv ID really exists: real / fake / unknown."""
     return citations.check("arxiv", arxiv_id.removeprefix("arXiv:"))
 
 
 @mcp.tool()
 def crossref_lookup(doi: str) -> str:
-    """Bir DOI'nin Crossref'te kayıtlı olup olmadığını kontrol eder: real / fake / unknown."""
+    """Checks whether a DOI is registered (Crossref, falling back to DataCite): real / fake / unknown."""
     return citations.check("doi", doi)
 
 

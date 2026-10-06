@@ -1,11 +1,11 @@
-"""ML araştırma döngüsü (Faz 2).
+"""ML research loop (Phase 2).
 
-Matematik döngüsünden farkları:
-- Deney tasarımcısı, Analist ve Yazar LLM ajanlarıdır; Eleştirmen planı ve sonucu ayrı ayrı inceler.
-- Mühendis bir Python betiği yazar; betik sandbox'ta, ağsız ve veri salt okunurken çalışır.
-- İstatistikler (ortalama, standart sapma, %95 güven aralığı) kodla hesaplanır; Analist sayı üretmez, yorumlar.
-- Doğrulayıcı, kaydedilmiş commit'i temiz bir dizine çıkarıp aynı seed'le yeniden çalıştırır ve metrikleri karşılaştırır.
-- Yazar'ın her cümlesi bir araştırma nesnesinin kimliğine bağlanmak zorundadır; bağlanmayan cümle rapordan atılır.
+Differences from the mathematics loop:
+- The Experiment designer, Analyst and Writer are LLM agents; the Critic reviews the plan and the result separately.
+- The Engineer writes a Python script; it runs in the sandbox with no network and read-only data.
+- Statistics (mean, standard deviation, 95% confidence interval) are computed in code; the Analyst interprets, never produces numbers.
+- The Verifier checks out the recorded commit into a clean directory, reruns it with the same seed and compares the metrics.
+- Every sentence by the Writer must be tied to a research object's id; untied sentences are dropped from the report.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ ID_RE = re.compile(r"\[((?:[A-Z]{1,3}-\d{4})(?:\s*,\s*[A-Z]{1,3}-\d{4})*)\]\s*\.
 
 
 def stats_table(runs: list[dict]) -> dict:
-    """Her metrik için n, ortalama, standart sapma ve %95 güven aralığı (t dağılımı)."""
+    """For each metric: n, mean, standard deviation and 95% confidence interval (t distribution)."""
     names = sorted({k for r in runs for k in r.get("metrics", {})})
     table = {}
     for name in names:
@@ -49,7 +49,7 @@ def stats_table(runs: list[dict]) -> dict:
 
 
 def compare(a: dict, b: dict) -> tuple[str, list[str]]:
-    """Doğrulama: aynı seed'in iki çalıştırmasının metriklerini karşılaştırır."""
+    """Verification: compares the metrics of two runs with the same seed."""
     diffs, worst = [], 0.0
     for k in sorted(set(a) | set(b)):
         if k not in a or k not in b:
@@ -69,7 +69,7 @@ def compare(a: dict, b: dict) -> tuple[str, list[str]]:
 class MLOrchestrator(Orchestrator):
     stages = ML_STAGES
 
-    # yardımcılar -------------------------------------------------------------
+    # helpers -------------------------------------------------------------
     @property
     def workdir(self) -> str:
         return str(self.store.path.parent / "work")
@@ -79,14 +79,14 @@ class MLOrchestrator(Orchestrator):
         return self.store.meta("dataDir")
 
     def stage_data_profile(self) -> None:
-        """#3 (ML): hipotezden önce verinin deterministik profili — boyutlar, sınıf dengesi, temel istatistikler, hedefle ilişki."""
+        """#3 (ML): a deterministic data profile before the hypothesis — shapes, class balance, basic statistics, relation to the target."""
         actor = self.det("engineer")
         script = (Path(__file__).parent / "scripts" / "data_profile.py").read_text(encoding="utf-8")
         try:
             self.tools.call_json("engineer", "sandbox.write", workdir=self.workdir, path="data_profile.py", content=script,
                                  message="data profile")
             res = self._exec("engineer", ["data_profile.py"], timeout_s=180)
-        except Exception as exc:   # profil çıkarılamazsa araştırma profilsiz sürer
+        except Exception as exc:   # if profiling fails, the research continues without a profile
             self.store.append("tool.error", actor, {"tool": "sandbox.exec", "error": str(exc)[:300]})
             return
         found = re.search(r"QUAERA_PROFILE\s+(\{.*\})", res.get("stdout", ""))
@@ -120,7 +120,7 @@ class MLOrchestrator(Orchestrator):
                "status": "draft"}
         return self.store.put(obj)
 
-    # aşamalar ---------------------------------------------------------------
+    # stages ---------------------------------------------------------------
     def stage_design(self) -> None:
         plan, actor = self._design()
         exp = self._put_experiment(plan, actor)
@@ -177,7 +177,7 @@ class MLOrchestrator(Orchestrator):
 
     def stage_experiment_approval(self) -> None:
         exp = self.store.get(self.state("experiment_id"))
-        # Maliyet onay anındaki kalan model bütçesidir (tasarımdan bu yana yapılan çağrılar düşülür).
+        # The cost is the model budget left at approval time (calls made since design are subtracted).
         exp = {**exp, "budget": {**exp["budget"], "estimatedUsd": math.floor(self.gateway.remaining() * 10000) / 10000}}
         pre = self.store.get(exp["preregistrationId"])
         verdict = exp["noveltyCheck"]["verdict"]
@@ -254,7 +254,7 @@ class MLOrchestrator(Orchestrator):
                           ", ".join(f"{k}={v:.4g}" for k, v in list(metrics.items())[:3]), lane=lane)
             return run["id"]
 
-        # Seed'ler PARALLEL_RUNS şeritte aynı anda çalışır (her sandbox süreci kendi bellek/CPU sınırında; GPU'da sıralı).
+        # Seeds run concurrently in PARALLEL_RUNS lanes (each sandbox process within its own memory/CPU limit; sequential on GPU).
         width = 1 if self.store.meta("gpu") else PARALLEL_RUNS
         ids = []
         for i in range(0, seeds, width):
@@ -297,15 +297,15 @@ class MLOrchestrator(Orchestrator):
         for round_ in range(1, rounds + 1):
             pre, table, ok = self._analysis_input()
             res = self.store.get(self.state("result_id"))
-            # Kör inceleme sırası: önce ham sayılar ve config, sonra ön kayıt, en son yorum.
+            # Blind review order: raw numbers and config first, then the preregistration, the interpretation last.
             report = (f"Question: {q['title']}\nData: {q['scope']}\n\n1) Raw statistics ({len(ok)} seeds): {json.dumps(table, ensure_ascii=False)}\n"
                       f"Run configs: {json.dumps([{'seed': r['seed'], **r['config'], 'metrics': r['metrics']} for r in ok], ensure_ascii=False)}\n"
                       f"Plan: {self.plan_text(self.state('plan'))}\n\n2) Pre-registration: {pre['primaryMetric']} · {pre['successCriterion']} · locked {pre['lockedAt']}\n\n"
                       f"3) Analyst interpretation: {res['summary']} → relation {self.state('analysis')['relation']}. Limitations: {res['limitations']}")
             review, critic = self.ask_json("critic", prompts.CRITIC_EXPERIMENT, f"Experiment report:\n{report}", 3000)
-            # Sonuç yorumunda bulunan her kusur (orta dahil) itiraz olarak açılır ve Analist'ten yanıt bekler.
-            # Önceden yalnızca yüksek/engelleyici itiraz açılıyordu; canlı hata enjeksiyonunda Eleştirmen bir aşırı
-            # genellemeyi "orta" olarak bulduğu hâlde bulgu sessizce düşmüş ve rapora girmişti (evals/critic_live_check.py).
+            # Every flaw found in the interpretation (medium included) is opened as an objection and awaits the Analyst's reply.
+            # Previously only high/blocking objections were opened; in live fault injection the Critic rated an
+            # overgeneralization "medium", the finding was silently dropped and reached the report (evals/critic_live_check.py).
             if not review.get("flawed"):
                 self.store.append("result.reviewed", critic, {"round": round_, "summary": review.get("summary", ""),
                                                              "flawed": bool(review.get("flawed")), "severity": review.get("severity")})
@@ -324,7 +324,7 @@ class MLOrchestrator(Orchestrator):
                 self._write_result(analyst, answer, ok, table, res)
                 self.store.put({**cr, "createdBy": critic, "status": "accepted",
                                 "resolution": {"by": critic, "at": now(), "text": f"The Analyst accepted the objection: {answer.get('response', '')}"}})
-            # sonraki tur: Eleştirmen güncel sonucu yeniden inceler
+            # next round: the Critic re-reviews the updated result
         open_crit = [c for c in self.store.latest("critique") if c["status"] == "open" and c["targetId"] == self.state("result_id")]
         self.store.append("critique.unresolved", self.det("director"), {"open": [c["id"] for c in open_crit]})
 

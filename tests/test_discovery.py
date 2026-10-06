@@ -1,5 +1,5 @@
-"""Keşif kipi: çok modelli fikir üretimi, çapraz inceleme, lemma programı, çürütme + onarım, sentez ve yeniden doğrulama.
-Gerçek model ve Lean yerine betik ve sahte Lean (teorem adına duyarlı)."""
+"""Discovery mode: multi-model ideation, cross-review, the lemma program, refutation + repair, synthesis and re-verification.
+A script and a fake Lean (sensitive to the theorem name) instead of a real model and Lean."""
 
 import json
 import re
@@ -20,7 +20,7 @@ L2_FIXED = "theorem quaera_L2 (n : ℕ) : (n + 1) ^ 2 = n ^ 2 + 2 * n + 1 := by 
 
 
 class LemmaTools(FakeTools):
-    """Sahte Lean, teorem adına duyarlı: onaylı ifade verilen ad için karşılaştırılır."""
+    """Fake Lean, sensitive to the theorem name: the approved statement is compared for the given name."""
 
     def call(self, role, tool, **args):
         if tool != "lean.compile":
@@ -94,7 +94,7 @@ class DiscoveryScript:
         if k == "BACKTRANSLATE":
             return '{"translation": "sum of first n odd numbers is n squared", "oddities": []}'
         if k == "PROVE":
-            if "theorem quaera_main" in prompt:          # sentez: doğrulanmış lemmalar dosyada, ana teoremi kur
+            if "theorem quaera_main" in prompt:          # synthesis: verified lemmas are in the file, assemble the main theorem
                 return f"```lean\n{PROOF}```"
             if "quaera_L1" in prompt.split("Approved statement", 1)[-1][:400]:
                 return proved(L1)
@@ -117,7 +117,7 @@ class DiscoveryScript:
 
 
 class Fam(ScriptedProvider):
-    """Betikli sağlayıcı, gerçek aile adıyla (fiyatı sıfır olan 'scripted' modeli kullanır)."""
+    """Scripted provider with a real family name (uses the zero-priced 'scripted' model)."""
 
     def model_for(self, profile):
         return "scripted"
@@ -147,30 +147,30 @@ def test_discovery_program_end_to_end(tmp_path):
     orch.run()
     s = orch.store
     assert [e["payload"]["stage"] for e in s.events("stage.done")] == DISCOVERY_STAGES
-    # fikir üretimi iki aileye dağıldı; her strateji yazarından farklı bir aileye incelendi
+    # ideation was spread over two families; each strategy was reviewed by a family other than its author's
     proposed = [e["payload"] for e in s.events("strategy.proposed")]
     assert {p["family"] for p in proposed} == {"anthropic", "openai"} and proposed[0]["lens"] == "free"
     reviews = [e["payload"] for e in s.events("strategy.reviewed")]
     assert reviews and all(r["crossFamily"] for r in reviews)
     assert "IDEATE" in a.calls and "IDEATE" in b.calls
-    # hedef daraltılmadı: soru olduğu gibi, tam kapsam
+    # the target was not narrowed: the question as it is, full scope
     h = s.get(orch.state("hypothesis_id"))
     assert h["scopeRelation"]["relation"] == "full" and h["status"] == "supported"
-    # L2 çürütüldü (Lean), onarıldı ve onarım doğrulandı; L1 doğrulandı
+    # L2 was refuted (Lean), repaired and the repair verified; L1 verified
     status = [(e["payload"]["id"], e["payload"]["status"]) for e in s.events("lemma.status")]
     assert ("L1", "verified") in status and ("L2", "refuted") in status and ("L2'", "verified") in status
-    # sentez ana teoremi kurdu, Doğrulayıcı hem ana ispatı hem lemmaları yeniden derledi
+    # synthesis assembled the main theorem; the Verifier recompiled both the main proof and the lemmas
     assert s.events("synthesis.done")[-1]["payload"]["solved"] and orch.state("proof")
     assert s.latest("verification")[-1]["reproduced"] == "yes"
     assert {e["payload"]["id"] for e in s.events("lemma.reverified") if e["payload"]["verified"]} >= {"L1", "L2'"}
     assert s.check_final() == []
-    report = (tmp_path / "rh" / "rapor.md").read_text(encoding="utf-8")
+    report = (tmp_path / "rh" / "report.md").read_text(encoding="utf-8")
     assert "## Discovery program" in report and "L2" in report and "refuted" in report
 
 
 def test_discovery_reports_discoveries_when_main_claim_stays_open(tmp_path):
     orch, a, b = make_discovery(tmp_path, "open")
-    # ana teoremin ispatı hiç bulunamasın: sentez başarısız, ana iddia açık kalır
+    # the main theorem is never proved: synthesis fails, the main claim stays open
     for sc in (a, b):
         orig = sc.__call__
         sc.__class__ = type("NoMain", (DiscoveryScript,), {"__call__": lambda self, system, prompt, _o=orig:
@@ -199,7 +199,7 @@ def test_discovery_lessons_and_server_create(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "HOME", projects)
     monkeypatch.setattr(server, "HOME", projects)
     monkeypatch.setattr(server, "MANAGER_PROVIDERS", {"scripted": ScriptedProvider(lambda s, p: "Title")})
-    monkeypatch.setattr(server.RUNNER, "start", lambda *a, **k: None)      # araştırma başlatılmaz, yalnızca kayıt
+    monkeypatch.setattr(server.RUNNER, "start", lambda *a, **k: None)      # research is not started, only recorded
     c = TestClient(server.create_app())
     assert c.post("/api/projects", json={"question": "Is RH true or false?", "domain": "math", "budget": 120}).status_code == 400
     r = c.post("/api/projects", json={"question": "Is RH true or false?", "domain": "math", "budget": 120, "mode": "discover",

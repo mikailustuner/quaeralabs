@@ -1,16 +1,16 @@
-"""Araştırma ağacı: dallar, aralarındaki değişiklikler ve sonuçlar (Faz 4+).
+"""Research tree: branches, the changes between them and their outcomes (Phase 4+).
 
-Bir dal, bir projenin olay kaydının belli bir aşamaya kadar kopyalanıp bir **değişiklikle** yeniden çalıştırılmasıdır:
-  hypothesis   hipotez değişti      → literatürden sonra dallanır; Hipotez ajanı yerine verilen ifade kullanılır
-  approach     deney/ispat yaklaşımı değişti → hipotez onayından sonra dallanır; talimat ilgili ajanlara iletilir
-  note         serbest not          → seçilen aşamadan sonra dallanır; not ilgili ajanlara iletilir
-Değişiklik ve gerekçesi çocuk projenin `branch` meta verisine ve olay kaydına (`branch.change`), ebeveyninkine de
-(`branch.spawned`) yazılır. Ağaç görünümü bu kayıtlardan kurulur: neyin değiştiği (metin farkı), sonuç, birincil
-metrik ve ebeveyne göre farkı, maliyet ve dalların başarı oranları.
+A branch is a project's event log copied up to a given stage and rerun with one **change**:
+  hypothesis   hypothesis changed   → branches after literature; the given statement replaces the Hypothesis agent
+  approach     experiment/proof approach changed → branches after hypothesis approval; instructions go to the relevant agents
+  note         free-form note       → branches after the chosen stage; the note goes to the relevant agents
+The change and its reason are written to the child project's `branch` meta and event log (`branch.change`), and to the
+parent's (`branch.spawned`). The tree view is built from these records: what changed (text diff), outcome, primary
+metric and its delta from the parent, cost and the branches' success rates.
 
-Yinelemeli araştırma (#5): bir dal sonuçsuz kaldığında (ispat bulunamadı, deney belirsiz, araştırma durdu) Direktör
-neyin değiştirilmesi gerektiğini önerir ve — onay kuralları içinde — yeni dal açılır. Çürütülmüş bir hipotez
-başarısızlık değil sonuçtur; yalnızca sonuçsuz dallar yinelenir.
+Iterative research (#5): when a branch ends without a conclusive result (no proof found, experiment inconclusive,
+research stopped), the Director proposes what to change and — within the approval rules — a new branch is opened.
+A refuted hypothesis is a result, not a failure; only inconclusive branches are iterated.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def stage_seq(store: Store, stage: str) -> int:
 def branch_project(home: Path, pid: str, kind: str, reason: str, *, hypothesis: str | None = None,
                    note: str | None = None, at_stage: str | None = None, by: dict | None = None,
                    budget: float | None = None) -> str:
-    """Değişiklikli yeni dal açar ve çocuk projenin adını döner. Çalıştırmaz."""
+    """Opens a new branch with a change and returns the child project's name. Does not run it."""
     if kind not in ("hypothesis", "approach", "note"):
         raise ValueError("change kind must be hypothesis, approach or note")
     if len(reason.strip()) < 5:
@@ -100,7 +100,7 @@ def branch_project(home: Path, pid: str, kind: str, reason: str, *, hypothesis: 
     return child
 
 
-# --- ağaç görünümü ---------------------------------------------------------------------------------
+# --- tree view -------------------------------------------------------------------------------------
 
 def _states(store: Store) -> dict:
     return {e["payload"]["key"]: e["payload"]["value"] for e in store.events("state")}
@@ -136,7 +136,7 @@ def node_summary(home: Path, pid: str) -> dict:
                 "outcome": outcome, "answer": answer, "proofVerified": proof_ok,
                 "reproduced": ver and ver.get("reproduced"), "metric": metric, "stopped": st.get("stopped"),
                 "stagesDone": len(stages_done),
-                # Dal, ebeveynin olaylarını dallanma noktasına kadar kopyalar (seq 1..atSeq); yalnızca sonrası bu dalın harcamasıdır.
+                # A branch copies the parent's events up to the branch point (seq 1..atSeq); only what follows is this branch's spend.
                 "costUsd": round(sum(e["payload"]["costUsd"] for e in s.events("model.call")
                                      if e["seq"] > ((s.meta("branch") or {}).get("atSeq") or 0)), 4)}
     finally:
@@ -144,7 +144,7 @@ def node_summary(home: Path, pid: str) -> dict:
 
 
 def word_diff(a: str | None, b: str | None) -> list[list]:
-    """[["=", metin] | ["-", metin] | ["+", metin]] — arayüzde satır içi gösterilir."""
+    """[["=", text] | ["-", text] | ["+", text]] — shown inline in the UI."""
     a_words, b_words = (a or "").split(), (b or "").split()
     out: list[list] = []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=a_words, b=b_words, autojunk=False).get_opcodes():
@@ -158,7 +158,7 @@ def word_diff(a: str | None, b: str | None) -> list[list]:
 
 
 def family(home: Path, pid: str) -> dict:
-    """pid'in ait olduğu ağacın tamamı: düğümler, ebeveyne göre farklar ve oranlar."""
+    """The whole tree that pid belongs to: nodes, diffs against the parent, and rates."""
     s = Store(home / pid / "quaera.db")
     root = s.meta("root") or pid
     s.close()
@@ -208,7 +208,7 @@ def family(home: Path, pid: str) -> dict:
     return {"root": root, "nodes": list(nodes.values()), "stats": stats}
 
 
-# --- yinelemeli araştırma (#5) ---------------------------------------------------------------------
+# --- iterative research (#5) -----------------------------------------------------------------------
 
 REVISE = """You are the Director of a research team. A research branch ended WITHOUT a conclusive answer.
 Decide whether a new branch is worth trying and what exactly to change. A cleanly refuted hypothesis is a result, not a failure.
@@ -248,7 +248,7 @@ def failure_context(home: Path, pid: str) -> str:
         s.close()
 
 
-REVISE_CAP_USD = 0.5   # Direktör'ün revizyon kararı için ayrılan üst sınır (dal bütçesine ek, onayda gösterilir)
+REVISE_CAP_USD = 0.5   # cap reserved for the Director's revision decision (on top of the branch budget, shown in the approval)
 MIN_BRANCH_USD = 0.5   # keep-trying loop: a branch needs at least this much of the remaining total budget
 MAX_ITERATIONS = int(os.environ.get("QUAERA_MAX_ITERATIONS", "10"))   # safety cap: subscription CLIs report $0 per call
 
@@ -297,8 +297,8 @@ def tried_hypotheses(home: Path, pid: str) -> list[str]:
 
 def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, approve, max_branches: int,
             budget_per_branch: float | None = None, total_budget: float | None = None, memory=None, log=print) -> list[str]:
-    """Sonuçsuz dalları yineler. `build(path, budget) -> Orchestrator`, `approve(metin, maliyet) -> bool`.
-    Her yeni dal açılmadan önce insan onayı (ya da otonomi kuralı) istenir; Direktör'ün kararı kayda geçer.
+    """Iterates inconclusive branches. `build(path, budget) -> Orchestrator`, `approve(text, cost) -> bool`.
+    Human approval (or an autonomy rule) is required before each new branch; the Director's decision is recorded.
 
     `total_budget`: keep trying until the whole research line (root and all branches) has spent this much; each
     branch then gets the remaining budget (capped by `budget_per_branch` if given)."""
@@ -309,7 +309,7 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
     for _ in range(max_branches):
         summ = node_summary(home, current)
         if not needs_iteration(summ):
-            log(f"{current}: sonuç {summ['outcome']} — yineleme gerekmiyor")
+            log(f"{current}: outcome {summ['outcome']} — no iteration needed")
             break
         branch_budget = budget_per_branch
         if total_budget is not None:
@@ -321,7 +321,7 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
         cost = branch_budget + REVISE_CAP_USD
         if not approve(f"{current} ended without a conclusive result ({summ['outcome']}). The Director will propose a change and the new branch "
                        f"will run with a budget of at most ${branch_budget:.2f}.", cost):
-            log("yeni dal onaylanmadı")
+            log("new branch not approved")
             break
         parent = Store(home / current / "quaera.db")
         record = lambda kind, payload, _s=parent: _s.append(  # noqa: E731
@@ -355,12 +355,12 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
         parent.close()
         kind = decision.get("decision")
         if kind not in ("hypothesis", "approach"):
-            log(f"Direktör yeni dal önermedi: {decision.get('reason', '')}")
+            log(f"the Director proposed no new branch: {decision.get('reason', '')}")
             break
         child = branch_project(home, current, kind, decision.get("reason") or "Director revision",
                                hypothesis=decision.get("newHypothesis"), note=decision.get("instructions"),
                                by=director, budget=branch_budget)
-        log(f"yeni dal: {child} ({kind}) — {decision.get('reason', '')}")
+        log(f"new branch: {child} ({kind}) — {decision.get('reason', '')}")
         orch = build(home / child, branch_budget)
         try:
             orch.run()

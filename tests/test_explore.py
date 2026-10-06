@@ -1,4 +1,4 @@
-"""#3 deneysel keşif: matematikte küçük durum taraması ve karşı örnek, ML'de veri profili."""
+"""#3 experimental exploration: small-case scan and counterexample in math, data profile in ML."""
 
 import json
 
@@ -26,7 +26,7 @@ class CounterexampleTools(FakeTools):
     def call(self, role, tool, **args):
         if tool == "sandbox.exec":
             return json.dumps({"returncode": 0, "stderr": "", "stdout": 'QUAERA_EXPLORE {"checked": "n ≤ 50", '
-                               '"counterexample": {"values": {"n": 2}, "detail": "toplam 4"}, "observations": []}'})
+                               '"counterexample": {"values": {"n": 2}, "detail": "sum is 4"}, "observations": []}'})
         return super().call(role, tool, **args)
 
 
@@ -42,7 +42,7 @@ def test_candidate_counterexample_triggers_refutation_before_proof(tmp_path):
     orch = make(tmp_path, spy)
     orch.tools = CounterexampleTools(orch.permissions)
     orch.run()
-    assert order[0] == "REFUTE"          # karşı örnek adayı varken önce çürütme denenir (sahte Lean'de başarısız, sonra ispat)
+    assert order[0] == "REFUTE"          # with a candidate counterexample, refutation is tried first (fails on the fake Lean, then the proof)
 
 
 def test_ml_data_profile_reaches_hypothesis_agent(tmp_path):

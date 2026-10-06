@@ -23,7 +23,7 @@ function StepIcon({ st }: { st: Step["status"] }) {
   return <span className={`ck ${st === "done" ? "done" : st === "fail" ? "fail" : "run"}`} aria-hidden="true">{st === "done" ? "✓" : st === "fail" ? "!" : ""}</span>;
 }
 
-/** Sağ panel: şu an çalışan ajan(lar), canlı adımlar ve o an derlenen/çalışan kod. */
+/** Right panel: the agent(s) currently working, live steps and the code being compiled/run right now. */
 export function ActiveAgents({ d, running, onOpen }: { d: Derived; running: boolean; onOpen: (role: string) => void }) {
   const now = useNow(d.active.length > 0);
   const workers = d.agents.filter((a) => a.current.length);
@@ -81,7 +81,7 @@ export function ActiveAgents({ d, running, onOpen }: { d: Derived; running: bool
   );
 }
 
-/** Ekipteki tüm ajanlar ve durumları; tıklayınca ajan çekmecesi açılır. */
+/** All agents on the team and their status; clicking opens the agent drawer. */
 export function TeamList({ agents, onOpen }: { agents: AgentState[]; onOpen: (role: string) => void }) {
   const waiting = agents.filter((a) => a.status === "idle").length;
   return (
@@ -138,7 +138,7 @@ function SaidItem({ e, pid, defaultOpen }: { e: QEvent; pid: string | null; defa
   );
 }
 
-/** Ajan çekmecesi: ajanın kim olduğu, söyledikleri (tam metin, okunabilir), attığı adımlar. Esc ile kapanır, odak içeride kalır. */
+/** Agent drawer: who the agent is, what it said (full, readable text) and the steps it took. Closes with Esc; focus stays inside. */
 export function AgentDrawer({ role, d, pid, onClose }: { role: string | null; d: Derived; pid: string | null; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [tab, setTab] = useState<"said" | "steps">("said");

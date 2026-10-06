@@ -1,7 +1,7 @@
 {
   "schemaVersion": "v1",
-  "title": "Dropout ve grokking (negatif sonuç)",
-  "note": "Örnek veri: sayılar temsilidir. Ön kayıtlı bir hipotezin doğrulanmış negatif sonuçla çürütülmesini gösterir.",
+  "title": "Dropout and grokking (negative result)",
+  "note": "Example data: the numbers are illustrative. Shows a preregistered hypothesis refuted by a verified negative result.",
   "objects": [
     {
       "id": "Q-0020",
@@ -10,11 +10,11 @@
       "createdAt": "2026-12-01T09:00:00Z",
       "createdBy": {
         "kind": "human",
-        "userId": "u-ornek"
+        "userId": "u-example"
       },
-      "title": "Dropout, küçük algoritmik görevlerde grokking'i hızlandırır mı?",
+      "title": "Does dropout speed up grokking on small algorithmic tasks?",
       "domain": "ml",
-      "scope": "Modüler toplama görevi, 2 katmanlı transformer"
+      "scope": "Modular addition task, 2-layer transformer"
     },
     {
       "id": "H-0010",
@@ -28,13 +28,13 @@
         "modelFamily": "anthropic"
       },
       "questionId": "Q-0020",
-      "statement": "Dropout 0.1, modüler toplamada genelleme adımını ısınmasız temel çizgiye göre en az %30 öne çeker.",
-      "falsifiabilityNote": "3 seed ortalamasında hızlanma %30'un altındaysa hipotez çürür.",
+      "statement": "Dropout 0.1 brings the generalization step in modular addition at least 30% earlier than the no-warmup baseline.",
+      "falsifiabilityNote": "The hypothesis is refuted if the 3-seed mean speedup is below 30%.",
       "status": "refuted",
       "approval": {
         "by": {
           "kind": "human",
-          "userId": "u-ornek"
+          "userId": "u-example"
         },
         "at": "2026-12-01T09:40:00Z",
         "decision": "approved",
@@ -54,11 +54,11 @@
       },
       "hypothesisId": "H-0010",
       "primaryMetric": "steps_to_generalize",
-      "successCriterion": "Dropout koşulunda medyan genelleme adımı temel çizginin ≤ %70'i.",
-      "analysisPlan": "3 seed; genelleme adımı doğrulama doğruluğunun %99'u ilk geçtiği adım.",
+      "successCriterion": "Under dropout, the median generalization step is ≤ 70% of the baseline's.",
+      "analysisPlan": "3 seeds; the generalization step is the first step at which validation accuracy passes 99%.",
       "seeds": 3,
       "lockedAt": "2026-12-01T10:05:00Z",
-      "contentHash": "9bc3f178280634f5f8a6408702ab1050b12232dcbf372425b12ab302d00cb335"
+      "contentHash": "ddd502467cc15d0e340671369107133a9c396739f5ae4511a71772ba7701dcb4"
     },
     {
       "id": "E-0040",
@@ -75,7 +75,7 @@
         "H-0010"
       ],
       "domain": "ml",
-      "method": "Dropout 0 ve 0.1 ile modüler toplama (p=97), 3 seed, 50k adım.",
+      "method": "Modular addition (p=97) with dropout 0 and 0.1, 3 seeds, 50k steps.",
       "metrics": [
         {
           "name": "steps_to_generalize",
@@ -88,14 +88,14 @@
       },
       "noveltyCheck": {
         "verdict": "novel",
-        "summary": "Bu ayarda doğrudan karşılaştırma bulunamadı."
+        "summary": "No direct comparison found in this setting."
       },
       "preregistrationId": "PRE-0040",
       "status": "completed",
       "approval": {
         "by": {
           "kind": "human",
-          "userId": "u-ornek"
+          "userId": "u-example"
         },
         "at": "2026-12-01T10:06:00Z",
         "decision": "approved",
@@ -154,10 +154,10 @@
       "runIds": [
         "RUN-0041"
       ],
-      "summary": "Dropout 0.1 genelleme adımını yalnızca %4 öne çekti; ön kayıttaki %30 eşiğinin çok altında.",
+      "summary": "Dropout 0.1 brought the generalization step only 4% earlier, far below the preregistered 30% threshold.",
       "negative": true,
       "limitations": [
-        "Tek görev ve tek model boyutu"
+        "Single task and single model size"
       ]
     },
     {
@@ -196,7 +196,7 @@
         "RUN-0042"
       ],
       "reproduced": "yes",
-      "tolerance": "hızlanma ±%2",
+      "tolerance": "speedup ±2%",
       "crossModel": true
     },
     {

@@ -1,6 +1,6 @@
-"""Literatür / yenilik değerlendirmesi.
+"""Literature / novelty evaluation.
 
-Kullanım: uv run python evals/literature_run.py --budget 1
+Usage: uv run python evals/literature_run.py --budget 1
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def main() -> int:
             rows.append({"id": case["id"], "kind": case["kind"], "verdict": lit.verdict, "basis": lit.basis, "ok": ok,
                          "searched": lit.searched, "verified": [v["ref"] for v in lit.verified],
                          "rejected": lit.rejected, "summary": lit.summary})
-            print(f"{case['id']} {case['kind']:9} → {lit.verdict:14} ({lit.basis}) {'✓' if ok else '✗'} · doğrulanmış kaynak {len(lit.verified)}", flush=True)
+            print(f"{case['id']} {case['kind']:9} → {lit.verdict:14} ({lit.basis}) {'✓' if ok else '✗'} · verified sources {len(lit.verified)}", flush=True)
     finally:
         tools.close()
     acc = sum(r["ok"] for r in rows) / len(rows)

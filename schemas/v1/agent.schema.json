@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:agent",
-  "title": "Ajan spesifikasyonu",
-  "description": "Bir ajan rolünün rol kartı, iş akışı, skill'leri ve izinleri. İzinler orkestratör ve model gateway tarafından kodda zorlanır; varsayılan her şey yasaktır.",
+  "title": "Agent specification",
+  "description": "An agent role's role card, workflow, skills and permissions. Permissions are enforced in code by the orchestrator and the model gateway; everything is denied by default.",
   "type": "object",
   "required": [
     "role",
@@ -47,14 +47,14 @@
           ]
         },
         "mustDifferFrom": {
-          "description": "Çapraz model kuralı: bu rol, listedeki rollerin model ailesinden farklı bir ailede çalışmalıdır (mümkünse).",
+          "description": "Cross-model rule: this role must run in a different model family than the listed roles (when possible).",
           "type": "array",
           "items": {
             "$ref": "urn:quaeralabs:v1:common#/$defs/role"
           }
         },
         "effort": {
-          "description": "Akıl yürütme (düşünme) bütçesi. Zor adımlar (ispat, eleştiri, hipotez) yüksek, kolay adımlar düşük. Yoksa sağlayıcı varsayılanı.",
+          "description": "Reasoning (thinking) budget. High for hard steps (proof, critique, hypothesis), low for easy ones. Absent means the provider default.",
           "enum": [
             "low",
             "medium",
@@ -81,7 +81,7 @@
       }
     },
     "stages": {
-      "description": "Araştırma döngüsünde ajanın uyandığı aşamalar.",
+      "description": "The stages of the research loop in which the agent wakes up.",
       "type": "array",
       "minItems": 1,
       "items": {
@@ -108,7 +108,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Sıralı adımlar"
+      "description": "Ordered steps"
     },
     "skills": {
       "type": "array",
@@ -190,11 +190,11 @@
         },
         "publish": {
           "const": false,
-          "description": "Hiçbir ajan yayınlayamaz; yalnızca insan."
+          "description": "No agent can publish; only a human."
         },
         "raiseBudgetCap": {
           "const": false,
-          "description": "Hiçbir ajan bütçe tavanını yükseltemez; yalnızca insan."
+          "description": "No agent can raise the budget cap; only a human."
         }
       },
       "additionalProperties": false
@@ -241,7 +241,7 @@
       "uniqueItems": true
     },
     "isolation": {
-      "description": "Bilinçli yalıtım: bu ajanın okuyamayacağı içerik türleri ve okuma sırası.",
+      "description": "Deliberate isolation: content types this agent cannot read, and the reading order.",
       "type": "object",
       "properties": {
         "cannotRead": {

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:artifact",
-  "title": "Artefakt (ART)",
-  "description": "Kod, log, veri, ispat çıktısı veya makale referansı. Mümkün olan her artefakt içerik özetiyle sabitlenir.",
+  "title": "Artifact (ART)",
+  "description": "Code, log, data, proof output or paper reference. Every artifact that can be is pinned by its content hash.",
   "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
   "required": ["kind", "uri"],
   "properties": {
@@ -14,7 +14,7 @@
     "sha256": { "$ref": "urn:quaeralabs:v1:common#/$defs/sha256" },
     "mediaType": { "type": "string" },
     "license": { "type": "string" },
-    "citationVerified": { "type": "boolean", "description": "DOI/arXiv kimliği otomatik olarak doğrulandı mı?" }
+    "citationVerified": { "type": "boolean", "description": "Was the DOI/arXiv id verified automatically?" }
   },
   "unevaluatedProperties": false
 }

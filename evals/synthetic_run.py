@@ -1,10 +1,10 @@
-"""Sentetik keşif seti: ajan ekibi (ML döngüsü) her görevi gerçek modellerle ve sandbox'ta çözer.
+"""Synthetic discovery set: the agent team (ML loop) solves every task with real models in the sandbox.
 
-Kapı kriteri (v0.2, koşudan önce belirlendi): 10 görevin (5 "evet", 5 "hayır") en az 8'inde Yazar'ın cevabı doğru
-VE sonuç Doğrulayıcı tarafından aynı seed'le birebir yeniden üretilmiş OLMALI; ayrıca her iki cevap sınıfında da
-en az 4/5 doğru olmalı (tek bir cevaba eğilimli ekip kapıyı geçemez).
+Gate criterion (v0.2, fixed before the run): in at least 8 of the 10 tasks (5 "yes", 5 "no") the Writer's answer MUST be
+correct AND the result MUST be reproduced exactly by the Verifier with the same seed; in addition, at least 4/5 must be
+correct in each answer class (a team biased toward one answer cannot pass the gate).
 
-Kullanım: uv run python evals/synthetic_run.py --budget-per-task 1.5 [--only syn-01]
+Usage: uv run python evals/synthetic_run.py --budget-per-task 1.5 [--only syn-01]
 """
 
 from __future__ import annotations
@@ -51,8 +51,8 @@ def main() -> int:
     for task in TASKS:
         if a.only and task.id != a.only:
             continue
-        project = HOME / f"sentetik-{stamp}-{task.id}"
-        seed = secrets.randbelow(2**31)   # gizli: ekibe verilmez, yalnızca sonuç dosyasına yazılır
+        project = HOME / f"synthetic-{stamp}-{task.id}"
+        seed = secrets.randbelow(2**31)   # hidden: not given to the team, only written to the result file
         data = materialize(task, project / "data", seed)
         orch = build(project, a.budget_per_task, None, autonomy="cap", domain="ml", memory=False)
         orch.store.set_meta("title", task.question)
@@ -61,8 +61,8 @@ def main() -> int:
                         "scope": task.describe})
         try:
             finish(orch)
-        except Exception as exc:  # bir görevin çökmesi diğerlerini durdurmasın
-            print(f"{task.id}: çöktü: {exc}", flush=True)
+        except Exception as exc:  # one task crashing must not stop the others
+            print(f"{task.id}: crashed: {exc}", flush=True)
         s = orch.store
         w = next((e["payload"] for e in reversed(s.events("writer.output"))), {"answer": "unclear"})
         vers = s.latest("verification")
@@ -74,8 +74,8 @@ def main() -> int:
                "hypothesis": h and {"id": h["id"], "status": h["status"], "statement": h["statement"]},
                "rule_violations": s.check_final(), "spent_usd": round(spent, 4), "data_seed": seed, "project": str(project)}
         rows.append(row)
-        print(f"{task.id}: doğru={task.truth} · ekip={w['answer']} · yeniden üretim={reproduced} · ${spent:.3f}", flush=True)
-        save(final=False)   # her görevden sonra diske: çökmede sonuç kaybolmasın
+        print(f"{task.id}: truth={task.truth} · team={w['answer']} · reproduced={reproduced} · ${spent:.3f}", flush=True)
+        save(final=False)   # to disk after every task: no results lost on a crash
     summary = save(final=True)
     print(json.dumps({k: v for k, v in summary.items() if k != "rows"}, ensure_ascii=False))
     return 0

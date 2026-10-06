@@ -14,7 +14,7 @@ const TYPE_COLOR: Record<string, string> = {
   question: "var(--text-2)", artifact: "var(--faint)", hypothesis: "var(--accent)", experiment: "var(--blue)", preregistration: "var(--blue)",
   run: "var(--purple)", result: "var(--purple)", evidence_link: "var(--green)", critique: "var(--orange)", verification: "var(--green)",
 };
-/** server.py `graph()` ile aynı kurallar; tekrar oynatmada sunucu olmadan da çalışsın diye istemcide. */
+/** Same rules as server.py `graph()`; done client-side so it also works in replay without a server. */
 export function buildGraph(objects: QObject[]): { nodes: GNode[]; edges: GEdge[] } {
   const label: Record<string, string> = { question: "title", hypothesis: "statement", result: "summary", critique: "body", experiment: "method", preregistration: "successCriterion" };
   const nodes: GNode[] = objects

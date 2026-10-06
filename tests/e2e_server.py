@@ -1,8 +1,8 @@
-"""Arayüz uçtan uca testi için sahte modellerle çalışan sunucu (para harcamaz, ağ kullanmaz).
+"""Server with fake models for the UI end-to-end test (spends no money, uses no network).
 
-Kullanım: uv run python tests/e2e_server.py <geçici-dizin> [port]
-Gerçek sunucu kodu (server.py, WebApprover, SSE) aynen çalışır; yalnızca model sağlayıcı ve araçlar
-test_orchestrator'daki betikli sürümlerle değiştirilir.
+Usage: uv run python tests/e2e_server.py <temp-dir> [port]
+The real server code (server.py, WebApprover, SSE) runs unchanged; only the model provider and tools
+are replaced with the scripted versions from test_orchestrator.
 """
 
 import sys
@@ -27,13 +27,13 @@ real_build = cli.build
 
 def slow(script):
     def answer(system, prompt):
-        time.sleep(0.4)          # arayüzde ilerleme görülebilsin
+        time.sleep(0.4)          # so progress is visible in the UI
         return script(system, prompt)
     return answer
 
 
 class LiveFakeTools(LemmaTools):
-    """Gerçek ToolRegistry gibi araç başlangıcını kayda yazar ve Lean derlemesi kısa sürer: canlı görünüm sınanabilsin."""
+    """Records tool starts like the real ToolRegistry and Lean compilation takes a moment, so the live view can be tested."""
 
     def __init__(self, permissions, store):
         super().__init__(permissions)
@@ -56,7 +56,7 @@ def fake_build(project, budget, auto_limit, providers=None, autonomy=None, domai
     s = Store(project / "quaera.db")
     discover = s.meta("mode") == "discover"
     s.close()
-    if discover:   # keşif kipi: iki sahte model ailesi (fikir üretimi ve çapraz inceleme aileler arasında)
+    if discover:   # Discovery mode: two fake model families (ideation and cross-review happen across families)
         providers = {"anthropic": Fam(slow(DiscoveryScript("anthropic")), "anthropic", 0.002),
                      "openai": Fam(slow(DiscoveryScript("openai")), "openai", 0.0)}
         providers["openai"].billing = "subscription"
@@ -68,7 +68,7 @@ def fake_build(project, budget, auto_limit, providers=None, autonomy=None, domai
 
 
 def manager_reply(system, prompt):
-    """Sahte Proje yöneticisi: kısa ad isteğine ad, sohbete kayda dayalı kısa yanıt (+ isteğe bağlı ekip notu önerisi)."""
+    """Fake Project manager: a title for the title request, a short record-based reply to chat (+ an optional team note proposal)."""
     time.sleep(0.6)
     if "You name research projects" in system:
         return "Sum of first n odds"

@@ -12,14 +12,14 @@ type Props = {
   summary: Pick<Summary, "id" | "title" | "domain" | "stages" | "running" | "error" | "stopped"> & { mode?: string };
   events: QEvent[];
   d: Derived;
-  pending: Pending[];          // canlıda sunucudaki bekleyen onaylar; tekrar oynatmada boş
+  pending: Pending[];          // live: pending approvals on the server; empty in replay
   live: boolean;
   onChanged?: () => void;
   onToast?: (m: string) => void;
   onBranched?: (id: string) => void;
 };
 
-// Ana aşamalar (görseldeki üst çizgi): ayrıntılı aşamalar burada gruplanır.
+// Main stages (the top bar in the mockup): detailed stages are grouped here.
 const PHASES: Record<string, [string, string[]][]> = {
   math: [["Literature", ["literature"]], ["Hypothesis", ["hypothesis", "hypothesis_approval"]],
          ["Exploration & statement", ["explore", "design", "experiment_approval", "formalize", "statement_review"]], ["Proof", ["prove"]],
@@ -250,7 +250,7 @@ function RunBar({ summary, d, live, onChanged, onToast }: { summary: Props["summ
   );
 }
 
-/** Karar kartı: neyi onayladığını yapılandırılmış biçimde gösterir (veri, yöntem, seed, maliyet, ifade). */
+/** Decision card: shows in structured form what you are approving (data, method, seeds, cost, statement). */
 function DecisionCard({ pid, p, d, events, domain, mode, onDone, onToast }: {
   pid: string; p: Pending; d: Derived; events: QEvent[]; domain: string; mode?: string; onDone?: () => void; onToast?: (m: string) => void;
 }) {
@@ -329,7 +329,7 @@ function DecisionCard({ pid, p, d, events, domain, mode, onDone, onToast }: {
   );
 }
 
-/** ManagerCard: sağ panelde yöneticiyle son konuşma (giriş alttaki kutudan). */
+/** ManagerCard: the latest exchange with the manager in the right panel (input via the box below). */
 function ManagerCard({ pid, m, onExpand, onToast }: { pid: string; m: ManagerState; onExpand: () => void; onToast?: (m: string) => void }) {
   return (
     <section className="card pm-card" aria-labelledby="pmc-h">
@@ -342,7 +342,7 @@ function ManagerCard({ pid, m, onExpand, onToast }: { pid: string; m: ManagerSta
   );
 }
 
-/** Alttaki giriş kutusu: varsayılan alıcı Proje yöneticisi (ekibi bölmez); istenirse ekibe not. */
+/** Bottom composer: the default recipient is the Project manager (does not interrupt the team); optionally a note to the team. */
 function Composer({ pid, m, onToast, finished, onManager }: { pid: string; m: ManagerState; onToast?: (m: string) => void; finished: boolean; onManager: () => void }) {
   const [to, setTo] = useState("manager");
   const [text, setText] = useState("");

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:run",
-  "title": "Çalıştırma (RUN)",
-  "description": "Bir deneyin tek bir çalıştırması. Tam çalıştırmadan önce pilot çalıştırma yapılır; doğrulama çalıştırmaları temiz ortamda Doğrulayıcı tarafından yapılır.",
+  "title": "Run (RUN)",
+  "description": "A single run of an experiment. A pilot run comes before full runs; verification runs are done by the Verifier in a clean environment.",
   "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
   "required": ["experimentId", "kind", "status", "seed", "startedAt"],
   "properties": {

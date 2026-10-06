@@ -1,11 +1,11 @@
 """Sandbox (ADR 0002, ADR 0009).
 
-Varsayılan Linux arka ucu bubblewrap (bwrap): daemon gerektirmez, ayrıcalıksız çalışır.
-- Ağ kapalıdır (--unshare-net); ağ yalnızca izin listesi verilen çağrılarda açılır.
-- Dosya sistemi: yalnızca sistem kütüphaneleri ve açıkça verilen dizinler salt okunur görünür;
-  ev dizini, SSH anahtarları ve diğer kullanıcı dosyaları görünmez.
-- Yazılabilir tek yer çalışma dizinidir.
-- Süre sınırı (timeout), CPU süresi ve süreç sayısı sınırlıdır.
+The default Linux backend is bubblewrap (bwrap): no daemon needed, runs unprivileged.
+- Network is off (--unshare-net); it is enabled only for calls given an allowlist.
+- File system: only system libraries and explicitly given directories are visible, read-only;
+  the home directory, SSH keys and other user files are not visible.
+- The only writable location is the working directory.
+- Wall-clock time (timeout), CPU time and process count are limited.
 """
 
 from __future__ import annotations
@@ -18,10 +18,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 def resource_prefix(mem: str | None = None, cpu: str | None = None) -> list[str]:
-    """Sandbox'ta çalışan her komut için bellek/CPU sınırlı systemd kapsamı (varsa).
+    """A memory/CPU-limited systemd scope for every command run in the sandbox (if available).
 
-    Varsayılanlar QUAERA_SANDBOX_MEM (2G) ve QUAERA_SANDBOX_CPU (200%) ile değiştirilebilir.
-    Sınır aşılırsa yalnızca o komut öldürülür. systemd kullanıcı oturumu yoksa sınırsız çalışır.
+    The defaults can be changed with QUAERA_SANDBOX_MEM (2G) and QUAERA_SANDBOX_CPU (200%).
+    If a limit is exceeded, only that command is killed. Without a systemd user session it runs unlimited.
     """
     if not shutil.which("systemd-run") or os.environ.get("QUAERA_NO_SYSTEMD"):
         return []

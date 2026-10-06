@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:verification",
-  "title": "Doğrulama (VER)",
-  "description": "Doğrulayıcının temiz ortamda yeniden üretim sonucu. Doğrulayıcı kodu değiştiremez; yalnızca kaydedilmiş artefaktları çalıştırır.",
+  "title": "Verification (VER)",
+  "description": "The Verifier's reproduction result in a clean environment. The Verifier cannot change code; it only runs recorded artifacts.",
   "allOf": [{ "$ref": "urn:quaeralabs:v1:common#/$defs/base" }],
   "required": ["resultId", "verificationRunIds", "reproduced", "crossModel"],
   "properties": {
@@ -11,8 +11,8 @@
     "resultId": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" },
     "verificationRunIds": { "type": "array", "items": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId" } },
     "reproduced": { "enum": ["yes", "partial", "no"] },
-    "tolerance": { "type": "string", "description": "Sayısal karşılaştırma toleransı, ör. 'kayıp ±0.02'" },
-    "crossModel": { "type": "boolean", "description": "Doğrulayıcı, işi üreten ajandan farklı bir model ailesinde mi çalıştı?" },
+    "tolerance": { "type": "string", "description": "Numeric comparison tolerance, e.g. 'loss ±0.02'" },
+    "crossModel": { "type": "boolean", "description": "Did the Verifier run in a different model family than the agent that produced the work?" },
     "differences": { "type": "array", "items": { "type": "string" } }
   },
   "unevaluatedProperties": false

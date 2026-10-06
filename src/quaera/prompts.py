@@ -1,8 +1,8 @@
-"""Ajan promptları (Faz 1: matematik döngüsü).
+"""Agent prompts (Phase 1: the mathematics loop).
 
-Promptlar İngilizce yazılır (modeller Lean ve matematikte İngilizce talimatla daha iyi çalışır).
-Kullanıcıya görünen doğal dil alanlarının dili QUAERA_LANGUAGE ile seçilir (varsayılan English; arayüz İngilizce).
-Promptlarda "Turkish" yer tutucusu modül sonunda bu dile çevrilir.
+Prompts are written in English (models work better on Lean and mathematics with English instructions).
+The language of user-facing natural-language fields is chosen with QUAERA_LANGUAGE (default English; the UI is English).
+The "Turkish" placeholder in the prompts is replaced with that language at the end of the module.
 """
 
 import os
@@ -164,7 +164,7 @@ At the end print exactly one line: QUAERA_EXPLORE {"checked": "...", "counterexa
 Return only the script in one ```python code block."""
 
 
-# #4 çeşitli hipotez üretimi: aynı sistem istemiyle iki farklı "bakış açısı" (kullanıcı istemine eklenir)
+# #4 diverse hypothesis generation: two different "lenses" with the same system prompt (appended to the user prompt)
 HYPOTHESIS_LENSES = [
     "\n\nLens for this round: the most direct answers to the question, plus one generalization and one special case.",
     "\n\nLens for this round: think differently from the obvious. Use an analogy with a related known result, a contrarian "
@@ -195,9 +195,9 @@ Rules:
 After the code block, one Turkish sentence describing the proof plan."""
 
 
-# --- Keşif kipi (ADR 0017): açık problemlere saldırı ----------------------------------------------
-# Yaratıcılık kısıtlanmaz: bakış açıları (lens) yol gösterir, ama her turda en az bir şerit "serbest"tir ve
-# modeller bakış açısını bırakıp daha iyi bir fikre gidebilir. Kesinlik yalnızca doğrulamada aranır (Lean).
+# --- Discovery mode (ADR 0017): attacking open problems ---------------------------------------------
+# Creativity is not restricted: lenses give direction, but every round has at least one "free" lane and
+# models may drop the lens for a better idea. Rigor is demanded only at verification (Lean).
 
 DISCOVERY_ETHOS = (
     " This is a DISCOVERY project on a possibly open problem: the goal is genuine new progress toward proving or "
@@ -260,7 +260,7 @@ Return only JSON: {"decision": "repair" | "dead", "lemma": {"statement": "Turkis
 "reason": "Turkish, one or two sentences"}"""
 
 
-# Doğal dil alanlarının dili: tüm prompt sabitlerinde tek yerden değiştirilir.
+# Language of natural-language fields: changed in one place for all prompt constants.
 for _name, _value in list(globals().items()):
     if _name.isupper() and isinstance(_value, str) and "Turkish" in _value:
         globals()[_name] = _value.replace("Turkish", LANGUAGE)

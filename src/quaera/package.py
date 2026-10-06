@@ -1,15 +1,15 @@
-"""Kanıt paketi (ADR 0007): RO-Crate 1.1 + imzalı quaera-manifest.json.
+"""Evidence package (ADR 0007): RO-Crate 1.1 + signed quaera-manifest.json.
 
-Paket içeriği:
-  ro-crate-metadata.json   RO-Crate standardı (dosyalar, ajanlar, onaylayan insan, AI etiketi)
-  quaera-manifest.json     schemas/v1/evidence-package.schema.json; ed25519 ile imzalı
-  bundle.json              tüm araştırma nesneleri
-  rapor.md                 rapor
-  events.json              olay kaydı (tekrar oynatma için)
-  artifacts/<sha256>       loglar, Lean çıktıları, kod
+Package contents:
+  ro-crate-metadata.json   RO-Crate standard (files, agents, approving human, AI label)
+  quaera-manifest.json     schemas/v1/evidence-package.schema.json; signed with ed25519
+  bundle.json              all research objects
+  report.md                report
+  events.json              event log (for replay)
+  artifacts/<sha256>       logs, Lean outputs, code
 
-İmza anahtarı kullanıcının cihazında üretilir (~/.quaera/signing-key) ve paketten ayrı saklanır.
-`verify_package` etiketin kaldırıldığı ya da bir dosyanın değiştirildiği paketi reddeder.
+The signing key is generated on the user's device (~/.quaera/signing-key) and kept apart from the package.
+`verify_package` rejects a package whose label was removed or whose files were modified.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from . import __version__, contracts
-from .store import Store, now
+from .store import Store, now, report_file
 
 KEY_PATH = Path(os.environ.get("QUAERA_HOME", Path.home() / ".quaera")) / "signing-key"
 LABEL = "This research was produced by the QuaeraLabs AI agent team and exported with approval by {who}."
@@ -56,8 +56,8 @@ def build_package(project: Path, approver: str | None = None) -> bytes:
         "bundle.json": json.dumps(store.bundle(), ensure_ascii=False, indent=2).encode(),
         "events.json": json.dumps(store.events(), ensure_ascii=False, indent=2).encode(),
     }
-    if (project / "rapor.md").exists():
-        files["rapor.md"] = (project / "rapor.md").read_bytes()
+    if report_file(project).exists():
+        files["report.md"] = report_file(project).read_bytes()
     for o in objs:
         if o["type"] == "artifact" and o.get("sha256"):
             try:
@@ -91,10 +91,10 @@ def build_package(project: Path, approver: str | None = None) -> bytes:
             {"@id": "./", "@type": "Dataset", "name": store.meta("title"), "datePublished": now()[:10],
              "description": manifest["aiLabel"]["text"], "license": "https://creativecommons.org/licenses/by/4.0/",
              "hasPart": [{"@id": p} for p in sorted(files) + ["quaera-manifest.json"]],
-             "author": [{"@id": f"#agent-{r}"} for r, _ in roles], "creditText": "QuaeraLabs AI ajan ekibi"},
+             "author": [{"@id": f"#agent-{r}"} for r, _ in roles], "creditText": "QuaeraLabs AI agent team"},
             *[{"@id": f"#agent-{r}", "@type": "SoftwareApplication", "name": f"QuaeraLabs {r}", "softwareVersion": m}
               for r, m in roles],
-            {"@id": f"#human-{who}", "@type": "Person", "name": who, "description": "onaylayan insan"},
+            {"@id": f"#human-{who}", "@type": "Person", "name": who, "description": "approving human"},
             *[{"@id": p, "@type": "File", "sha256": hashlib.sha256(b).hexdigest()} for p, b in sorted(files.items())],
             *[{"@id": f"#{o['id']}", "@type": "CreativeWork", "identifier": o["id"], "additionalType": o["type"]} for o in objs],
         ],
@@ -111,7 +111,7 @@ def build_package(project: Path, approver: str | None = None) -> bytes:
 
 
 def verify_package(data: bytes) -> list[str]:
-    """Boş liste = paket geçerli. İmza, AI etiketi ve dosya özetleri kontrol edilir."""
+    """Empty list = the package is valid. Checks the signature, the AI label and the file hashes."""
     problems = []
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         manifest = json.loads(z.read("quaera-manifest.json"))

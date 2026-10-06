@@ -1,5 +1,5 @@
-"""Doğrulayıcının hem geçerli örnekleri kabul ettiğini hem de her kuralı ihlal eden
-bozuk kopyaları reddettiğini kontrol eder."""
+"""Checks that the validator accepts the valid examples and rejects broken copies
+that violate each rule."""
 
 import copy
 import json
@@ -12,8 +12,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 from quaera import contracts as validate  # noqa: E402
 
-ML = json.loads((ROOT / "examples" / "ml-isinma.json").read_text(encoding="utf-8"))
-MATH = json.loads((ROOT / "examples" / "matematik-tek-sayilar.json").read_text(encoding="utf-8"))
+ML = json.loads((ROOT / "examples" / "ml-warmup.json").read_text(encoding="utf-8"))
+MATH = json.loads((ROOT / "examples" / "math-odd-numbers.json").read_text(encoding="utf-8"))
 
 
 def obj(bundle, id_):
@@ -36,7 +36,7 @@ def test_examples_valid(bundle):
 
 
 def expect(errors, fragment):
-    assert errors, "hata bekleniyordu"
+    assert errors, "expected errors"
     assert any(fragment in e for e in errors), errors
 
 
@@ -49,7 +49,7 @@ def test_duplicate_id():
 
 
 def test_tampered_preregistration():
-    expect(mutated(ML, lambda b: obj(b, "PRE-0031").update(successCriterion="Herhangi bir fark yeterli.")), "contentHash")
+    expect(mutated(ML, lambda b: obj(b, "PRE-0031").update(successCriterion="Any difference is enough.")), "contentHash")
 
 
 def test_full_run_without_pilot():
@@ -69,7 +69,7 @@ def test_supported_with_open_critique():
         b["objects"].append({
             "id": "CR-0099", "type": "critique", "revision": 1, "createdAt": "2026-11-04T10:00:00Z",
             "createdBy": obj(b, "CR-0001")["createdBy"], "targetId": "RES-0031", "category": "leakage",
-            "severity": "blocking", "body": "Doğrulama verisi eğitim verisiyle örtüşüyor olabilir.", "status": "open",
+            "severity": "blocking", "body": "The validation data may overlap with the training data.", "status": "open",
         })
     expect(mutated(ML, f), "an open objection")
 
@@ -110,7 +110,7 @@ def test_debate_round_limit():
     expect(mutated(ML, lambda b: obj(b, "MSG-0002").update(round=4)), "MSG-0002")
 
 
-# --- Ajan ve skill kuralları -------------------------------------------------
+# --- Agent and skill rules ---------------------------------------------------
 
 def agents_with(tmp_path, fn):
     agents = tmp_path / "agents"
@@ -157,13 +157,13 @@ def test_missing_role(tmp_path):
 
 
 def test_ai_label_must_name_quaeralabs():
-    pkg = json.loads((ROOT / "examples" / "packages" / "ml-isinma.manifest.json").read_text(encoding="utf-8"))
-    pkg["aiLabel"]["text"] = "Bu araştırma AI ile üretildi."
+    pkg = json.loads((ROOT / "examples" / "packages" / "ml-warmup.manifest.json").read_text(encoding="utf-8"))
+    pkg["aiLabel"]["text"] = "This research was produced with AI."
     assert validate.schema_errors("evidence-package", pkg, "test")
 
 
 def test_concurrent_writers_from_two_connections_get_distinct_ids(tmp_path):
-    """Sunucu isteği (insan mesajı) ile araştırma iş parçacığı aynı veritabanına ayrı bağlantılardan yazar: kimlik çakışmamalı."""
+    """A server request (human message) and the research thread write to the same database over separate connections: ids must not collide."""
     import threading
 
     from quaera.permissions import Permissions
@@ -172,7 +172,7 @@ def test_concurrent_writers_from_two_connections_get_distinct_ids(tmp_path):
     perms = Permissions.load()
     path = tmp_path / "quaera.db"
     first = Store(path, perms)
-    q = first.put({"type": "question", "createdBy": {"kind": "human", "userId": "u"}, "title": "Soru nedir burada?",
+    q = first.put({"type": "question", "createdBy": {"kind": "human", "userId": "u"}, "title": "What is the question here?",
                    "domain": "math", "scope": "x"})
     errors = []
 

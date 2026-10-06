@@ -1,22 +1,22 @@
-"""Keşif kipi (ADR 0017): açık bir probleme çok modelli saldırı, Lean ile doğrulanabilir sonuçlar.
+"""Discovery mode (ADR 0017): a multi-model attack on an open problem, with results verifiable in Lean.
 
-Doğrulama kipinden farkları:
-- Hedef daraltılmaz: soru tek bir kesin iddiaya çevrilir ve olduğu gibi kalır. Kısıtlı bir sonuç hedefin yerine
-  geçmez; yalnızca "keşif" olarak raporlanır.
-- Fikir üretimi paralel ve çok modellidir. Şeritler farklı model ailelerine (Claude, Codex, OpenCode…) ve farklı
-  bakış açılarına dağıtılır; ilk şerit her zaman serbesttir. Her strateji, yazarından farklı bir aileye çapraz
-  inceletilir.
-- İnsan bir strateji seçer (diğerleri yedektir). Strateji Lean ifadeleri olan bir lemma zincirine çevrilir;
-  lemmalara turlar halinde saldırılır:
-  - sayısal sınama,
-  - farklı modellerle ispat araması,
-  - çürütme denemesi.
-  Çürütülen bir lemma için onarım istenir; onarılamazsa sıradaki stratejiye geçilir.
-- Sentez: bütün lemmalar doğrulanırsa ana teorem bu lemmalarla Lean'de kurulmaya çalışılır.
+Differences from verification mode:
+- The target is not narrowed: the question becomes a single precise claim and stays as it is. A restricted result
+  does not replace the target; it is only reported as a "discovery".
+- Idea generation is parallel and multi-model. Lanes are spread over different model families (Claude, Codex,
+  OpenCode…) and different perspectives; the first lane is always free. Each strategy is cross-reviewed by a
+  family other than its author's.
+- The human picks a strategy (the others are fallbacks). The strategy becomes a chain of lemmas with Lean
+  statements; the lemmas are attacked in rounds:
+  - numerical testing,
+  - proof search with different models,
+  - a refutation attempt.
+  A refuted lemma gets a repair request; if it cannot be repaired, the next strategy is tried.
+- Synthesis: if every lemma is verified, the main theorem is assembled from these lemmas in Lean.
 
-Dürüstlük: ana iddia yalnızca Lean (sorry yok, standart aksiyomlar, Doğrulayıcı'nın temiz yeniden derlemesi)
-kabul ederse ispatlanmış ya da çürütülmüş sayılır. Doğrulanan lemmalar, çürütülen ara iddialar ve ölen stratejiler
-"keşif" olarak raporlanır ve laboratuvar hafızasına yazılır; bunlar ana iddianın kanıtı değildir.
+Honesty: the main claim counts as proved or refuted only if Lean accepts it (no sorry, standard axioms, a clean
+recompilation by the Verifier). Verified lemmas, refuted intermediate claims and dead strategies are reported as
+"discoveries" and written to the lab memory; they are not evidence for the main claim.
 """
 
 from __future__ import annotations
@@ -38,13 +38,13 @@ DISCOVERY_STAGES = [
 ]
 ROUNDS = int(os.environ.get("QUAERA_DISCOVERY_ROUNDS", "3"))
 LANES = int(os.environ.get("QUAERA_IDEATION_LANES", "4"))
-ATTACK_SHARE = 0.7          # saldırı turları, aşama başında kalan ölçülen bütçenin en fazla %70'ini kullanır
+ATTACK_SHARE = 0.7          # attack rounds use at most 70% of the measured budget left at stage start
 SORRY = "Proof contains `sorry`."
 WEIGHTS = {"plausibility": 0.35, "barrierAwareness": 0.25, "novelty": 0.25, "testability": 0.15}
 
 
 def lemma_file(lean: str, name: str) -> str:
-    """Modelin yazdığı lemma ifadesini bizim adımızla, ispatı `sorry` olan derlenebilir bir dosyaya çevirir."""
+    """Turns the lemma statement the model wrote into a compilable file under our name, with a `sorry` proof."""
     body = re.sub(r"^\s*import[^\n]*\n", "", lean.strip(), flags=re.M).strip()
     body = re.sub(r"^\s*(theorem|lemma)\s+[^\s(:{\[]+", f"theorem {name}", body, count=1)
     if not body.startswith("theorem"):
@@ -54,7 +54,7 @@ def lemma_file(lean: str, name: str) -> str:
 
 
 def score_of(value) -> float:
-    """İnceleme puanı 0–10; model "7/10" ya da metin yazarsa ilk sayı alınır, yoksa 0."""
+    """Review score 0–10; if the model writes "7/10" or text, the first number is taken, otherwise 0."""
     if isinstance(value, (int, float)):
         return max(0.0, min(10.0, float(value)))
     m = re.search(r"\d+(?:\.\d+)?", str(value or ""))
@@ -68,7 +68,7 @@ def strip_header(source: str) -> str:
 class DiscoveryOrchestrator(Orchestrator):
     stages = DISCOVERY_STAGES
 
-    # --- yardımcılar ---------------------------------------------------------------------
+    # --- helpers ---------------------------------------------------------------------
     def families(self) -> list[str]:
         return list(self.gateway.providers)
 
@@ -95,7 +95,7 @@ class DiscoveryOrchestrator(Orchestrator):
         h = self.selected_hypothesis()
         return f"Target claim: {h['statement']}\n{h.get('falsifiabilityNote', '')}"
 
-    # --- aşamalar --------------------------------------------------------------------------
+    # --- stages --------------------------------------------------------------------------
     def stage_landscape(self) -> None:
         q, lit = self.question(), self.state("literature")
         out, _ = self.ask_json("literature", prompts.LANDSCAPE,
@@ -104,7 +104,7 @@ class DiscoveryOrchestrator(Orchestrator):
         self.set_state("landscape", {k: out.get(k) or [] for k in ("approaches", "barriers", "partialResults", "openAngles")})
 
     def stage_target(self) -> None:
-        """Hedef iddia: soru olduğu gibi (daraltılmadan). İnsan hedefi onaylar; stratejiler onu ispat ya da çürütmeye çalışır."""
+        """Target claim: the question as it is (not narrowed). The human approves the target; strategies try to prove or refute it."""
         q = self.question()
         out, actor = self.ask_json("hypothesis", prompts.TARGET, f"Question: {q['title']}\nScope: {q['scope']}", 2000)
         if not out.get("statement"):
@@ -149,7 +149,7 @@ class DiscoveryOrchestrator(Orchestrator):
                                                base + f"\n\nYour lens ({lens['name']}): {lens['text']}", 5000, lane=lane, family=fam)
                     items = out.get("strategies") if isinstance(out.get("strategies"), list) else []
                     return [(s, lane, lens, actor) for s in items[:2] if isinstance(s, dict) and s.get("title") and s.get("idea")]
-                except StopResearch as exc:   # bir sağlayıcının düşmesi diğer şeritleri durdurmaz
+                except StopResearch as exc:   # one provider going down does not stop the other lanes
                     self.store.append("ideation.lane_failed", self.det("hypothesis"), {"lane": lane, "family": fam, "error": str(exc)[:300]})
                     return []
             return run
@@ -252,7 +252,7 @@ class DiscoveryOrchestrator(Orchestrator):
         return next(s for s in self.state("strategies") if s["id"] == sid)
 
     def _program(self, sid: str, note: str = "") -> dict | None:
-        """Stratejiyi Lean ifadeli lemma zincirine çevirir; derlenmeyen ifade bir kez düzeltilir, olmazsa atılır."""
+        """Turns the strategy into a chain of lemmas with Lean statements; a statement that fails to compile is fixed once, else dropped."""
         s, formal = self._strategy(sid), self.state("formal")
         out, actor = self.ask_json("engineer", prompts.PROGRAM,
                                    f"Approved main theorem file:\n```lean\n{formal['source']}\n```\n\nStrategy {sid}:\n"
@@ -290,7 +290,7 @@ class DiscoveryOrchestrator(Orchestrator):
                 return
         raise StopResearch("no strategy could be turned into Lean lemmas")
 
-    # --- saldırı ------------------------------------------------------------------------------
+    # --- attack ------------------------------------------------------------------------------
     def _ask(self, fam: str, cap: float, role: str = "engineer"):
         def ask(system: str, prompt: str, n: int, lane: str | None = None) -> str:
             if self.gateway.spent_usd >= cap:
@@ -319,7 +319,7 @@ class DiscoveryOrchestrator(Orchestrator):
                                                                  "strategy": lem["strategy"]})
 
     def _numeric(self, lem: dict, fam: str) -> dict | None:
-        """Lemmayı küçük durumlarda Python ile sınar (keşif betiği). Ortam yoksa None."""
+        """Tests the lemma on small cases with Python (exploration script). None if there is no environment."""
         workdir = str(self.store.path.parent / "work")
         try:
             text, actor = self.guarded(self.llm, "engineer", prompts.EXPLORE_MATH,
@@ -330,7 +330,7 @@ class DiscoveryOrchestrator(Orchestrator):
             self.tools.call_json("engineer", "sandbox.write", workdir=workdir, path=f"explore_{lem['id']}.py", content=code,
                                  message=f"numeric check {lem['id']}")
             res = self.tools.call_json("engineer", "sandbox.exec", workdir=workdir, command=["python", f"explore_{lem['id']}.py"], timeout_s=120)
-        except (StopResearch, Exception) as exc:   # sandbox/ML ortamı yoksa sayısal sınama atlanır
+        except (StopResearch, Exception) as exc:   # without a sandbox/ML environment, numerical testing is skipped
             self.store.append("tool.error", self.det("engineer"), {"tool": "sandbox.exec", "error": str(exc)[:300]})
             return None
         found = re.search(r"QUAERA_EXPLORE\s+(\{.*\})", res.get("stdout", ""))
@@ -346,7 +346,7 @@ class DiscoveryOrchestrator(Orchestrator):
             return None
         try:
             text = ask(prompts.REFUTE, f"Original file:\n```lean\n{lem['file']}\n```\nState and prove exactly:\n```lean\n{ref[1]} := by\n```\n{hint}", 10000)
-        except ModelError:   # model yanıt veremediyse çürütme bu tur atlanır; bütçe sınırı (SearchBudget) yukarı iletilir
+        except ModelError:   # if the model could not answer, refutation is skipped this round; the budget limit (SearchBudget) propagates up
             return None
         source = extract_lean(text)
         rep = self.tools.call_json("engineer", "lean.compile", source=source, theorem="quaera_refute", approved_statement=ref[1])
@@ -388,7 +388,7 @@ class DiscoveryOrchestrator(Orchestrator):
         return "open"
 
     def _repair(self, prog: dict, lem: dict, fam: str) -> bool:
-        """Çürütülen lemmayı onarır (aynı ad, yeni ifade) ya da stratejiyi ölü ilan eder."""
+        """Repairs a refuted lemma (same name, new statement) or declares the strategy dead."""
         out, actor = self.ask_json("hypothesis", prompts.REPAIR,
                                    f"{self._target_text()}\nStrategy: {self._strategy(prog['strategy'])['title']}\nRefuted lemma {lem['id']}: "
                                    f"{lem['statement']}\n```lean\n{lem['file']}\n```", 2500, family=self.other_family(fam))
@@ -422,7 +422,7 @@ class DiscoveryOrchestrator(Orchestrator):
                 break
             self.store.append("attack.round", self.det("director"), {"round": rnd, "open": [l["id"] for l in open_], "strategy": prog["strategy"]})
             for i, lem in enumerate(open_):
-                fam = fams[(rnd - 1 + i) % len(fams)]          # her turda lemma başka bir model ailesine gider
+                fam = fams[(rnd - 1 + i) % len(fams)]          # each round the lemma goes to another model family
                 try:
                     status = self._attack_lemma(lem, fam, rnd, cap)
                 except SearchBudget as exc:
@@ -445,7 +445,7 @@ class DiscoveryOrchestrator(Orchestrator):
         self.store.append("attack.done", self.det("director"), {"strategy": prog["strategy"], **counts, "stopped": stop})
 
     def stage_synthesis(self) -> None:
-        """Bütün lemmalar doğrulandıysa ana teorem (ya da olumsuzu) onlarla Lean'de kurulmaya çalışılır."""
+        """If every lemma is verified, the main theorem (or its negation) is assembled from them in Lean."""
         from .prover import prove_search
         prog, formal = self.state("program"), self.state("formal")
         live = [l for l in prog["lemmas"] if l["status"] != "unformalized" and not any(x.get("repairOf") == l["id"] for x in prog["lemmas"])]
@@ -490,7 +490,7 @@ class DiscoveryOrchestrator(Orchestrator):
         self.store.append("synthesis.done", self.det("engineer"), {"direction": direction, "solved": solved})
         self.set_state("proof", {"source": res.source, **verified_main} if solved else None)
 
-    # --- analiz ve doğrulama: ana iddia çözülmediyse "keşifler" raporlanır ---------------------
+    # --- analysis and verification: if the main claim is unresolved, "discoveries" are reported ---------------------
     def stage_analysis(self) -> None:
         if self.state("proof") or self.state("refutation"):
             return super().stage_analysis()

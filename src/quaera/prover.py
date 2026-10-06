@@ -1,13 +1,13 @@
-"""İspat stratejileri. Orkestratör (stage_prove) ve değerlendirmeler (evals/putnam_run.py) aynı kodu kullanır;
-böylece değerlendirme ürünün gerçek bileşenini ölçer.
+"""Proof strategies. The orchestrator (stage_prove) and the evals (evals/putnam_run.py) use the same code,
+so the eval measures the product's real component.
 
-  baseline  bütün ispatı tek seferde yazdır; derleyici geri bildirimiyle en fazla `attempts` kez düzelt (Faz 1 davranışı)
-  search    (#2) ücretsiz otomasyon → hataya dayanıklı bütün ispat denemeleri → taslak + lemmalar (her lemma ayrı:
-            önce otomasyon, sonra model) → birleştir; bir lemma düşerse bir kez yeni taslak
+  baseline  write the whole proof in one go; fix it with compiler feedback at most `attempts` times (Phase 1 behaviour)
+  search    (#2) free automation → error-tolerant whole-proof attempts → sketch + lemmas (each lemma separately:
+            automation first, then the model) → assemble; if a lemma fails, one new sketch
 
-`ask(system, prompt, max_tokens) -> metin` model çağrısıdır (bütçe kontrolü çağıranda).
-`check(source, name=None, approved=None) -> dict` Lean derlemesidir: {"verified", "compiled", "errors", "problems", ...}
-(LeanReport.__dict__ biçimi). name/approved verilmezse ana teorem ve onaylı ifadesi kullanılır.
+`ask(system, prompt, max_tokens) -> text` is the model call (the caller does the budget check).
+`check(source, name=None, approved=None) -> dict` is the Lean compilation: {"verified", "compiled", "errors", "problems", ...}
+(LeanReport.__dict__ shape). Without name/approved, the main theorem and its approved statement are used.
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ Check = Callable[[str], dict]
 class ProofResult:
     solved: bool
     source: str | None
-    attempts: int                                   # model çağrısı sayısı
-    log: list[dict] = field(default_factory=list)   # her deneme: {"kind", "source", "verified", "errors"}
+    attempts: int                                   # number of model calls
+    log: list[dict] = field(default_factory=list)   # each attempt: {"kind", "source", "verified", "errors"}
 
 
 def prove_baseline(statement_file: str, name: str, ask: Ask, check: Check, attempts: int = 4,
@@ -51,8 +51,8 @@ def prove_baseline(statement_file: str, name: str, ask: Ask, check: Check, attem
     return res
 
 
-# Model çağırmadan denenen taktikler (gerçek Lean'de sınandı: tests/test_lean.py::test_automation_chain).
-# `first` hata vermeyen ilk seçeneği alır; hedefi kapatmadan sadeleştiren taktikler (norm_num, simp…) `done` ile korunur.
+# Tactics tried without calling a model (tested on real Lean: tests/test_lean.py::test_automation_chain).
+# `first` takes the first option that does not fail; tactics that simplify without closing the goal (norm_num, simp…) are guarded with `done`.
 AUTOMATION = ("first | decide | omega | linarith | positivity | nlinarith | aesop | (norm_num; done) | (simp; done)"
               " | (intros; omega) | (intros; nlinarith) | (simp_all; done) | (norm_num [Finset.sum_range_succ]; done)")
 LEMMA_RE = re.compile(r"((?:lemma|theorem)\s+(quaera_step_\d+)\b.*?):=\s*by\s+sorry", re.S)
@@ -60,7 +60,7 @@ SORRY_ONLY = "Proof contains `sorry`."
 
 
 def with_proof(statement_file: str, name: str, proof: str) -> str | None:
-    """Dosyadaki `name` teoreminin ispatını `proof` ile değiştirir (başlık ve diğer tanımlar korunur)."""
+    """Replaces the proof of theorem `name` in the file with `proof` (the header and other definitions are kept)."""
     m = re.search(rf"((?:theorem|lemma)\s+{re.escape(name)}\b.*?):=", statement_file, re.S)
     if not m:
         return None
@@ -68,7 +68,7 @@ def with_proof(statement_file: str, name: str, proof: str) -> str | None:
 
 
 def _ask_safe(ask: Ask, system: str, prompt: str, max_tokens: int, log: list) -> str | None:
-    """Model hatası (ör. çıktı sınırı aşıldı) döngüyü kesmez: kayda geçer, None döner."""
+    """A model error (e.g. output limit exceeded) does not break the loop: it is logged and None is returned."""
     try:
         return ask(system, prompt, max_tokens)
     except ModelError as exc:
@@ -83,8 +83,8 @@ PARALLEL_HINT = ("\n\nStrategy for THIS candidate: structure the proof explicitl
 def prove_search(statement_file: str, name: str, ask: Ask, check: Check, attempts: int = 2,
                  hints: str = "", max_tokens: int = 16000, sketches: int = 2,
                  progress: Callable | None = None, parallel: int = 1) -> ProofResult:
-    """`progress(adım, durum, ayrıntı="", şerit=None)`: canlı görünüm için (durum: start/done/fail).
-    `parallel=2`: ilk turda iki farklı aday ispat aynı anda yazılır (doğrudan + adımlara bölünmüş); Lean denetimi sıralıdır."""
+    """`progress(step, status, detail="", lane=None)`: for the live view (status: start/done/fail).
+    `parallel=2`: in the first round two different candidate proofs are written concurrently (direct + split into steps); Lean checks are sequential."""
     res = ProofResult(False, None, 0)
     note = progress or (lambda *a, **k: None)
 
@@ -92,7 +92,7 @@ def prove_search(statement_file: str, name: str, ask: Ask, check: Check, attempt
         res.solved, res.source = True, source
         return res
 
-    # 1) ücretsiz otomasyon
+    # 1) free automation
     auto = with_proof(statement_file, name, AUTOMATION)
     if auto:
         note("Trying automation tactics (no model)", "start")
@@ -102,7 +102,7 @@ def prove_search(statement_file: str, name: str, ask: Ask, check: Check, attempt
         if rep.get("verified"):
             return done(auto)
 
-    # 2) bütün ispat denemeleri (model hatası döngüyü kesmez); ilk tur isteğe bağlı olarak paralel iki aday
+    # 2) whole-proof attempts (a model error does not break the loop); optionally two parallel candidates in the first round
     system = prompts.PROVE.replace("`quaera_main`", f"`{name}`")
     prompt = (f"Approved statement (do not change; keep the theorem name `{name}`):\n```lean\n{statement_file}\n```\n"
               + (f"Hints: {hints}\n" if hints else ""))
@@ -142,7 +142,7 @@ def prove_search(statement_file: str, name: str, ask: Ask, check: Check, attempt
             feedback.append(f"Attempt failed:\n```lean\n{source}\n```\nCompiler feedback:\n{feedback_text(rep)}")
         prompt += "\n\n" + "\n\n".join(feedback) + "\nFix the proof."
 
-    # 3) taslak + lemmalar
+    # 3) sketch + lemmas
     sk_system = prompts.SKETCH.replace("`quaera_main`", f"`{name}`")
     sk_prompt = f"Approved statement (keep name `{name}` and statement exactly):\n```lean\n{statement_file}\n```\n" + (f"Hints: {hints}\n" if hints else "")
     for k in range(sketches):
@@ -188,8 +188,8 @@ def prove_search(statement_file: str, name: str, ask: Ask, check: Check, attempt
 
 
 def _prove_lemma(file_text: str, lname: str, ask: Ask, check: Check, res: ProofResult, max_tokens: int) -> str | None:
-    """Taslaktaki bir lemmayı ispatlar: önce otomasyon, sonra model (iki deneme). Başarılıysa lemmanın sorry'si yerine
-    ispatı konmuş dosyayı döner. Diğer sorry'ler kalabilir; yalnızca bu lemmanın doğrulandığına bakılır."""
+    """Proves one lemma of the sketch: automation first, then the model (two attempts). On success returns the file with
+    the lemma's sorry replaced by its proof. Other sorries may remain; only this lemma is checked for verification."""
     m = re.search(rf"((?:lemma|theorem)\s+{re.escape(lname)}\b.*?):=\s*by\s+sorry", file_text, re.S)
     if not m:
         return None
@@ -215,7 +215,7 @@ def _prove_lemma(file_text: str, lname: str, ask: Ask, check: Check, res: ProofR
         rep = check(source, lname, stmt)
         res.log.append({"kind": "lemma", "lemma": lname, "verified": rep.get("verified", False), "errors": rep.get("errors", [])[:2]})
         if rep.get("verified") and statement_of(source, lname) == stmt:
-            # yalnızca bu lemmanın ispatını al; dosyanın geri kalanı taslaktaki gibi kalsın
+            # take only this lemma's proof; the rest of the file stays as in the sketch
             mm = re.search(rf"((?:lemma|theorem)\s+{re.escape(lname)}\b.*?):=(.*?)(?=\n(?:lemma|theorem|def|abbrev|noncomputable|open|/--)\s|\Z)",
                            source, re.S)
             if mm:

@@ -1,5 +1,5 @@
-// Ortak simgeler ve marka işareti (kenar çubuğu, ana sayfa, proje sayfası).
-export const EVAL_PREFIX = /^(sentetik|itiraz|vaka|putnam)-/;
+// Shared icons and the brand mark (sidebar, home page, project page).
+export const EVAL_PREFIX = /^(synthetic|critic-test|case|putnam|sentetik|itiraz|vaka)-/;   // last three: older evaluation run names
 export const icon = (d: string, size = 18) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 export const ICONS = {
   list: "M4 6h16M4 12h16M4 18h10", plus: "M12 5v14M5 12h14", memory: "M9 3h6M12 3v3M5 9a7 7 0 1 0 14 0M5 9h14M8 13h.01M12 13h.01M16 13h.01M8 17h8",

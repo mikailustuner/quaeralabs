@@ -1,7 +1,7 @@
 [project]
 name = "quaeralabs"
 version = "0.1.0"
-description = "QuaeraLabs: açık kaynaklı AI araştırma ekibi"
+description = "QuaeraLabs: open-source AI research team"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
@@ -40,4 +40,4 @@ dev = ["pytest>=8", "numpy>=2", "httpx>=0.27"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-m 'not lean and not live'"
-markers = ["lean: Lean ve Mathlib kurulu olmasını gerektirir", "live: gerçek model çağrısı yapar (maliyetli)"]
+markers = ["lean: requires Lean and Mathlib to be installed", "live: makes real model calls (costs money)"]

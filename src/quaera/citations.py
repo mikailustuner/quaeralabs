@@ -1,7 +1,7 @@
-"""Kaynak doğrulayıcı: arXiv kimliklerini ve DOI'leri resmi API'lere sorar.
+"""Citation checker: queries the official APIs for arXiv IDs and DOIs.
 
-Ağ çağrıları zaman aşımına sahiptir; ulaşılamayan kaynak 'unknown' döner ve
-asla 'real' sayılmaz.
+Network calls have timeouts; an unreachable source returns 'unknown' and is
+never counted as 'real'.
 """
 
 from __future__ import annotations
@@ -31,14 +31,14 @@ def check_arxiv(ref: str) -> str:
     status, body = _get("https://export.arxiv.org/api/query?" + urllib.parse.urlencode({"id_list": ref}))
     if status != 200:
         return "unknown"
-    # Var olmayan kimlik için arXiv bir hata girdisi döndürür.
+    # For a nonexistent ID, arXiv returns an error entry.
     if "<entry>" not in body or "<title>Error</title>" in body or "/api/errors" in body:
         return "fake"
     return "real"
 
 
 def check_doi(ref: str) -> str:
-    # arXiv'in kendi DOI'leri (10.48550/arXiv.XXXX) DataCite'ta kayıtlıdır, Crossref'te değil: arXiv'e sorulur.
+    # arXiv's own DOIs (10.48550/arXiv.XXXX) are registered with DataCite, not Crossref: ask arXiv.
     m = re.match(r"^10\.48550/arxiv\.(\d{4}\.\d{4,5}(v\d+)?)$", ref, re.I)
     if m:
         return check_arxiv(m.group(1))
@@ -47,7 +47,7 @@ def check_doi(ref: str) -> str:
         return "real"
     if status != 404:
         return "unknown"
-    # Crossref'te yoksa DataCite'a da sorulur (veri setleri, ön baskılar); ikisinde de yoksa sahte sayılır.
+    # If Crossref doesn't have it, ask DataCite too (datasets, preprints); missing from both counts as fake.
     status, _ = _get("https://api.datacite.org/dois/" + urllib.parse.quote(ref, safe="/"))
     if status == 200:
         return "real"

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:quaeralabs:v1:result",
-  "title": "Sonuç (RES)",
-  "description": "Analistin çalıştırmalardan çıkardığı sonuç. Matematikte 'verified' yalnızca Lean derleyici çıktısı ekliyse true olabilir.",
+  "title": "Result (RES)",
+  "description": "The result the Analyst draws from the runs. In math, 'verified' can only be true when the Lean compiler output is attached.",
   "allOf": [
     { "$ref": "urn:quaeralabs:v1:common#/$defs/base" },
     {
@@ -19,14 +19,14 @@
     "summary": { "type": "string", "minLength": 10 },
     "metrics": { "type": "object", "additionalProperties": { "type": "number" } },
     "limitations": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-    "negative": { "type": "boolean", "description": "Hipotezi desteklemeyen sonuç; raporda 'Ne işe yaramadı?' bölümüne girer." },
+    "negative": { "type": "boolean", "description": "A result that does not support the hypothesis; it goes into the report's 'What did not work?' section." },
     "leanProof": {
       "type": "object",
       "required": ["verified"],
       "properties": {
         "verified": { "type": "boolean" },
         "sorryFree": { "type": "boolean" },
-        "compilerOutput": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId", "description": "Lean derleyici çıktısının artefakt kimliği" },
+        "compilerOutput": { "$ref": "urn:quaeralabs:v1:common#/$defs/publicId", "description": "Artifact id of the Lean compiler output" },
         "theoremName": { "type": "string" }
       },
       "additionalProperties": false

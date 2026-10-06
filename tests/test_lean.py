@@ -1,6 +1,6 @@
-"""Gerçek Lean 4 + Mathlib ile doğrulayıcı testleri. Lean kurulu değilse atlanır.
+"""Verifier tests against real Lean 4 + Mathlib. Skipped if Lean is not installed.
 
-Çalıştırma: uv run pytest -m lean   (ilk Mathlib yüklemesi yavaş disklerde birkaç dakika sürebilir)
+Run: uv run pytest -m lean   (the first Mathlib load can take a few minutes on slow disks)
 """
 
 from pathlib import Path
@@ -80,7 +80,7 @@ def test_warning_before_axioms_line_in_clean_mode(lean):
     assert r.verified, (r.problems, r.errors)
 
 
-# --- Faz 4+ zekâ iyileştirmeleri: otomasyon zinciri ve biçimsel sadakat dosyaları gerçek Lean'de -----------------
+# --- Phase 4+ intelligence improvements: automation chain and formal fidelity files in real Lean ------------------
 from quaera.fidelity import refutation_file, vacuity_file  # noqa: E402
 from quaera.lean import statement_of  # noqa: E402
 from quaera.prover import AUTOMATION, with_proof  # noqa: E402
@@ -92,7 +92,7 @@ def _auto(lean, body):
 
 
 def test_automation_chain(lean):
-    # `first` zinciri hedefi kapatmadan ilerleyen taktikte takılmamalı (done koruması): üçü de çözülmeli
+    # the `first` chain must not get stuck on a tactic that progresses without closing the goal (done guard): all three must be solved
     assert _auto(lean, "theorem quaera_main (a : ℝ) (ha : 0 ≤ a) : 0 ≤ a ^ 2 + a := by\n  sorry\n")
     assert _auto(lean, "theorem quaera_main (n : ℕ) (h : 3 ≤ n) : 2 * n + 1 > 6 := by\n  sorry\n")
     assert _auto(lean, "theorem quaera_main : ∀ n < 20, n ^ 2 % 4 ≠ 3 := by\n  sorry\n")
@@ -104,18 +104,18 @@ def test_refutation_and_vacuity_files(lean):
     true_src = "import Mathlib\n\ntheorem quaera_main (n : ℕ) : 6 ∣ n ^ 3 - n := by\n  sorry\n"
     vac_src = "import Mathlib\n\ntheorem quaera_main (n : ℕ) (h1 : n > 5) (h2 : n < 3) : n = 7 := by\n  sorry\n"
     f, st = refutation_file(false_src, "quaera_main")
-    assert lean.check(f, "quaera_refute", st).verified                       # yanlış ifade çürütülür
+    assert lean.check(f, "quaera_refute", st).verified                       # a false statement is refuted
     f, st = refutation_file(true_src, "quaera_main")
-    assert not lean.check(f, "quaera_refute", st).verified                   # doğru ifade çürütülemez
+    assert not lean.check(f, "quaera_refute", st).verified                   # a true statement cannot be refuted
     f, st = vacuity_file(vac_src, "quaera_main")
-    assert lean.check(f, "quaera_vacuous", st).verified                      # çelişkili varsayımlar yakalanır
+    assert lean.check(f, "quaera_vacuous", st).verified                      # contradictory assumptions are caught
     f, st = vacuity_file(true_src, "quaera_main")
-    assert not lean.check(f, "quaera_vacuous", st).verified                  # tutarlı varsayımlar yakalanmaz
+    assert not lean.check(f, "quaera_vacuous", st).verified                  # consistent assumptions are not flagged
 
 
 def test_discovery_lemma_file_and_synthesis_compile_in_real_lean(lean):
-    """Keşif kipinin ürettiği dosyalar gerçek Lean'de: sorry'li lemma ifadesi derlenir; doğrulanmış lemmalarla
-    kurulan ana teorem dosyası onaylı ifadeyle doğrulanır; Mathlib'in RiemannHypothesis tanımı hedef olarak derlenir."""
+    """Files produced by Discovery mode, in real Lean: a lemma statement with sorry compiles; the main theorem file built
+    from verified lemmas is verified against the approved statement; Mathlib's RiemannHypothesis definition compiles as a target."""
     from quaera.discovery import lemma_file, strip_header
     stmt = lemma_file("theorem foo (n : ℕ) : (n + 1) ^ 2 = n ^ 2 + 2 * n + 1 := by sorry", "quaera_L1")
     r = lean.check(stmt, theorem="quaera_L1")
