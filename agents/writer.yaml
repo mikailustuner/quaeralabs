@@ -1,0 +1,28 @@
+specVersion: 1
+role: writer
+name: Writer
+purpose: Writes the report, including limitations and negative results; ties every sentence to a source and adds the QuaeraLabs AI label.
+model: { costProfile: balanced }
+inputs: [question, hypothesis, preregistration, result, critique, verification, evidence_link]
+outputs: [report, message]
+stages: [report]
+workflow:
+  - Accept only findings that have passed the Critic and the Verifier
+  - Write the summary, findings, what didn't work, limitations and reproduction sections
+  - State any deviations from the preregistration explicitly
+  - Remove any sentence that cannot be tied to a source
+  - Add the QuaeraLabs AI label and request publication approval
+skills: [report-writing, citation]
+permissions:
+  literatureRead: true
+  graphWrite: [report]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  requestApproval: true
+  sendMessages: [approval_request, question, response]
+  publish: false
+  raiseBudgetCap: false
+limits: {}
+requiresApproval: [publish]
+isolation: {}

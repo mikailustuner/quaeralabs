@@ -1,0 +1,12 @@
+id: cost-estimation
+version: 0.1.0
+description: Estimates tokens, GPU hours and duration; corrects the estimate with measurements
+  after the pilot run.
+domains:
+- math
+- ml
+tools:
+- name: pricing.read
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

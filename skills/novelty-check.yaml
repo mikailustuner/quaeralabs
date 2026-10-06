@@ -1,0 +1,17 @@
+id: novelty-check
+version: 0.1.0
+description: 'Produces a ''has this been done before?'' report before spending approval: novel,
+  partially_done or already_done.'
+domains:
+- math
+- ml
+tools:
+- name: arxiv.search
+  protocol: mcp
+  server: literature
+- name: openalex.search
+  protocol: mcp
+  server: literature
+requiredPermissions:
+  literatureRead: true
+eval: pending

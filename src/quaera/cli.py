@@ -205,6 +205,9 @@ def cmd_doctor(a) -> int:
         optional.append(("Lean REPL", c.repl_bin.exists(), f"cd {DEFAULT_WORKSPACE} && lake build REPL/repl"))
     except LeanUnavailable as exc:
         optional.append(("Lean 4 + Mathlib (matematik araştırmaları için)", False, f"./install.sh --with-lean ({exc})"))
+    from .memory import default_embedder
+    optional.append(("lab memory embeddings (Turkish/English recall)", default_embedder() is not None,
+                     "uv sync --extra memory (or QUAERA_MEMORY_EMBED is off)"))
     from .providers import detect
     for d in detect():
         if d["id"] != "claude":
@@ -257,7 +260,10 @@ def cmd_titles(a) -> int:
 
 
 def cmd_iterate(a) -> int:
+    from .memory import LabMemory
     from .tree import iterate
+    if a.budget_per_branch is None and a.total_budget is None:
+        raise SystemExit("--budget-per-branch or --total-budget is required")
     pid = project_path(a.project).name
     if a.auto_approve_under is not None:
         approve = lambda text, cost: cost <= a.auto_approve_under  # noqa: E731
@@ -266,7 +272,8 @@ def cmd_iterate(a) -> int:
             return input(f"{text}\nOnaylıyor musunuz (en fazla ${cost:.2f})? [e/H] ").strip().lower() in ("e", "evet", "y")
     created = iterate(HOME, pid, build=lambda path, budget: build(path, budget, a.auto_approve_under),
                       providers=make_providers(), agent_specs=Permissions.load().agents, approve=approve,
-                      max_branches=a.max_branches, budget_per_branch=a.budget_per_branch)
+                      max_branches=a.max_branches, budget_per_branch=a.budget_per_branch, total_budget=a.total_budget,
+                      memory=LabMemory(HOME.parent / "memory.db"))
     print(f"{len(created)} yeni dal: {', '.join(created) or '—'}")
     return 0
 
@@ -336,7 +343,9 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("iterate", help="sonuçsuz dalları Direktör'ün önerisiyle yinele (araştırma ağacı)")
     s.add_argument("project")
     s.add_argument("--max-branches", type=int, default=2)
-    s.add_argument("--budget-per-branch", type=float, required=True)
+    s.add_argument("--budget-per-branch", type=float)
+    s.add_argument("--total-budget", type=float,
+                   help="keep trying until the whole research line has spent this much (each branch gets the remainder)")
     s.add_argument("--auto-approve-under", type=float, help="bu tutarın altındaki yeni dalları sormadan aç")
     s.set_defaults(fn=cmd_iterate)
     s = sub.add_parser("audit", help="dürüstlük denetimi: uydurma alıntı, sahte doğrulama, değiştirilmiş rapor")

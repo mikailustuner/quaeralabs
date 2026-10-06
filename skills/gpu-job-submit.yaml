@@ -1,0 +1,17 @@
+id: gpu-job-submit
+version: 0.1.0
+description: Submits jobs to a local GPU or the user's cloud account within the approved
+  plan budget.
+domains:
+- ml
+tools:
+- name: gpu.submit
+  protocol: mcp
+  server: compute
+- name: gpu.status
+  protocol: mcp
+  server: compute
+requiredPermissions:
+  codeExecute: sandbox
+  gpuSpend: within_approved_plan
+eval: pending

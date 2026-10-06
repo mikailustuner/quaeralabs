@@ -29,7 +29,7 @@ from . import prompts
 from .gateway import BudgetExceeded, ModelError
 from .orchestrator import (THEOREM, Orchestrator, SearchBudget, StopResearch, extract_lean, feedback_text, similar)
 from .lean import statement_of
-from .store import now
+from .store import Store, now
 
 DISCOVERY_STAGES = [
     "literature", "landscape", "target", "design", "ideation", "cross_review", "strategy_approval",
@@ -137,7 +137,9 @@ class DiscoveryOrchestrator(Orchestrator):
     def stage_ideation(self) -> None:
         q, fams = self.question(), self.families()
         n = max(LANES, len(fams))
-        base = (f"Question: {q['title']}\n{self._target_text()}\n\n{self._landscape_text()}" + self.recall_memory(q))
+        tried = self._tried_strategies()
+        base = (f"Question: {q['title']}\n{self._target_text()}\n\n{self._landscape_text()}" + self.recall_memory(q)
+                + self._branch_brief(tried))
         lanes = [(chr(65 + i), prompts.DISCOVERY_LENSES[i % len(prompts.DISCOVERY_LENSES)], fams[i % len(fams)]) for i in range(n)]
 
         def lane_job(lane, lens, fam):
@@ -157,6 +159,9 @@ class DiscoveryOrchestrator(Orchestrator):
         for s, lane, lens, actor in found:
             if any(similar(s["title"] + " " + s["idea"], o["title"] + " " + o["idea"], 0.8) for o in strategies):
                 continue
+            if any(similar(s["title"], t, 0.8) for t in tried):          # already tried in an earlier branch of this line
+                self.store.append("strategy.repeat_skipped", actor, {"title": s["title"]})
+                continue
             rec = {"id": f"S{len(strategies) + 1}", "lane": lane, "lens": lens["id"], "lensName": lens["name"],
                    "family": actor["modelFamily"], "model": actor["model"], **{k: s.get(k) for k in
                    ("title", "idea", "keySteps", "barrierCheck", "killTest", "novelty", "direction")}}
@@ -166,6 +171,29 @@ class DiscoveryOrchestrator(Orchestrator):
         if not strategies:
             raise StopResearch("no lane proposed a usable strategy")
         self.set_state("strategies", strategies)
+
+    def _tried_strategies(self) -> list[str]:
+        """Strategy titles from earlier attempts of this research line (empty for a fresh project)."""
+        from .tree import lineage
+        home, me = self.store.path.parent.parent, self.store.path.parent.name
+        if not (self.store.meta("branch") or {}).get("parent"):
+            return []
+        titles = []
+        for pid in lineage(home, me)[:-1]:
+            s = Store(home / pid / "quaera.db")
+            try:
+                titles += [e["payload"]["title"] for e in s.events("strategy.proposed")]
+            finally:
+                s.close()
+        return list(dict.fromkeys(titles))
+
+    def _branch_brief(self, tried: list[str]) -> str:
+        br = self.store.meta("branch") or {}
+        if br.get("kind") != "approach" and not tried:
+            return ""
+        return ("\n\nThis is a new attempt in a longer research line. Earlier attempts failed; do NOT propose these strategies "
+                "again or cosmetic variants of them:\n" + "\n".join(f"- {t}" for t in tried[-30:])
+                + (f"\nDirector's instructions for this attempt (what was learned, what to try instead): {br['note']}" if br.get("note") else ""))
 
     def stage_cross_review(self) -> None:
         strategies = self.state("strategies")

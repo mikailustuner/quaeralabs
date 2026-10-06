@@ -1,0 +1,15 @@
+id: methodology-audit
+version: 0.1.0
+description: Audits the plan and result for leakage, confounders, single-seed results, selective
+  reporting and preregistration violations.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+- name: store.read
+  protocol: builtin
+requiredPermissions:
+  codeExecute: readonly_checks
+eval: pending

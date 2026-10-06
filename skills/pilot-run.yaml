@@ -1,0 +1,14 @@
+id: pilot-run
+version: 0.1.0
+description: Runs the experiment at small scale (e.g. 1% of the data) before the full run
+  and updates the cost estimate.
+domains:
+- ml
+- math
+tools:
+- name: sandbox.exec
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeExecute: sandbox
+eval: pending

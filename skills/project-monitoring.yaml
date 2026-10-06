@@ -1,0 +1,13 @@
+id: project-monitoring
+version: 0.1.0
+description: Monitors the project's event log and objects read-only and reports status to the human. Has no write or execute tools.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+- name: project.status
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

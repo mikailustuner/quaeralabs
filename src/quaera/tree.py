@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import difflib
 import json
+import os
 import re
 import shutil
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,6 +57,8 @@ def branch_project(home: Path, pid: str, kind: str, reason: str, *, hypothesis: 
     src = Store(home / pid / "quaera.db")
     try:
         stage = CHANGE_STAGE.get(kind) or at_stage
+        if kind == "approach" and src.meta("mode") == "discover":
+            stage = "design"          # discovery keeps the target and reruns ideation with the history (see stage_ideation)
         if not stage:
             raise ValueError("a note branch requires the stage to branch from")
         at = stage_seq(src, stage)
@@ -208,9 +212,13 @@ def family(home: Path, pid: str) -> dict:
 
 REVISE = """You are the Director of a research team. A research branch ended WITHOUT a conclusive answer.
 Decide whether a new branch is worth trying and what exactly to change. A cleanly refuted hypothesis is a result, not a failure.
+You get the history of EVERY earlier attempt in this research line. Never repeat an attempt from the history (same hypothesis,
+same strategy or a cosmetic variant of it); build on what was learned (which steps failed, which objections were fatal, which lemmas were verified).
+Prefer a genuinely different direction once an approach has failed twice. Stop only when no new direction is left.
 Options:
 - "hypothesis": propose a revised hypothesis (e.g. a weaker/special case that is provable, a corrected formulation, a sharper claim)
-- "approach": keep the hypothesis, change the experiment or proof approach (give concrete instructions to the designer/engineer)
+- "approach": keep the hypothesis, change the experiment or proof approach (give concrete instructions to the designer/engineer).
+  In discovery mode the target statement is fixed: use "approach" and describe the new strategy directions to explore and what to avoid.
 - "stop": no promising change (explain why)
 Return only JSON: {"decision": "hypothesis"|"approach"|"stop", "newHypothesis": "Turkish, only for hypothesis",
 "instructions": "Turkish, concrete, only for approach", "reason": "Turkish, one or two sentences: what failed and why this change should help"}""".replace("Turkish", LANGUAGE)
@@ -241,13 +249,61 @@ def failure_context(home: Path, pid: str) -> str:
 
 
 REVISE_CAP_USD = 0.5   # Direktör'ün revizyon kararı için ayrılan üst sınır (dal bütçesine ek, onayda gösterilir)
+MIN_BRANCH_USD = 0.5   # keep-trying loop: a branch needs at least this much of the remaining total budget
+MAX_ITERATIONS = int(os.environ.get("QUAERA_MAX_ITERATIONS", "10"))   # safety cap: subscription CLIs report $0 per call
+
+
+def lineage(home: Path, pid: str) -> list[str]:
+    """Projects from the root of the research line to `pid` (following each branch's parent)."""
+    chain, cur = [], pid
+    while cur and cur not in chain:
+        chain.append(cur)
+        s = Store(home / cur / "quaera.db")
+        try:
+            cur = (s.meta("branch") or {}).get("parent")
+        finally:
+            s.close()
+    return chain[::-1]
+
+
+def attempt_history(home: Path, pid: str, memory=None) -> str:
+    """What every attempt in the line tried, how it ended and what was learned (input to the Director)."""
+    out = []
+    for p in lineage(home, pid):
+        summ = node_summary(home, p)
+        s = Store(home / p / "quaera.db")
+        try:
+            br = s.meta("branch") or {}
+            reviews = {e["payload"]["id"]: e["payload"] for e in s.events("strategy.reviewed")}
+            dead = {e["payload"]["id"]: e["payload"].get("reason") for e in s.events("strategy.dead")}
+            strategies = [{"title": e["payload"]["title"], "fatalFlaw": (reviews.get(e["payload"]["id"]) or {}).get("fatalFlaw"),
+                           "abandoned": dead.get(e["payload"]["id"])}
+                          for e in s.events("strategy.proposed") if e["seq"] > (br.get("atSeq") or 0)]
+            lemmas = Counter(e["payload"]["status"] for e in s.events("lemma.status") if e["seq"] > (br.get("atSeq") or 0))
+            critiques = [c["body"][:200] for c in s.latest("critique") if c["status"] in ("open", "rejected_with_reason")][-3:]
+        finally:
+            s.close()
+        out.append({"attempt": p, "change": br and {k: br.get(k) for k in ("kind", "reason", "hypothesis", "note")},
+                    "hypothesis": (summ["hypothesis"] or {}).get("statement"), "outcome": summ["outcome"],
+                    "stopped": summ["stopped"] and str(summ["stopped"])[:200], "strategies": strategies,
+                    "lemmaStatuses": dict(lemmas), "openCritiques": critiques,
+                    "lessons": [l["text"][:200] for l in memory.learnings(limit=6, project=p, include_evals=True)] if memory else []})
+    return json.dumps(out, ensure_ascii=False, default=str)[-9000:]
+
+
+def tried_hypotheses(home: Path, pid: str) -> list[str]:
+    return [h for p in lineage(home, pid) if (h := ((node_summary(home, p)["hypothesis"] or {}).get("statement")))]
 
 
 def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, approve, max_branches: int,
-            budget_per_branch: float, log=print) -> list[str]:
+            budget_per_branch: float | None = None, total_budget: float | None = None, memory=None, log=print) -> list[str]:
     """Sonuçsuz dalları yineler. `build(path, budget) -> Orchestrator`, `approve(metin, maliyet) -> bool`.
-    Her yeni dal açılmadan önce insan onayı (ya da otonomi kuralı) istenir; Direktör'ün kararı kayda geçer."""
+    Her yeni dal açılmadan önce insan onayı (ya da otonomi kuralı) istenir; Direktör'ün kararı kayda geçer.
+
+    `total_budget`: keep trying until the whole research line (root and all branches) has spent this much; each
+    branch then gets the remaining budget (capped by `budget_per_branch` if given)."""
     from .gateway import BudgetExceeded, Gateway, ModelError, parse_json
+    from .orchestrator import similar
     created: list[str] = []
     current = pid
     for _ in range(max_branches):
@@ -255,9 +311,16 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
         if not needs_iteration(summ):
             log(f"{current}: sonuç {summ['outcome']} — yineleme gerekmiyor")
             break
-        cost = budget_per_branch + REVISE_CAP_USD
+        branch_budget = budget_per_branch
+        if total_budget is not None:
+            remaining = total_budget - sum(node_summary(home, p)["costUsd"] for p in lineage(home, current)) - REVISE_CAP_USD
+            if remaining < MIN_BRANCH_USD:
+                log(f"budget reached: ${remaining + REVISE_CAP_USD:.2f} of ${total_budget:.2f} left")
+                break
+            branch_budget = min(budget_per_branch or remaining, remaining)
+        cost = branch_budget + REVISE_CAP_USD
         if not approve(f"{current} ended without a conclusive result ({summ['outcome']}). The Director will propose a change and the new branch "
-                       f"will run with a budget of at most ${budget_per_branch:.2f}.", cost):
+                       f"will run with a budget of at most ${branch_budget:.2f}.", cost):
             log("yeni dal onaylanmadı")
             break
         parent = Store(home / current / "quaera.db")
@@ -265,10 +328,23 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
             kind, {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"}, payload)
         gw = Gateway(providers, REVISE_CAP_USD, agent_specs, record)
         hyp = (summ["hypothesis"] or {}).get("statement", "—")
+        ask = (f"Question: {summ['title']}\nMode: {parent.meta('mode') or 'verify'}\nTested hypothesis: {hyp}\nOutcome: {summ['outcome']}\n"
+               f"What happened in the last attempt (JSON): {failure_context(home, current)}\n\n"
+               f"History of all attempts in this research line (JSON): {attempt_history(home, current, memory)}")
+        tried = tried_hypotheses(home, current)
+        decision, completion = None, None
         try:
-            completion, _ = gw.call("director", REVISE, f"Question: {summ['title']}\nTested hypothesis: {hyp}\n"
-                                    f"Outcome: {summ['outcome']}\nWhat happened (JSON): {failure_context(home, current)}", 2000)
-            decision = parse_json(completion.text)
+            for _try in (1, 2):
+                completion, _ = gw.call("director", REVISE, ask, 2000)
+                decision = parse_json(completion.text)
+                new = decision.get("newHypothesis") or ""
+                if decision.get("decision") != "hypothesis" or not any(similar(new, t, 0.85) for t in tried):
+                    break
+                parent.append("branch.repeat_rejected", {"kind": "agent", "role": "director", "model": completion.model,
+                                                         "modelFamily": completion.family}, {"newHypothesis": new})
+                ask += f"\n\nREJECTED: «{new}» repeats an earlier attempt. Propose something genuinely different, or stop."
+            else:
+                decision = {"decision": "stop", "reason": "the Director only proposed hypotheses that were already tried"}
         except (BudgetExceeded, ModelError, ValueError) as exc:
             parent.append("branch.revision_failed", {"kind": "agent", "role": "director", "model": "quaera/deterministic",
                                                      "modelFamily": "quaera"}, {"error": str(exc)[:300]})
@@ -283,9 +359,9 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
             break
         child = branch_project(home, current, kind, decision.get("reason") or "Director revision",
                                hypothesis=decision.get("newHypothesis"), note=decision.get("instructions"),
-                               by=director, budget=budget_per_branch)
+                               by=director, budget=branch_budget)
         log(f"yeni dal: {child} ({kind}) — {decision.get('reason', '')}")
-        orch = build(home / child, budget_per_branch)
+        orch = build(home / child, branch_budget)
         try:
             orch.run()
         finally:

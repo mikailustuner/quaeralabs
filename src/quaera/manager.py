@@ -2,7 +2,7 @@
 
 Amaç Direktör'ün dikkatini dağıtmamak: insan "şu an ne oluyor, neden bu hipotez, ne kadar harcadık" gibi soruları
 buraya sorar; yanıt projenin olay kaydından üretilir, araştırma döngüsüne hiçbir şey girmez.
-- Yönetici hiçbir nesne yazamaz, araç çalıştıramaz, ekibe mesaj gönderemez (agents/yonetici.yaml).
+- Yönetici hiçbir nesne yazamaz, araç çalıştıramaz, ekibe mesaj gönderemez (agents/manager.yaml).
 - İnsan ekibe bir şey söylemek isterse yönetici bir not *taslağı* önerir (FORWARD satırı); notu Direktör'e
   göndermek insanın tıklamasıyla olur ve normal insan mesajı olarak kayda geçer.
 - Sohbetin kendi bütçesi vardır (QUAERA_MANAGER_CAP_USD, proje başına varsayılan 0,50 $); araştırma bütçesinden

@@ -1,0 +1,12 @@
+id: lean-recompile
+version: 0.1.0
+description: Recompiles the recorded Lean file unmodified in a clean sandbox built from scratch and repeats the axiom check.
+domains:
+- math
+tools:
+- name: lean.compile
+  protocol: mcp
+  server: lean
+requiredPermissions:
+  codeExecute: clean_sandbox
+eval: pending

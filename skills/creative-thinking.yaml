@@ -1,0 +1,12 @@
+id: creative-thinking
+version: 0.1.0
+description: >-
+  Lenses for generating ideas on open problems (prompts.DISCOVERY_LENSES): change the representation, assume it is false,
+  transfer from a solved analogue, start from the obstacles, start from experiments, specialize/generalize. They guide
+  rather than constrain: one lane per round is free, and the agent may drop a lens for a better idea. Ideas are generated
+  in parallel by different model families and cross-reviewed by another family; only Lean verification counts as a result.
+domains:
+- math
+tools: []
+requiredPermissions: {}
+eval: pending

@@ -30,11 +30,22 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     models = sorted({f"{c['role']}: {c['model']}" for c in calls}) or ["—"]
     fam = lambda role: {c["family"] for c in calls if c["role"] == role}  # noqa: E731
     producers = fam("engineer") | fam("analyst") | fam("hypothesis")
-    cross = ("yes (Critic in a different model family)" if fam("critic") and not (fam("critic") & producers)
-             else "no (single provider family)")
+    reviewed = [e["payload"] for e in store.events("strategy.reviewed")]
+    if reviewed:                                    # discovery mode: every strategy has its own reviewer
+        n = sum(1 for r in reviewed if r.get("crossFamily"))
+        cross = f"{'yes' if n == len(reviewed) else 'partly'} ({n} of {len(reviewed)} strategy reviews by a different model family)"
+    elif fam("critic") and not (fam("critic") & producers):
+        cross = "yes (Critic in a different model family)"
+    elif len({c["family"] for c in calls}) <= 1:
+        cross = "no (single provider family)"
+    else:
+        cross = "no (the Critic shared a model family with a role whose work it reviewed)"
     formal = next((e["payload"]["value"] for e in reversed(store.events("state")) if e["payload"]["key"] == "formal"), None)
     proof = next((e["payload"]["value"] for e in reversed(store.events("state")) if e["payload"]["key"] == "proof"), None)
     stopped = next((e["payload"]["value"] for e in reversed(store.events("state")) if e["payload"]["key"] == "stopped"), None)
+    if stopped:                                     # older runs stored raw model output in the stop reason
+        stopped = " ".join(str(stopped).replace("*", "").replace("`", "").replace("#", "").split()).rstrip(".")
+        stopped = stopped if len(stopped) <= 240 else stopped[:240].rstrip() + "…"
     lit = next((e["payload"]["value"] for e in reversed(store.events("state")) if e["payload"]["key"] == "literature"), None)
 
     chosen = next((h for h in hyps if h["status"] not in ("draft", "rejected")), None)
@@ -61,7 +72,7 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     else:
         verdict = "**The research did not get past the hypothesis stage.**"
     if stopped:
-        verdict += f" Research stopped: {stopped}."
+        verdict += f" Research stopped: {stopped}" + ("" if stopped.endswith("…") else ".")
 
     lines = [f"# {q['title']}", "", f"_{now()[:10]} · {q['id']} · QuaeraLabs research report_", "",
              "> " + LABEL.format(models="; ".join(models), cross=cross, version=__version__), "", "## Summary", "", verdict, ""]
@@ -112,9 +123,17 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     failed = [r for r in runs if r["status"] == "failed"]
     lines += ["", "## What did not work?", ""]
     lines += [f"- {len(failed)} failed runs: " + ", ".join(r["id"] for r in failed)] if failed else ["- No failed runs."]
+    if stopped:
+        lines.append(f"- The research stopped before finishing: {stopped}" + ("" if stopped.endswith("…") else "."))
+    invalid = Counter(f"{e['payload']['role']} ({e['actor']['modelFamily']})" for e in store.events("model.invalid_json"))
+    if invalid:
+        lines.append(f"- {sum(invalid.values())} model answers could not be read as JSON: "
+                     + ", ".join(f"{k} ×{v}" for k, v in invalid.items()) + ".")
+    if store.events("model.error"):
+        lines.append(f"- {len(store.events('model.error'))} model calls failed (model.error events).")
     lines += ["", "## Critic review", ""]
     lines += [f"- **{c['id']}** [{c['severity']}, {c['status']}]: {c['body']}" + (f" → {c['resolution']['text']}" if c.get("resolution") else "")
-              for c in crits] or ["- No objections."]
+              for c in crits] or ["- No objections recorded" + (", but the research stopped before the review was complete." if stopped else ".")]
     lines += ["", "## Verification", ""]
     how_v = "one-off compilation in a clean environment" if q["domain"] == "math" else "the recorded commit was re-run in a clean directory with the same seed"
     lines += [f"- **{v['id']}**: reproduced = `{v['reproduced']}` ({how_v}; cross-model: {'yes' if v['crossModel'] else 'no'})"
@@ -148,6 +167,9 @@ def discovery_section(store: Store) -> list[str]:
     if not proposed:
         return []
     reviews = {e["payload"]["id"]: e["payload"] for e in store.events("strategy.reviewed")}
+    for st in next((e["payload"]["value"] for e in reversed(store.events("state")) if e["payload"]["key"] == "strategies"), []):
+        if st["id"] not in reviews and str((st.get("review") or {}).get("summary", "")).startswith("review failed"):
+            reviews[st["id"]] = {"reviewerFamily": "review failed", "summary": st["review"]["summary"][len("review failed: "):]}
     chosen = [e["payload"]["id"] for e in store.events("strategy.chosen")]
     dead = {e["payload"]["id"]: e["payload"]["reason"] for e in store.events("strategy.dead")}
     lines = ["", "## Discovery program", "",

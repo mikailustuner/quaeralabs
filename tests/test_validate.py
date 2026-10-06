@@ -132,27 +132,27 @@ def edit(path, fn):
 
 
 def test_agent_cannot_publish(tmp_path):
-    errs = agents_with(tmp_path, lambda d: edit(d / "yazar.yaml", lambda a: a["permissions"].update(publish=True)))
-    expect(errs, "yazar.yaml")
+    errs = agents_with(tmp_path, lambda d: edit(d / "writer.yaml", lambda a: a["permissions"].update(publish=True)))
+    expect(errs, "writer.yaml")
 
 
 def test_verifier_cannot_write_code(tmp_path):
-    errs = agents_with(tmp_path, lambda d: edit(d / "dogrulayici.yaml", lambda a: a["permissions"].update(codeWrite="sandbox")))
+    errs = agents_with(tmp_path, lambda d: edit(d / "verifier.yaml", lambda a: a["permissions"].update(codeWrite="sandbox")))
     expect(errs, "Verifier cannot write code")
 
 
 def test_skill_exceeding_agent_permissions(tmp_path):
-    errs = agents_with(tmp_path, lambda d: edit(d / "analist.yaml", lambda a: a["skills"].append("gpu-is-gonder")))
+    errs = agents_with(tmp_path, lambda d: edit(d / "analyst.yaml", lambda a: a["skills"].append("gpu-job-submit")))
     expect(errs, "gpuSpend")
 
 
 def test_unknown_skill(tmp_path):
-    errs = agents_with(tmp_path, lambda d: edit(d / "hipotez.yaml", lambda a: a["skills"].append("olmayan-skill")))
+    errs = agents_with(tmp_path, lambda d: edit(d / "hypothesis.yaml", lambda a: a["skills"].append("missing-skill")))
     expect(errs, "undefined skill")
 
 
 def test_missing_role(tmp_path):
-    errs = agents_with(tmp_path, lambda d: (d / "yazar.yaml").unlink())
+    errs = agents_with(tmp_path, lambda d: (d / "writer.yaml").unlink())
     expect(errs, "nine roles")
 
 

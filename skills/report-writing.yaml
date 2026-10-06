@@ -1,0 +1,14 @@
+id: report-writing
+version: 0.1.0
+description: Writes the report with limitations and negative results; writes no unsourced
+  sentences and adds the QuaeraLabs AI label.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+- name: report.draft
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

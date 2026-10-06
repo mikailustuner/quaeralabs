@@ -1,0 +1,13 @@
+id: experiment-design
+version: 0.1.0
+description: Writes an experiment plan with controls, metrics and a success criterion.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+- name: templates.experiment
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

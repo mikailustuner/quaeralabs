@@ -1,0 +1,27 @@
+specVersion: 1
+role: director
+name: Director
+purpose: Manages the research agenda, priorities and budget allocation; coordinates the loop between agents.
+model: { costProfile: balanced }
+inputs: [question, hypothesis, experiment, result, critique, message]
+outputs: [priority, message]
+stages: [all_transitions]
+workflow:
+  - Read the project status and open messages
+  - Check the conditions for moving to the next stage (approvals, open objections, budget)
+  - Wake the next agent or ask the human
+  - Resolve a debate not settled within three rounds, or hand it off to the human
+skills: [planning, budget-management]
+permissions:
+  literatureRead: true
+  graphWrite: [priority]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  requestApproval: true
+  sendMessages: [question, handoff, approval_request, response, proposal]   # proposal: branch revision proposal (Phase 4+)
+  publish: false
+  raiseBudgetCap: false
+limits: { maxRounds: 3 }
+requiresApproval: [raise_budget_cap]
+isolation: {}

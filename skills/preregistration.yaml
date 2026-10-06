@@ -1,0 +1,12 @@
+id: preregistration
+version: 0.1.0
+description: Locks the hypothesis, primary metric, success criterion and analysis plan and
+  produces their digest (sha256).
+domains:
+- math
+- ml
+tools:
+- name: prereg.lock
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

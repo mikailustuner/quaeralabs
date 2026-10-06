@@ -1,0 +1,11 @@
+id: result-comparison
+version: 0.1.0
+description: Compares the verification run's metrics against the original within tolerance.
+domains:
+- math
+- ml
+tools:
+- name: store.read
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

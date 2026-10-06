@@ -1,0 +1,16 @@
+id: lean-proof
+version: 0.1.0
+description: Writes a Lean 4 proof, compiles it, and fixes it based on the error output.
+domains:
+- math
+tools:
+- name: lean.compile
+  protocol: mcp
+  server: lean
+- name: sandbox.write
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeWrite: sandbox
+  codeExecute: sandbox
+eval: pending

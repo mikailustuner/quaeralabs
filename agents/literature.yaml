@@ -1,0 +1,29 @@
+specVersion: 1
+role: literature
+name: Literature
+purpose: Establishes what is known and what has been tried; runs a novelty check before any spending and verifies every source it cites.
+model: { costProfile: cheap, effort: low }
+inputs: [question, hypothesis, experiment]
+outputs: [artifact, message]
+stages: [literature, novelty_check]
+workflow:
+  - Generate search queries from the question
+  - Search arXiv, Semantic Scholar, OpenAlex and Mathlib
+  - Verify each source by DOI or arXiv ID
+  - Write one summary per source and add it to the graph
+  - Produce a novelty report before the experiment plan goes for approval
+skills: [literature-search, citation, mathlib-search, novelty-check]
+permissions:
+  literatureRead: true
+  graphWrite: [artifact]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  networkAllowlist: [export.arxiv.org, api.openalex.org, api.crossref.org]
+  requestApproval: false
+  sendMessages: [response, handoff]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxItemsPerTurn: 40, timeoutMinutes: 30 }
+requiresApproval: []
+isolation: {}

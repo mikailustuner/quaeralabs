@@ -1,0 +1,10 @@
+id: statistical-power
+version: 0.1.0
+description: Recommends the required number of seeds and samples via statistical power analysis.
+domains:
+- ml
+tools:
+- name: stats.power
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

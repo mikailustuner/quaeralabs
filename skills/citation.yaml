@@ -1,0 +1,17 @@
+id: citation
+version: 0.1.0
+description: Verifies every citation by DOI or arXiv ID; marks sources that cannot be verified
+  as 'unverified'.
+domains:
+- math
+- ml
+tools:
+- name: crossref.lookup
+  protocol: mcp
+  server: literature
+- name: arxiv.lookup
+  protocol: mcp
+  server: literature
+requiredPermissions:
+  literatureRead: true
+eval: pending

@@ -1,0 +1,17 @@
+id: python-experiment
+version: 0.1.0
+description: Writes experiment code and runs it in the sandbox; in math, computes small cases and searches for counterexamples (exploration).
+domains:
+- ml
+- math
+tools:
+- name: sandbox.write
+  protocol: mcp
+  server: sandbox
+- name: sandbox.exec
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeWrite: sandbox
+  codeExecute: sandbox
+eval: pending

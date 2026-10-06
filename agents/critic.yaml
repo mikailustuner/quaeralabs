@@ -1,0 +1,32 @@
+specVersion: 1
+role: critic
+name: Critic
+purpose: Tries to refute every plan and finding; no finding enters the report without its approval.
+model:
+  costProfile: best
+  effort: high
+  mustDifferFrom: [engineer, analyst, hypothesis]
+inputs: [hypothesis, experiment, preregistration, run, result, artifact]
+outputs: [critique, message]
+stages: [design, critique]
+workflow:
+  - First read the raw metrics and logs (blind review)
+  - Then compare against the preregistration and look for deviations
+  - Read the agents' interpretations last
+  - Open an objection for each issue with a category and severity
+  - Evaluate the responses; reach a decision within at most three rounds
+skills: [methodology-audit, blind-review]
+permissions:
+  literatureRead: true
+  graphWrite: [critique]
+  codeWrite: none
+  codeExecute: readonly_checks
+  gpuSpend: none
+  requestApproval: false
+  sendMessages: [objection, question, response]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxRounds: 3 }
+requiresApproval: []
+isolation:
+  readOrder: [run_metrics, logs, preregistration, analyst_interpretation]

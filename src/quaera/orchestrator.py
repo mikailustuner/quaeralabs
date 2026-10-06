@@ -155,14 +155,21 @@ class Orchestrator:
         prompt = prompt + self.human_notes(role)
         purpose = purpose_of(system)
         self.activity(role, purpose, "start", lane=lane)
-        for attempt in (1, 2):
+        family = family or self.lane_family(lane)
+        for attempt in (1, 2, 3):
             try:
-                completion, cross = self.gateway.call(role, system, prompt, max_output_tokens, family=family or self.lane_family(lane))
+                completion, cross = self.gateway.call(role, system, prompt, max_output_tokens, family=family)
                 break
             except ModelError as exc:
-                if attempt == 2:
+                if attempt == 1:
+                    continue
+                # Third attempt on another model family, so one broken provider does not stop the research.
+                failed = family if family in self.gateway.providers else self.gateway._family_for(role)[0]
+                alt = self.gateway.alternative(role, failed) if attempt == 2 else None
+                if alt is None:
                     self.activity(role, purpose, "fail", str(exc)[:200], lane=lane)
-                    raise StopResearch(f"{role} model failed to respond in two attempts: {exc}") from exc
+                    raise StopResearch(f"{role} model failed to respond after {attempt} attempts: {str(exc)[:200]}") from exc
+                family = alt
         actor = {"kind": "agent", "role": role, "model": completion.model, "modelFamily": completion.family}
         self.actors[role] = actor
         self.said(actor, system, prompt, completion.text, lane=lane)
@@ -187,15 +194,22 @@ class Orchestrator:
         text, actor = self.guarded(self.llm, role, system, prompt, max_output_tokens, lane=lane, family=family)
         try:
             return as_object(parse_json(text)), actor
-        except (ModelError, ValueError) as first:
+        except (ModelError, ValueError):
             self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300]})
-            retry = (prompt + "\n\nYour previous answer was not valid JSON (possibly cut off). "
-                     "Return ONLY the JSON object, complete and shorter.")
-            text, actor = self.guarded(self.llm, role, system, retry, max_output_tokens, lane=lane, family=family)
+        retry = (prompt + "\n\nYour previous answer was not valid JSON (possibly cut off). "
+                 "Return ONLY the JSON object, complete and shorter.")
+        # Once more on the same family, then on another family (see Gateway.alternative).
+        tried = [actor["modelFamily"]]
+        alt = self.gateway.alternative(role, actor["modelFamily"])
+        for fam in [family] + ([alt] if alt else []):
+            text, actor = self.guarded(self.llm, role, system, retry, max_output_tokens, lane=lane, family=fam)
             try:
                 return as_object(parse_json(text)), actor
-            except (ModelError, ValueError) as exc:
-                raise StopResearch(f"{role} did not return valid JSON in two attempts: {first}") from exc
+            except (ModelError, ValueError):
+                self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300]})
+                tried.append(actor["modelFamily"])
+        raise StopResearch(f"{role} did not return valid JSON ({len(tried)} attempts, model families: "
+                           f"{', '.join(dict.fromkeys(tried))}); see the model.invalid_json events")
 
     def done_stages(self) -> list[str]:
         return [e["payload"]["stage"] for e in self.store.events("stage.done")]

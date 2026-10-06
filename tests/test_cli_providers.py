@@ -39,6 +39,19 @@ assert "--agent" in args and args[args.index("--agent") + 1] == "plan"
 print(json.dumps({"type": "step_start", "part": {"type": "step-start"}}))
 print(json.dumps({"type": "text", "part": {"type": "text", "text": "opencode read: " + ("TASK-OK" if "=== TASK ===" in task else "?") + " 51"}}))
 '''
+AGY = '''
+if "--version" in sys.argv: print("1.2.17"); sys.exit(0)
+args = sys.argv
+assert args[args.index("--mode") + 1] == "plan" and "--sandbox" in args and "-p" not in args
+msg = json.loads(sys.stdin.readline())
+assert msg["event"] == "user"
+text = msg["message"]["content"]
+print(json.dumps({"event": "init", "init": {"cwd": "."}}))
+if "FAIL" in text:
+    print(json.dumps({"event": "result", "result": {"status": "ERROR", "error": "authentication required"}})); sys.exit(1)
+print(json.dumps({"event": "result", "result": {"status": "SUCCESS", "response": "agy read: " + ("TASK-OK" if "=== TASK ===" in text else "?") + " 51\\n",
+                  "usage": {"input_tokens": 50, "output_tokens": 10, "thinking_tokens": 6}}}))
+'''
 
 
 @pytest.fixture()
@@ -47,6 +60,7 @@ def fakes(tmp_path, monkeypatch):
     b.mkdir()
     fake_bin(b, "codex", CODEX)
     fake_bin(b, "opencode", OPENCODE)
+    fake_bin(b, "agy", AGY)
     home = tmp_path / "codexhome"
     home.mkdir()
     (home / "auth.json").write_text("{}")
@@ -61,6 +75,7 @@ def test_detect_finds_codex_and_opencode(fakes):
     found = {d["id"]: d for d in P.detect()}
     assert found["codex"]["ready"] and found["codex"]["version"] == "codex-cli 9.9.9" and found["codex"]["family"] == "openai"
     assert found["opencode"]["ready"] and found["opencode"]["family"] == "opencode"
+    assert found["agy"]["ready"] and found["agy"]["family"] == "google" and found["agy"]["version"] == "1.2.17"
 
 
 def test_codex_needs_login(fakes, monkeypatch, tmp_path):
@@ -82,6 +97,14 @@ def test_opencode_provider_passes_prompt_as_file(fakes):
     p = P.OpenCodeCLIProvider("opencode")
     c = p.complete(p.model_for("cheap"), "sys", "task text", 500, 0.1)
     assert c.text == "opencode read: TASK-OK 51" and c.family == "opencode"
+
+
+def test_agy_provider_sends_prompt_on_stdin(fakes):
+    p = P.AntigravityCLIProvider("agy")
+    c = p.complete(p.model_for("best"), "sys", "task text", 500, 0.1)
+    assert c.text == "agy read: TASK-OK 51" and c.family == "google" and c.output_tokens == 10 and c.cost_usd == 0.0
+    with pytest.raises(ModelError, match="authentication required"):
+        p.complete(p.model_for("cheap"), "sys", "FAIL please", 500, 0.1)
 
 
 def test_opencode_family_follows_model_prefix(monkeypatch):
@@ -113,3 +136,23 @@ def test_critic_is_routed_to_a_different_family_and_billing_recorded(fakes):
 def test_probe_reports_ok(fakes):
     r = P.probe(P.CodexCLIProvider("codex"))
     assert r["ok"] and r["family"] == "openai"
+
+
+CLAUDE = '''
+import os
+prompt = sys.stdin.read()
+limit = int(os.environ["CLAUDE_CODE_MAX_OUTPUT_TOKENS"])
+turns = 3 if "LONG" in prompt else 1
+print(json.dumps({"subtype": "success", "is_error": False, "num_turns": turns, "result": f"limit={limit}",
+                  "total_cost_usd": 0.01, "usage": {"input_tokens": 5, "output_tokens": 7}, "modelUsage": {"claude-x": {}}}))
+'''
+
+
+def test_claude_cli_adds_thinking_headroom_and_rejects_continued_answers(tmp_path):
+    from quaera.gateway import ClaudeCLIProvider
+    claude = fake_bin(tmp_path, "claude", CLAUDE)
+    p = ClaudeCLIProvider(str(claude))
+    assert p.complete("opus", "sys", "short", 2500, 1.0, effort="high").text == "limit=10500"
+    assert p.complete("opus", "sys", "short", 2500, 1.0).text == "limit=2500"
+    with pytest.raises(ModelError, match="cut off"):
+        p.complete("opus", "sys", "LONG answer", 2500, 1.0, effort="high")

@@ -74,7 +74,7 @@ const EXAMPLES = [
 
 /** Ana sayfa: referanstaki gibi ortada büyük bir giriş kutusu; alan, bütçe ve otonomi kutunun altında. */
 export function NewResearch() {
-  const [f, setF] = useState({ question: "", domain: "math", mode: "verify", budget: 2, dataDir: "", scope: "", autonomy: "manual", autoLimit: 0.5 });
+  const [f, setF] = useState({ question: "", domain: "math", mode: "verify", budget: 2, dataDir: "", scope: "", autonomy: "manual", autoLimit: 0.5, keepTrying: false });
   const settings = useLoad(api.settings, []);
   const models: any[] = (settings.data?.models || []).filter((m: any) => m.enabled);
   const [families, setFamilies] = useState<string[] | null>(null);       // null: hazır olanların hepsi
@@ -194,6 +194,13 @@ export function NewResearch() {
                 placeholder={f.domain === "math" ? "Formal proof in Lean 4 + Mathlib" : "Data under /data."} />
               <span id="h-scope" className="help">The team's boundaries. A narrowed result is marked as "restricted scope" in the report.</span>
             </label>
+            <label className="check-row">
+              <input id="f-keepTrying" type="checkbox" checked={f.keepTrying} onChange={(e) => set("keepTrying", e.target.checked)} aria-describedby="h-keepTrying" />
+              <span>Keep trying until the budget is spent
+                <span id="h-keepTrying" className="help">If the research ends without an answer, the Director studies every attempt so far and opens a new branch
+                  with a different hypothesis or strategy, again and again, until the budget above is used up (at most 10 branches). Each new branch follows the autonomy setting.</span>
+              </span>
+            </label>
             {f.autonomy === "under" && (
               <label style={{ maxWidth: 240 }}>Auto-approve below (USD)
                 <input id="f-autoLimit" type="number" min={0} step={0.1} value={f.autoLimit} onChange={(e) => set("autoLimit", Number(e.target.value))} />
@@ -245,7 +252,7 @@ function ModelsCard({ data }: { data: any }) {
     <section className="card stack" style={{ gridColumn: "1 / -1" }} aria-labelledby="models-h">
       <h2 id="models-h">Model providers</h2>
       <p className="faint">Detected automatically. Different families power cross-review (Critic, Verifier), the second hypothesis and proof lanes, and multi-model ideation in Discovery mode.
-        Choose with <span className="mono">QUAERA_PROVIDERS</span> (e.g. <span className="mono">claude,codex,opencode</span>); models with <span className="mono">QUAERA_CODEX_MODEL</span> and <span className="mono">QUAERA_OPENCODE_MODEL</span>.</p>
+        Choose with <span className="mono">QUAERA_PROVIDERS</span> (e.g. <span className="mono">claude,codex,opencode,agy</span>); models with <span className="mono">QUAERA_CODEX_MODEL</span>, <span className="mono">QUAERA_OPENCODE_MODEL</span> and <span className="mono">QUAERA_AGY_MODEL</span>.</p>
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Model providers (scrollable)">
         <table className="data-table">
           <thead><tr><th scope="col">Provider</th><th scope="col">Family</th><th scope="col">Version</th><th scope="col">Billing</th><th scope="col">Status</th><th scope="col">Check</th></tr></thead>

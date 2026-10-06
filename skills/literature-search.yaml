@@ -1,0 +1,17 @@
+id: literature-search
+version: 0.1.0
+description: Searches arXiv, Semantic Scholar, OpenAlex and Crossref and summarizes the
+  results.
+domains:
+- math
+- ml
+tools:
+- name: arxiv.search
+  protocol: mcp
+  server: literature
+- name: openalex.search
+  protocol: mcp
+  server: literature
+requiredPermissions:
+  literatureRead: true
+eval: pending

@@ -5,7 +5,7 @@ import { QEvent } from "./api";
 import { BlobCode, Verdict, statesOf } from "./experiment";
 import { InlineMath } from "./rich";
 
-const FAMILY: Record<string, string> = { anthropic: "Claude", openai: "Codex · OpenAI", opencode: "OpenCode", scripted: "scripted" };
+const FAMILY: Record<string, string> = { anthropic: "Claude", openai: "Codex · OpenAI", opencode: "OpenCode", google: "Antigravity · Google", scripted: "scripted" };
 export const familyName = (f?: string) => (f ? FAMILY[f] || f : "—");
 const STATUS: Record<string, [string, string]> = {
   verified: ["good", "verified in Lean"], refuted: ["bad", "refuted in Lean"], open: ["", "open"], unformalized: ["warn", "not stated in Lean"],

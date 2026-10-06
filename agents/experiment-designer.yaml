@@ -1,0 +1,29 @@
+specVersion: 1
+role: experiment_designer
+name: Experiment designer
+purpose: Writes the experiment plan, including controls, metrics, success criterion and cost estimate, and locks the preregistration.
+model: { costProfile: balanced }
+inputs: [hypothesis, artifact, critique]
+outputs: [experiment, preregistration, message]
+stages: [design, preregistration]
+workflow:
+  - Read the hypothesis and the novelty report
+  - Define the controls, metrics and required number of seeds
+  - Produce the cost estimate
+  - Respond to the Critic's objections to the plan (at most three revisions)
+  - Lock the primary metric, success criterion and analysis plan as the preregistration
+  - Request approval of the plan
+skills: [experiment-design, preregistration, cost-estimation, statistical-power]
+permissions:
+  literatureRead: true
+  graphWrite: [experiment, preregistration]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  requestApproval: true
+  sendMessages: [response, approval_request, handoff, question]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxRevisions: 3 }
+requiresApproval: [approve_experiment]
+isolation: {}

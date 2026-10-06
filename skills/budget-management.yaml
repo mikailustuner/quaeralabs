@@ -1,0 +1,14 @@
+id: budget-management
+version: 0.1.0
+description: Allocates the budget across stages, tracks spending, and warns at 80%; never
+  exceeds the cap.
+domains:
+- math
+- ml
+tools:
+- name: budget.read
+  protocol: builtin
+- name: budget.allocate
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

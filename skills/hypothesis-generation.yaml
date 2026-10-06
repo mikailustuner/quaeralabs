@@ -1,0 +1,11 @@
+id: hypothesis-generation
+version: 0.1.0
+description: Drafts testable hypotheses from sources and results.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

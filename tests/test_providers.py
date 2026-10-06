@@ -52,7 +52,7 @@ def test_effort_per_role_reaches_provider_and_raises_estimate():
     gw = Gateway({"scripted": sp}, 5.0, perms.agents)
     gw.call("engineer", "sistem", "soru", 1000)
     gw.call("writer", "sistem", "soru", 1000)
-    assert [c["effort"] for c in sp.calls] == ["high", None]          # agents/muhendis.yaml: high; yazar: varsayılan
+    assert [c["effort"] for c in sp.calls] == ["high", None]          # agents/engineer.yaml: high; yazar: varsayılan
     gw2 = Gateway({"scripted": ScriptedProvider(lambda s, p: "x")}, 5.0, perms.agents, effort_overrides={"engineer": "default"})
     gw2.call("engineer", "sistem", "soru", 1000)
     assert gw2.providers["scripted"].calls[0]["effort"] is None

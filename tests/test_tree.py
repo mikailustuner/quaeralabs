@@ -79,3 +79,42 @@ def test_no_branch_without_approval_and_refuted_is_not_iterated(tmp_path):
                            approve=lambda text, cost: False, max_branches=2, budget_per_branch=1.0, log=lambda m: None)
     assert created == []
     assert not tree.needs_iteration({"outcome": "refuted", "stopped": None})
+
+
+def test_keep_trying_until_the_total_budget_is_spent_with_full_history(tmp_path):
+    make(tmp_path, always_failing_proof(), name="kok", cost=0.05).run()
+    prompts_seen, n = [], [0]
+
+    def director(system, prompt):
+        prompts_seen.append(prompt)
+        n[0] += 1
+        return json.dumps({"decision": "approach", "instructions": f"Strategy {n[0]}: try a different tactic.",
+                           "reason": f"Attempt {n[0]} failed; change tactic."})
+    budgets = []
+
+    def build(path, budget):
+        budgets.append(budget)
+        return make(tmp_path, always_failing_proof(), name=path.name, cost=0.05)
+    root_cost = tree.node_summary(tmp_path, "kok")["costUsd"]
+    total = root_cost + 4.0
+    created = tree.iterate(tmp_path, "kok", build=build, providers={"scripted": ScriptedProvider(director)},
+                           agent_specs=Permissions.load().agents, approve=lambda text, cost: True, max_branches=50,
+                           total_budget=total, log=lambda m: None)
+    assert len(created) >= 2                                            # kept going after the first failed branch
+    spent = sum(tree.node_summary(tmp_path, p)["costUsd"] for p in tree.lineage(tmp_path, created[-1]))
+    assert total - spent - tree.REVISE_CAP_USD < tree.MIN_BRANCH_USD    # stopped because the budget ran out
+    assert all(b <= total for b in budgets) and budgets == sorted(budgets, reverse=True)   # each branch gets what is left
+    assert tree.lineage(tmp_path, created[-1])[:2] == ["kok", created[0]]
+    assert "Strategy 1: try a different tactic." in prompts_seen[-1]    # the Director sees every earlier attempt
+
+
+def test_repeated_hypothesis_is_rejected_and_the_loop_stops(tmp_path):
+    first = make(tmp_path, always_failing_proof(), name="kok")
+    first.run()
+    same = tree.node_summary(tmp_path, "kok")["hypothesis"]["statement"]
+    director = ScriptedProvider(lambda s, p: json.dumps({"decision": "hypothesis", "newHypothesis": same, "reason": "Try again."}))
+    created = tree.iterate(tmp_path, "kok", build=None, providers={"scripted": director}, agent_specs=Permissions.load().agents,
+                           approve=lambda text, cost: True, max_branches=3, budget_per_branch=1.0, log=lambda m: None)
+    parent = make(tmp_path, Script(), name="kok").store
+    assert created == [] and len(parent.events("branch.repeat_rejected")) == 2
+    assert parent.events("branch.proposed")[-1]["payload"]["decision"] == "stop"

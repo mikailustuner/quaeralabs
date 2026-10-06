@@ -135,6 +135,15 @@ def test_cross_site_and_rebinding_requests_are_rejected(home):
     assert c.get("/api/projects", headers={"origin": "http://127.0.0.1:8765", "sec-fetch-site": "same-origin"}).status_code == 200
 
 
+def test_allowed_hosts_admit_a_private_proxy_name(home, monkeypatch):
+    monkeypatch.setenv("QUAERA_ALLOWED_HOSTS", "lab.example.ts.net")
+    c = TestClient(server.create_app())
+    assert c.get("/api/projects", headers={"host": "lab.example.ts.net:8443", "origin": "https://lab.example.ts.net:8443",
+                                           "sec-fetch-site": "same-origin"}).status_code == 200
+    assert c.get("/api/projects", headers={"host": "kotu.example"}).status_code == 403
+    assert c.get("/api/projects", headers={"host": "lab.example.ts.net", "origin": "https://kotu.example"}).status_code == 403
+
+
 def test_report_problem_creates_local_triage_case(home):
     pid, _ = finished_project(home)
     c = TestClient(server.create_app())
@@ -182,3 +191,24 @@ def test_blob_endpoint_serves_agent_text_only_from_project(home):
     assert r.status_code == 200 and r.text.startswith(said["preview"][:40])
     assert c.get(f"/api/projects/{pid}/blob/../../etc").status_code in (400, 404)
     assert c.get(f"/api/projects/{pid}/blob/{'0' * 64}").status_code == 404
+
+
+def test_keep_trying_project_starts_the_iteration_loop_with_its_budget(home, monkeypatch):
+    calls = []
+    monkeypatch.setattr(server.RUNNER, "start", lambda *a, **k: calls.append("start"))
+    c = TestClient(server.create_app())
+    r = c.post("/api/projects", json={"question": "Is the sum of odd numbers a square?", "domain": "math", "budget": 3,
+                                      "keepTrying": True})
+    assert r.status_code == 201 and server.open_store(r.json()["id"]).meta("keepTrying") is True
+
+    from test_tree import always_failing_proof
+    orch = make(home, always_failing_proof(), name="kt")
+    orch.store.set_meta("keepTrying", True)
+    orch.store.set_meta("budgetCapUsd", 3.0)
+    monkeypatch.setattr(server, "build", lambda path, budget, auto, **k: orch)
+    runner = server.Runner()
+    monkeypatch.setattr(runner, "iterate_loop", lambda pid, *a, **k: calls.append((pid, a, k)))
+    runner.start("kt", "cap", 0.0)
+    runner.threads["kt"].join(30)
+    pid, args, kwargs = calls[-1]
+    assert pid == "kt" and kwargs["total_budget"] == 3.0 and args[2:] == ("cap", 0.0)

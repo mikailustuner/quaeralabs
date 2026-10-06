@@ -103,17 +103,33 @@ class Runner:
             except Exception as exc:  # arayüzde gösterilir; araştırma `resume` ile sürdürülebilir
                 self.errors[pid] = str(exc)[:500]
                 orch.store.append("run.crashed", orch.det("director"), {"error": str(exc)[:500]})
+                return
             finally:
                 orch.tools.close()
+            if orch.store.meta("keepTrying"):    # inconclusive → new branches until the project's budget is spent
+                from .tree import MAX_ITERATIONS
+                self.iterate_loop(pid, MAX_ITERATIONS, None, autonomy, limit_usd,
+                                  total_budget=float(orch.store.meta("budgetCapUsd") or 0))
 
         t = threading.Thread(target=work, daemon=True, name=f"quaera-{pid}")
         self.threads[pid] = t
         t.start()
 
 
-    def start_iterate(self, pid: str, max_branches: int, budget_per_branch: float, autonomy: str, limit_usd: float) -> None:
+    def start_iterate(self, pid: str, max_branches: int, budget_per_branch: float | None, autonomy: str, limit_usd: float,
+                      total_budget: float | None = None) -> None:
         """Yineleme döngüsü bir arka plan iş parçacığında; her yeni dalın kendi web onaycısı olur (onay kartları çalışır)."""
+        def work():
+            self.iterate_loop(pid, max_branches, budget_per_branch, autonomy, limit_usd, total_budget)
+
+        t = threading.Thread(target=work, daemon=True, name=f"quaera-iterate-{pid}")
+        self.threads[pid] = t
+        t.start()
+
+    def iterate_loop(self, pid: str, max_branches: int, budget_per_branch: float | None, autonomy: str, limit_usd: float,
+                     total_budget: float | None = None) -> None:
         from .cli import make_providers
+        from .memory import LabMemory
         from .permissions import Permissions
         from .tree import iterate
 
@@ -128,20 +144,15 @@ class Runner:
         parent_store = open_store(pid)
         gate = WebApprover(parent_store, autonomy, limit_usd)
         self.approvers[pid] = gate
-
-        def work():
-            try:
-                iterate(HOME, pid, build=build_child, providers=make_providers(), agent_specs=Permissions.load().agents,
-                        approve=lambda text, cost: gate.decide("extra_spend", text, cost).approved,
-                        max_branches=max_branches, budget_per_branch=budget_per_branch, log=lambda m: None)
-            except Exception as exc:
-                self.errors[pid] = str(exc)[:500]
-                parent_store.append("run.crashed", {"kind": "agent", "role": "director", "model": "quaera/deterministic",
-                                                    "modelFamily": "quaera"}, {"error": str(exc)[:500]})
-
-        t = threading.Thread(target=work, daemon=True, name=f"quaera-iterate-{pid}")
-        self.threads[pid] = t
-        t.start()
+        try:
+            iterate(HOME, pid, build=build_child, providers=make_providers(), agent_specs=Permissions.load().agents,
+                    approve=lambda text, cost: gate.decide("extra_spend", text, cost).approved,
+                    max_branches=max_branches, budget_per_branch=budget_per_branch, total_budget=total_budget,
+                    memory=LabMemory(HOME.parent / "memory.db"), log=lambda m: None)
+        except Exception as exc:
+            self.errors[pid] = str(exc)[:500]
+            parent_store.append("run.crashed", {"kind": "agent", "role": "director", "model": "quaera/deterministic",
+                                                "modelFamily": "quaera"}, {"error": str(exc)[:500]})
 
 
 RUNNER = Runner()
@@ -280,6 +291,8 @@ async def api_create(request: Request):
     path.mkdir(parents=True, exist_ok=True)
     pre = Store(path / "quaera.db")          # kip ve aileler build'den önce yazılır: doğru orkestratör ve sağlayıcılar seçilsin
     pre.set_meta("mode", mode)
+    if body.get("keepTrying"):
+        pre.set_meta("keepTrying", True)     # after an inconclusive run: new branches until the budget is spent
     if families:
         pre.set_meta("families", families)
     pre.close()
@@ -596,7 +609,7 @@ PROVIDER_PROBES: dict = {}     # testler sahte sağlayıcı verir: {"codex": pro
 async def api_provider_test(request: Request):
     """Ayarlar → "Test": sağlayıcıya küçük gerçek bir soru sorar (Codex/OpenCode aboneliği; Claude'da ~0,01 $)."""
     from .gateway import ClaudeCLIProvider
-    from .providers import CodexCLIProvider, OpenCodeCLIProvider, detect, probe
+    from .providers import AntigravityCLIProvider, CodexCLIProvider, OpenCodeCLIProvider, detect, probe
     pid = request.path_params["id"]
     prov = PROVIDER_PROBES.get(pid)
     if prov is None:
@@ -604,7 +617,7 @@ async def api_provider_test(request: Request):
         if not d or not d["ready"]:
             return JSONResponse({"ok": False, "error": (d or {}).get("note") or "unknown provider"}, 400)
         prov = {"claude": lambda: ClaudeCLIProvider(), "codex": lambda: CodexCLIProvider(d["binary"]),
-                "opencode": lambda: OpenCodeCLIProvider(d["binary"])}[pid]()
+                "opencode": lambda: OpenCodeCLIProvider(d["binary"]), "agy": lambda: AntigravityCLIProvider(d["binary"])}[pid]()
     return JSONResponse(await asyncio.to_thread(probe, prov))
 
 
@@ -622,11 +635,15 @@ async def index(request: Request):
 #   - Origin varsa aynı kaynak olmalı; tarayıcının Sec-Fetch-Site: cross-site işaretli istekleri (img, form, bağlantı) reddedilir,
 #   - POST gövdesi application/json olmalı (çapraz kaynaklı isteklerde ön kontrol zorunlu olur ve reddedilir).
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "testserver"}
+# Behind a private reverse proxy (e.g. `tailscale serve`) the proxy's host name can be allowed explicitly:
+# QUAERA_ALLOWED_HOSTS=myhost.tailnet.ts.net. The same-origin rules still apply.
 
 
 class LocalOnly:
     def __init__(self, app):
         self.app = app
+        extra = os.environ.get("QUAERA_ALLOWED_HOSTS", "")
+        self.hosts = LOCAL_HOSTS | {h.strip().lower() for h in extra.split(",") if h.strip()}
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -635,11 +652,11 @@ class LocalOnly:
         host = headers.get("host", "").rsplit(":", 1)[0].strip("[]")
         origin = headers.get("origin")
         problem = None
-        if host not in LOCAL_HOSTS:
+        if host.lower() not in self.hosts:
             problem = "only local access is allowed"
         elif headers.get("sec-fetch-site") == "cross-site":
             problem = "cross-site request rejected"
-        elif origin and origin.split("://", 1)[-1].rsplit(":", 1)[0] not in LOCAL_HOSTS:
+        elif origin and origin.split("://", 1)[-1].rsplit(":", 1)[0].lower() not in self.hosts:
             problem = "cross-site request rejected"
         elif scope["method"] not in ("GET", "HEAD") and not headers.get("content-type", "").startswith("application/json"):
             problem = "request body must be application/json"

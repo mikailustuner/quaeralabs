@@ -1,0 +1,13 @@
+id: statistics
+version: 0.1.0
+description: Analyzes results with confidence intervals and appropriate tests.
+domains:
+- ml
+tools:
+- name: sandbox.exec
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeWrite: analysis_scripts
+  codeExecute: sandbox_no_gpu
+eval: pending

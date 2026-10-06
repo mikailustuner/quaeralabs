@@ -148,7 +148,7 @@ def main() -> int:
     r.add_argument("--per-problem", type=float, help="problem başına bütçe tavanı (USD); eşit bütçeyle karşılaştırma için")
     r.add_argument("--continue-from", type=Path, help="bütçesi biten bir sonuç dosyasını kalan problemlerle sürdür")
     r.add_argument("--effort", choices=["default", "low", "medium", "high", "xhigh", "max"],
-                   help="Mühendis eforu; verilmezse agents/muhendis.yaml'daki değer. Faz 4 tabanı: default")
+                   help="Mühendis eforu; verilmezse agents/engineer.yaml'daki değer. Faz 4 tabanı: default")
     a = ap.parse_args()
     if a.cmd == "prepare":
         print(prepare(a.src, a.n, a.seed))

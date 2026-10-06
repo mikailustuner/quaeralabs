@@ -22,6 +22,10 @@ quaera = "quaera.cli:main"
 providers = [
     "litellm>=1.104.0",
 ]
+# Multilingual embeddings for lab memory (hybrid bm25 + vector recall); without it recall is bm25 only.
+memory = [
+    "fastembed>=0.8",
+]
 
 [build-system]
 requires = ["hatchling"]

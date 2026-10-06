@@ -85,7 +85,7 @@ if ! command -v uv >/dev/null; then
 fi
 ok "uv $(uv --version | cut -d' ' -f2)"
 say "Python bağımlılıkları kuruluyor"
-uv sync --quiet
+uv sync --quiet --extra memory
 ok "Python ortamı hazır"
 
 # 5) Arayüz -------------------------------------------------------------------------------------

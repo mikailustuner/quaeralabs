@@ -1,0 +1,17 @@
+id: clean-environment-setup
+version: 0.1.0
+description: Builds a clean sandbox from scratch using the recorded environment (lockfile,
+  container digest).
+domains:
+- math
+- ml
+tools:
+- name: sandbox.create_clean
+  protocol: mcp
+  server: sandbox
+- name: sandbox.exec
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeExecute: clean_sandbox
+eval: pending

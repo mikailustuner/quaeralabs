@@ -1,0 +1,28 @@
+specVersion: 1
+role: analyst
+name: Analyst
+purpose: Interprets runs statistically, follows the analysis plan in the preregistration, and proposes extra analyses when needed.
+model: { costProfile: balanced }
+inputs: [run, preregistration, artifact]
+outputs: [result, evidence_link, artifact, message]
+stages: [analysis]
+workflow:
+  - Read the analysis plan in the preregistration
+  - Analyze the metrics using the same method as the plan
+  - Write up the result with its limitations; flag it clearly if negative
+  - Link the result to the relevant hypotheses with evidence links
+  - If extra runs are needed, submit the proposal for approval
+skills: [statistics, plotting]
+permissions:
+  literatureRead: false
+  graphWrite: [result, evidence_link, artifact]
+  codeWrite: analysis_scripts
+  codeExecute: sandbox_no_gpu
+  gpuSpend: none
+  requestApproval: true
+  sendMessages: [proposal, approval_request, question, response]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxRounds: 3 }
+requiresApproval: [extra_spend]
+isolation: {}

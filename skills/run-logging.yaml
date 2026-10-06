@@ -1,0 +1,11 @@
+id: run-logging
+version: 0.1.0
+description: Records run logs, metrics and environment info with a content digest.
+domains:
+- math
+- ml
+tools:
+- name: store.put
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

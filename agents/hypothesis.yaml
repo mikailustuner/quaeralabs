@@ -1,0 +1,28 @@
+specVersion: 1
+role: hypothesis
+name: Hypothesis
+purpose: Proposes testable hypotheses and derived hypotheses from sources and results.
+model: { costProfile: best, effort: high }
+inputs: [question, artifact, result, critique]
+outputs: [hypothesis, message]
+stages: [hypothesis]
+workflow:
+  - Read the question and the literature summaries
+  - Draft at most five hypotheses
+  - Add a falsifiability note to each; discard any that are unfalsifiable
+  - Respond to the Critic's objections within at most three rounds
+  - Request human approval to add them to the list
+skills: [hypothesis-generation, falsifiability, creative-thinking]
+permissions:
+  literatureRead: true
+  graphWrite: [hypothesis]
+  codeWrite: none
+  codeExecute: none
+  gpuSpend: none
+  requestApproval: true
+  sendMessages: [response, approval_request, question]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxItemsPerTurn: 5, maxRounds: 3 }
+requiresApproval: [accept_hypothesis]
+isolation: {}

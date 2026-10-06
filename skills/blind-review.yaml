@@ -1,0 +1,12 @@
+id: blind-review
+version: 0.1.0
+description: Evaluates by reading the raw data and metrics first, then the agents'
+  interpretations.
+domains:
+- math
+- ml
+tools:
+- name: store.read
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

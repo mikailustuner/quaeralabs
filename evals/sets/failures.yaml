@@ -1,26 +1,26 @@
-# Gerçek koşularda yaşanmış hatalardan türetilen vakalar (Faz 4: "başarısız araştırmaların eval setine eklenmesi").
-# Her vaka güncel kodla yeniden koşulur (evals/failures_run.py); `expect` tutmazsa hata geri gelmiş demektir.
-# Yeni vakalar `quaera triage add` ile toplanır, ekip incelemesinden sonra buraya eklenir.
-# expect anahtarları: answer (yes/no/unclear) · notStatus · mustObject · mustStop · notAnswered (src/quaera/triage.py)
+# Cases derived from failures that occurred in real runs (Phase 4: "adding failed research runs to the eval set").
+# Each case is re-run against the current code (evals/failures_run.py); if `expect` does not hold, the bug has regressed.
+# New cases are collected with `quaera triage add` and added here after team review.
+# expect keys: answer (yes/no/unclear) · notStatus · mustObject · mustStop · notAnswered (src/quaera/triage.py)
 version: 1
 cases:
   - id: fail-goldbach-scope
-    found: 2026-10-04 (Faz 1, ilk Goldbach koşusu)
+    found: 2026-10-04 (Phase 1, first Goldbach run)
     domain: math
-    question: "İkiden büyük her çift doğal sayı iki asal sayının toplamı olarak yazılabilir mi?"
-    scope: "Lean 4 + Mathlib ile biçimsel ispat"
+    question: "Can every even natural number greater than two be written as the sum of two primes?"
+    scope: "Formal proof with Lean 4 + Mathlib"
     note: >-
-      Açık bir problem. Ekip yalnızca 2 < n ≤ 1000 için ispat yaptı ama hipotez kapsam belirtmeden "destekleniyor"
-      olarak raporlandı; okuyucu Goldbach sanısının ispatlandığını sanabilirdi. Düzeltme: scopeRelation, Eleştirmen'in
-      weakerThanQuestion kontrolü ve rapor dili.
+      An open problem. The team only proved it for 2 < n ≤ 1000, but the hypothesis was reported as "supported" without
+      stating the scope; a reader could have thought the Goldbach conjecture had been proved. Fix: scopeRelation, the
+      Critic's weakerThanQuestion check, and the report wording.
     expect: {notAnswered: true}
     budget: 1.5
   - id: fail-ml-no-hypothesis
-    found: 2026-10-04 (Faz 2, ilk sentetik koşu)
+    found: 2026-10-04 (Phase 2, first synthetic run)
     domain: ml
     syntheticTask: syn-01
     note: >-
-      ML sorusunda Hipotez ajanı matematiğe özgü promptla çalıştığı için hiç hipotez üretemedi ve araştırma durdu.
-      Düzeltme: HYPOTHESIS_ML. Doğru cevap "hayır" (lojistik regresyon %75'i geçemez).
+      On an ML question the Hypothesis agent ran with the math-specific prompt, so it produced no hypotheses and the
+      research run stopped. Fix: HYPOTHESIS_ML. The correct answer is "no" (logistic regression cannot exceed 75%).
     expect: {mustStop: false, answer: "no"}
     budget: 1.5

@@ -1,175 +1,176 @@
-# Eleştirmen testi v0.1
-# Her vakada kısa bir deney raporu var. "flawed" vakalara bilerek bir hata yerleştirildi;
-# "control" vakalar temizdir ve yanlış alarm oranını ölçmek için kullanılır.
-# Değerlendirme: Eleştirmen'in itirazı beklenen kategoriyi (category) ve ipucundaki
-# noktayı (must_mention) yakalıyorsa vaka "yakalandı" sayılır.
+# Critic test v0.1
+# Note: results in evals/results/ were measured on the original Turkish wording of these cases; this is an English translation.
+# Each case contains a short experiment report. "flawed" cases have a deliberately planted flaw;
+# "control" cases are clean and are used to measure the false-alarm rate.
+# Grading: a case counts as "caught" if the Critic's objection hits the expected category (category)
+# and the point in the hint (must_mention).
 version: 0.1.0
 cases:
   - id: ct-01
     kind: flawed
     category: leakage
-    report: "Doğrulama seti, eğitim setinden rastgele örneklenerek oluşturuldu ve aynı cümlelerin bir kısmı iki sette de geçiyor. Doğrulama doğruluğu %98."
-    must_mention: eğitim ve doğrulama örtüşüyor
+    report: "The validation set was built by randomly sampling from the training set, and some of the same sentences appear in both sets. Validation accuracy is 98%."
+    must_mention: training and validation overlap
   - id: ct-02
     kind: flawed
     category: statistics
-    report: "Yöntem A tek bir seed ile 0.812, temel çizgi tek bir seed ile 0.806 doğruluk aldı. A'nın daha iyi olduğu sonucuna varıldı."
-    must_mention: tek seed, varyans bilinmiyor
+    report: "Method A scored 0.812 accuracy with a single seed, the baseline 0.806 with a single seed. It was concluded that A is better."
+    must_mention: single seed, variance unknown
   - id: ct-03
     kind: flawed
     category: preregistration_violation
-    report: "Ön kayıtta birincil metrik doğruluktu. Doğrulukta fark çıkmayınca F1 skoru raporlandı ve F1'de anlamlı iyileşme bulundu."
-    must_mention: birincil metrik sonradan değiştirildi
+    report: "In the preregistration the primary metric was accuracy. When accuracy showed no difference, the F1 score was reported instead and a significant improvement in F1 was found."
+    must_mention: primary metric changed after the fact
   - id: ct-04
     kind: flawed
     category: confound
-    report: "Yeni optimize edici 2 kat daha uzun eğitildi ve temel çizgiyi geçti. İyileşme optimize ediciye bağlandı."
-    must_mention: eğitim süresi eşit değil
+    report: "The new optimizer was trained 2x longer and beat the baseline. The improvement was attributed to the optimizer."
+    must_mention: training time is not equal
   - id: ct-05
     kind: flawed
     category: methodology
-    report: "Hiperparametreler test seti üzerinde 50 deneme ile ayarlandı; en iyi denemenin test skoru raporlandı."
-    must_mention: test setinde ayarlama
+    report: "Hyperparameters were tuned on the test set with 50 trials; the test score of the best trial was reported."
+    must_mention: tuning on the test set
   - id: ct-06
     kind: flawed
     category: overclaim
-    report: "20M parametreli tek bir modelde ısınmanın gereksiz olduğu bulundu. Sonuç: dil modellerinde ısınma gereksizdir."
-    must_mention: tek ölçekten genelleme
+    report: "Warmup was found to be unnecessary in a single 20M-parameter model. Conclusion: warmup is unnecessary in language models."
+    must_mention: generalization from a single scale
   - id: ct-07
     kind: flawed
     category: implementation
-    report: "Kayıp eğrisi ilk adımdan itibaren sıfıra çok yakın başlıyor. Etiketler giriş tensörüne de eklenmiş görünüyor; yine de sonuç güçlü bulundu."
-    must_mention: etiket girdiye sızmış
+    report: "The loss curve starts very close to zero from the first step. The labels appear to have been appended to the input tensor as well; the result was nevertheless judged strong."
+    must_mention: label leaked into the input
   - id: ct-08
     kind: flawed
     category: statistics
-    report: "12 farklı metrik test edildi; bunlardan birinde p=0.04 bulundu ve yöntem başarılı ilan edildi. Çoklu karşılaştırma düzeltmesi yapılmadı."
-    must_mention: çoklu karşılaştırma
+    report: "12 different metrics were tested; p=0.04 was found on one of them and the method was declared successful. No multiple-comparison correction was applied."
+    must_mention: multiple comparisons
   - id: ct-09
     kind: flawed
     category: methodology
-    report: "Temel çizgi olarak 2019 tarihli varsayılan ayarlar kullanıldı; önerilen yöntem için ise 40 hiperparametre denemesi yapıldı."
-    must_mention: temel çizgi ayarlanmamış
+    report: "The baseline used default settings from 2019, while the proposed method got 40 hyperparameter trials."
+    must_mention: baseline not tuned
   - id: ct-10
     kind: flawed
     category: citation
-    report: "Bu sonucun daha önce gösterildiği belirtildi ve arXiv:2509.99999 kaynak olarak verildi; bağlantı açılmıyor."
-    must_mention: kaynak doğrulanamıyor
+    report: "The report states that this result was shown before and cites arXiv:2509.99999 as the source; the link does not open."
+    must_mention: source cannot be verified
   - id: ct-11
     kind: flawed
     category: statistics
-    report: "Beş seed'den en iyi üçü raporlandı; diğer ikisi 'kararsız' oldukları için çıkarıldı."
-    must_mention: seçici raporlama
+    report: "The best three of five seeds were reported; the other two were excluded for being 'unstable'."
+    must_mention: selective reporting
   - id: ct-12
     kind: flawed
     category: leakage
-    report: "Benchmark soruları modelin ön eğitim verisinde de bulunuyor olabilir; kirlilik kontrolü yapılmadı ve sonuç modelin akıl yürütme yeteneğine bağlandı."
-    must_mention: veri kirliliği
+    report: "The benchmark questions may also be present in the model's pretraining data; no contamination check was done, and the result was attributed to the model's reasoning ability."
+    must_mention: data contamination
   - id: ct-13
     kind: flawed
     category: confound
-    report: "Isınmalı koşul yeni veri yükleyiciyle, ısınmasız koşul eski veri yükleyiciyle çalıştırıldı. Fark ısınmaya bağlandı."
-    must_mention: iki koşul farklı veri hattı kullanıyor
+    report: "The warmup condition was run with the new data loader, the no-warmup condition with the old data loader. The difference was attributed to warmup."
+    must_mention: the two conditions use different data pipelines
   - id: ct-14
     kind: flawed
     category: preregistration_violation
-    report: "Ön kayıtta 3 seed planlanmıştı. Sonuçlar beklentiye uymayınca 7 seed'e çıkıldı ve yeni ortalama raporlandı; değişiklik raporda belirtilmedi."
-    must_mention: sonuç görüldükten sonra plan değişti
+    report: "The preregistration planned 3 seeds. When the results did not match expectations, the run was expanded to 7 seeds and the new mean was reported; the change was not mentioned in the report."
+    must_mention: plan changed after seeing the results
   - id: ct-15
     kind: flawed
     category: overclaim
-    report: "Doğruluk 0.701'den 0.704'e çıktı (3 seed, standart sapma 0.01). Rapor bunu 'belirgin iyileşme' olarak niteliyor."
-    must_mention: fark gürültü içinde
+    report: "Accuracy rose from 0.701 to 0.704 (3 seeds, standard deviation 0.01). The report describes this as a 'clear improvement'."
+    must_mention: difference is within noise
   - id: ct-16
     kind: flawed
     category: implementation
-    report: "Değerlendirme betiği yalnızca ilk 100 örneği kullanıyor; rapor tam test seti sonucuymuş gibi yazılmış."
-    must_mention: değerlendirme alt kümede yapılmış
+    report: "The evaluation script uses only the first 100 examples; the report is written as if it were the full test-set result."
+    must_mention: evaluation was done on a subset
   - id: ct-17
     kind: flawed
     category: methodology
-    report: "Ablasyon yapılmadı; önerilen yöntem üç değişikliği birlikte içeriyor ve iyileşme ikinci değişikliğe bağlanıyor."
-    must_mention: ablasyon yok, katkı ayrıştırılamaz
+    report: "No ablation was done; the proposed method bundles three changes together and the improvement is attributed to the second change."
+    must_mention: no ablation, contributions cannot be separated
   - id: ct-18
     kind: flawed
     category: statistics
-    report: "Erken durdurma doğrulama setine göre yapıldı ve aynı doğrulama seti nihai sonuç olarak raporlandı."
-    must_mention: doğrulama seti hem seçim hem rapor için kullanıldı
+    report: "Early stopping was done on the validation set, and the same validation set was reported as the final result."
+    must_mention: validation set used for both selection and reporting
   - id: ct-19
     kind: flawed
     category: confound
-    report: "Yöntem A bir A100'de bf16 ile, temel çizgi bir T4'te fp32 ile çalıştırıldı; hız ve kayıp farkları yönteme bağlandı."
-    must_mention: donanım ve hassasiyet farklı
+    report: "Method A was run on an A100 in bf16, the baseline on a T4 in fp32; the speed and loss differences were attributed to the method."
+    must_mention: hardware and precision differ
   - id: ct-20
     kind: flawed
     category: overclaim
-    report: "Lean ispatı 'sorry' içeren iki yardımcı lemma ile derlendi. Rapor teoremin biçimsel olarak doğrulandığını söylüyor."
-    must_mention: sorry içeren ispat doğrulanmış sayılamaz
+    report: "The Lean proof compiled with two helper lemmas containing 'sorry'. The report says the theorem was formally verified."
+    must_mention: a proof containing sorry cannot count as verified
   - id: ct-21
     kind: flawed
     category: implementation
-    report: "Rastgele seed sabitlendi ama veri karıştırma için ayrı bir rastgele üreteç kullanılıyor ve o sabitlenmedi. Sonuçların birebir tekrar üretilebildiği söyleniyor."
-    must_mention: tüm rastgelelik kaynakları sabitlenmemiş
+    report: "The random seed was fixed, but a separate random generator is used for data shuffling and it was not fixed. The results are claimed to be exactly reproducible."
+    must_mention: not all sources of randomness are fixed
   - id: ct-22
     kind: flawed
     category: methodology
-    report: "Temel çizgi sonuçları başka bir makaleden alındı; o makale farklı bir veri bölümü ve tokenizer kullanıyor."
-    must_mention: karşılaştırılabilir değil
+    report: "The baseline results were taken from another paper; that paper uses a different data split and tokenizer."
+    must_mention: not comparable
   - id: ct-23
     kind: flawed
     category: statistics
-    report: "İki yöntemin güven aralıkları büyük ölçüde örtüşüyor; rapor yine de A'nın B'den üstün olduğunu söylüyor."
-    must_mention: güven aralıkları örtüşüyor
+    report: "The confidence intervals of the two methods overlap substantially; the report nevertheless says A is superior to B."
+    must_mention: confidence intervals overlap
   - id: ct-24
     kind: flawed
     category: leakage
-    report: "Normalizasyon istatistikleri (ortalama ve standart sapma) tüm veri setinden, test seti dahil, hesaplandı."
-    must_mention: test istatistiği eğitime sızmış
+    report: "Normalization statistics (mean and standard deviation) were computed on the whole dataset, including the test set."
+    must_mention: test statistics leaked into training
   - id: ct-25
     kind: flawed
     category: overclaim
-    report: "Model sentetik bir oyuncak görevde %100 aldı. Rapor bunun genel matematiksel akıl yürütme yeteneği gösterdiğini söylüyor."
-    must_mention: oyuncak görevden genelleme
+    report: "The model scored 100% on a synthetic toy task. The report says this demonstrates general mathematical reasoning ability."
+    must_mention: generalization from a toy task
   - id: ct-26
     kind: flawed
     category: preregistration_violation
-    report: "Başarı kriteri ön kayıtta 'kayıp farkı ≤ 0.05' idi. Fark 0.08 çıkınca kriter 'fark ≤ 0.10' olarak güncellendi ve hipotez desteklendi sayıldı."
-    must_mention: başarı kriteri sonradan gevşetildi
+    report: "The success criterion in the preregistration was 'loss difference ≤ 0.05'. When the difference came out at 0.08, the criterion was updated to 'difference ≤ 0.10' and the hypothesis was counted as supported."
+    must_mention: success criterion loosened after the fact
   - id: ct-27
     kind: flawed
     category: confound
-    report: "Isınmalı modellerin hepsi pazartesi, ısınmasız modellerin hepsi salı başka bir kütüphane sürümüyle eğitildi."
-    must_mention: ortam sürümü koşulla karışmış
+    report: "All warmup models were trained on Monday, and all no-warmup models on Tuesday with a different library version."
+    must_mention: environment version confounded with condition
   - id: ct-28
     kind: flawed
     category: implementation
-    report: "Doğruluk, modelin çıktısı ile etiket arasında büyük-küçük harf duyarlı tam eşleşmeyle ölçüldü; doğru cevapların bir kısmı biçim yüzünden yanlış sayıldı."
-    must_mention: metrik hatalı ölçüyor
+    report: "Accuracy was measured by case-sensitive exact match between the model output and the label; some correct answers were counted as wrong because of formatting."
+    must_mention: metric measures incorrectly
   - id: ct-29
     kind: flawed
     category: statistics
-    report: "Örneklem 8 problemden oluşuyor; yöntem 5'ini, temel çizgi 4'ünü çözdü. Fark anlamlı olarak raporlandı."
-    must_mention: örneklem çok küçük
+    report: "The sample consists of 8 problems; the method solved 5 of them, the baseline 4. The difference was reported as significant."
+    must_mention: sample too small
   - id: ct-30
     kind: flawed
     category: methodology
-    report: "Model, değerlendirildiği benchmark'ın çözümleri üzerinde ince ayar yapıldı; rapor bunu genelleme olarak sunuyor."
-    must_mention: değerlendirme verisiyle eğitim
+    report: "The model was fine-tuned on the solutions of the benchmark it was evaluated on; the report presents this as generalization."
+    must_mention: training on evaluation data
   - id: cc-01
     kind: control
-    report: "3 seed, aynı veri hattı ve donanım; birincil metrik ön kayıttaki gibi. Fark 0.031 ± 0.006 ve sınırlamalar yazılmış."
+    report: "3 seeds, same data pipeline and hardware; primary metric as in the preregistration. Difference 0.031 ± 0.006, and limitations are stated."
   - id: cc-02
     kind: control
-    report: "Lean teoremi sorry içermeden derlendi; Doğrulayıcı temiz ortamda aynı sonucu aldı."
+    report: "The Lean theorem compiled without sorry; the Verifier got the same result in a clean environment."
   - id: cc-03
     kind: control
-    report: "Negatif sonuç: yöntem temel çizgiyi geçemedi (5 seed, güven aralıkları örtüşüyor). Rapor hipotezin desteklenmediğini söylüyor."
+    report: "Negative result: the method did not beat the baseline (5 seeds, confidence intervals overlap). The report says the hypothesis is not supported."
   - id: cc-04
     kind: control
-    report: "Ön kayıt değişikliği sonuçlar görülmeden yapıldı, gerekçesi ve zamanı raporda var; analiz planına uyuldu."
+    report: "The preregistration change was made before the results were seen, and its rationale and timing are in the report; the analysis plan was followed."
   - id: cc-05
     kind: control
-    report: "Temel çizgi ve yöntem aynı hiperparametre arama bütçesiyle (20 deneme) ayarlandı; seçim doğrulama setinde, rapor test setinde."
+    report: "The baseline and the method were tuned with the same hyperparameter search budget (20 trials); selection on the validation set, reporting on the test set."
   - id: cc-06
     kind: control
-    report: "Tüm rastgelelik kaynakları sabitlendi; container özeti ve lockfile kayıtlı. Sonuç iki farklı model ailesiyle yeniden üretildi."
+    report: "All sources of randomness were fixed; the container digest and lockfile are recorded. The result was reproduced with two different model families."

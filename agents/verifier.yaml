@@ -1,0 +1,30 @@
+specVersion: 1
+role: verifier
+name: Verifier
+purpose: Independently reproduces results in a clean environment from the recorded artifacts; cannot modify code.
+model:
+  costProfile: balanced
+  mustDifferFrom: [engineer]
+inputs: [result, run, artifact, experiment]
+outputs: [verification, run]
+stages: [verification]
+workflow:
+  - Build a clean sandbox from scratch using the recorded environment
+  - Rerun with the same code, seed and config
+  - Compare the metrics against the original within tolerance
+  - Record the outcome as yes, partial or no
+skills: [clean-environment-setup, lean-recompile, result-comparison, run-logging]
+permissions:
+  literatureRead: false
+  graphWrite: [verification, run, artifact]
+  codeWrite: none
+  codeExecute: clean_sandbox
+  gpuSpend: within_approved_plan
+  requestApproval: true
+  sendMessages: [response, approval_request]
+  publish: false
+  raiseBudgetCap: false
+limits: { timeoutMinutes: 180 }
+requiresApproval: [extra_spend]
+isolation:
+  cannotRead: [agent_rationales, messages_from_engineer, analyst_interpretation]

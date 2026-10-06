@@ -1,0 +1,14 @@
+id: plotting
+version: 0.1.0
+description: Generates report plots from metrics.
+domains:
+- ml
+- math
+tools:
+- name: sandbox.exec
+  protocol: mcp
+  server: sandbox
+requiredPermissions:
+  codeWrite: analysis_scripts
+  codeExecute: sandbox_no_gpu
+eval: pending

@@ -7,15 +7,25 @@ geçmiş projeleri **yönlendirme** için görür (ör. daha önce çürütülm�
 Hafıza kanıt değildir: Yazar yalnızca projenin kendi nesnelerine atıf yapabilir (ml_loop/report), bu yüzden
 hafızadan gelen bir bilgi rapora kaynak olarak giremez. Bilinçli hata enjekte edilmiş değerlendirme projeleri
 (`fault.injected` olayı) dizine alınmaz. Veri makineden çıkmaz.
+
+Hybrid recall: next to the FTS5 index, every project also gets a multilingual sentence embedding (fastembed,
+local ONNX model; optional `memory` extra). bm25 and cosine rankings are merged with reciprocal rank fusion, so
+a question asked in English also finds a project recorded in Turkish. Without fastembed (or with
+QUAERA_MEMORY_EMBED=off) recall is bm25 only, exactly as before.
 """
 
 from __future__ import annotations
 
+import functools
 import json
+import os
 import re
 import sqlite3
+import sys
 import threading
+from array import array
 from pathlib import Path
+from typing import Callable
 
 from .store import Store
 
@@ -23,11 +33,52 @@ WORD_RE = re.compile(r"[^\W_]{3,}", re.UNICODE)
 # Değerlendirme projeleri (sentetik görevler, itiraz testleri, vaka tekrarları, Putnam ölçümü) laboratuvar bilgisi değildir.
 EVAL_PREFIXES = ("sentetik-", "itiraz-", "vaka-", "putnam-")
 
+EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"   # 384-d, ~220 MB, 50+ languages
+# Vector-only hits below this cosine similarity are dropped, so an unrelated question recalls nothing. Measured on
+# Turkish/English pairs (24 real lab projects): matching questions score 0.62-0.82, unrelated ones up to 0.52.
+MIN_SIMILARITY = 0.55
+RRF_K = 60
+
+Embedder = Callable[[list[str]], list[list[float]]]   # texts -> unit vectors; carries a `name` attribute
+
+
+class FastEmbedder:
+    """Lazy fastembed wrapper; the model is downloaded once on first use (FASTEMBED_CACHE_PATH or ~/.cache)."""
+
+    name = EMBED_MODEL
+
+    def __init__(self):
+        self.model, self.lock = None, threading.Lock()
+
+    def __call__(self, texts: list[str]) -> list[list[float]]:
+        import numpy as np
+        with self.lock:
+            if self.model is None:
+                from fastembed import TextEmbedding
+                cache = os.environ.get("FASTEMBED_CACHE_PATH") or str(Path.home() / ".cache" / "quaeralabs" / "fastembed")
+                self.model = TextEmbedding(EMBED_MODEL, cache_dir=cache)
+            m = np.array(list(self.model.embed(texts)), dtype=np.float32)
+        return (m / np.maximum(np.linalg.norm(m, axis=1, keepdims=True), 1e-12)).tolist()
+
+
+@functools.cache
+def default_embedder() -> Embedder | None:
+    """Shared embedder, or None when fastembed is not installed or QUAERA_MEMORY_EMBED=off."""
+    if os.environ.get("QUAERA_MEMORY_EMBED", "").strip().lower() in ("0", "off", "false", "no"):
+        return None
+    try:
+        import fastembed  # noqa: F401
+    except ImportError:
+        return None
+    return FastEmbedder()
+
 
 class LabMemory:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, embedder: Embedder | None | bool = True):
+        """`embedder`: True = default_embedder(), False/None = bm25 only, or any Embedder (tests)."""
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
+        self.embedder = default_embedder() if embedder is True else (embedder or None)
         self.lock = threading.Lock()
         self.db = sqlite3.connect(path, check_same_thread=False, timeout=30)
         self.db.execute("CREATE VIRTUAL TABLE IF NOT EXISTS memory USING fts5("
@@ -36,6 +87,8 @@ class LabMemory:
         # Öğrenilenler: her deney sonucundan (proje bitmeden de) çıkarılan kısa, deterministik dersler.
         self.db.execute("CREATE TABLE IF NOT EXISTS learnings (project TEXT, domain TEXT, title TEXT, kind TEXT, "
                         "text TEXT, at TEXT)")
+        # One embedding of `title + body` per project (float32 blob); recomputed when the model changes.
+        self.db.execute("CREATE TABLE IF NOT EXISTS memory_vec (project TEXT PRIMARY KEY, model TEXT, vec BLOB)")
         self.db.commit()
 
     # --- dizinleme -------------------------------------------------------------------------
@@ -50,10 +103,13 @@ class LabMemory:
             store.close()
         with self.lock:
             self.db.execute("DELETE FROM memory WHERE project = ?", (project.name,))
+            self.db.execute("DELETE FROM memory_vec WHERE project = ?", (project.name,))
             if entry:
                 self.db.execute("INSERT INTO memory (project, domain, title, body, summary) VALUES (?, ?, ?, ?, ?)",
                                 (project.name, entry["domain"], entry["title"], entry["text"], json.dumps(entry, ensure_ascii=False)))
             self.db.commit()
+        if entry:
+            self._embed_missing()
         return entry is not None
 
     def learn(self, project: Path) -> int:
@@ -94,6 +150,7 @@ class LabMemory:
     def rebuild(self, home: Path) -> int:
         with self.lock:
             self.db.execute("DELETE FROM memory")
+            self.db.execute("DELETE FROM memory_vec")
             self.db.execute("DELETE FROM learnings")
             self.db.commit()
         projects = [p for p in sorted(home.iterdir()) if p.is_dir()]
@@ -103,6 +160,30 @@ class LabMemory:
 
     # --- arama -----------------------------------------------------------------------------
     def recall(self, text: str, k: int = 5, exclude: str | None = None, domain: str | None = None) -> list[dict]:
+        """bm25 and (when an embedder is available) cosine rankings merged by reciprocal rank fusion."""
+        where, args = "", []
+        if exclude:
+            where += " AND m.project != ?"
+            args.append(exclude)
+        if domain:
+            where += " AND m.domain = ?"
+            args.append(domain)
+        rankings = [self._bm25(text, k * 4, where, args), self._nearest(text, k * 4, where, args)]
+        score: dict[str, float] = {}
+        summaries: dict[str, str] = {}
+        for ranking in rankings:
+            for rank, (project, summary) in enumerate(ranking):
+                score[project] = score.get(project, 0.0) + 1.0 / (RRF_K + rank + 1)
+                summaries[project] = summary
+        out, titles = [], set()
+        for project in sorted(score, key=lambda p: -score[p]):   # aynı sorunun tekrar koşuları tek kayıt olarak döner
+            e = json.loads(summaries[project])
+            if e["title"] not in titles:
+                titles.add(e["title"])
+                out.append(e)
+        return out[:k]
+
+    def _bm25(self, text: str, limit: int, where: str, args: list) -> list[tuple[str, str]]:
         words = sorted({w.lower() for w in WORD_RE.findall(text)})
         if not words:
             return []
@@ -110,26 +191,55 @@ class LabMemory:
         # uzun kelimelerin ilk 5 harfini önek sorgusu yapıyoruz (FTS5 `"kök"*`).
         stems = sorted({w[:5] if len(w) > 5 else w for w in words})
         query = " OR ".join(f'"{w}"*' for w in stems[:40])
-        sql = "SELECT summary FROM memory WHERE memory MATCH ?"
-        args: list = [query]
-        if exclude:
-            sql += " AND project != ?"
-            args.append(exclude)
-        if domain:
-            sql += " AND domain = ?"
-            args.append(domain)
         # Sütun ağırlıkları (project, domain, title, body, summary): soru başlığı gövdeden 4 kat önemli.
-        sql += " ORDER BY bm25(memory, 0, 0, 4.0, 1.0, 0) LIMIT ?"
-        args.append(k * 4)
+        sql = (f"SELECT m.project, m.summary FROM memory m WHERE memory MATCH ?{where} "
+               "ORDER BY bm25(memory, 0, 0, 4.0, 1.0, 0) LIMIT ?")
         with self.lock:
-            rows = self.db.execute(sql, args).fetchall()
-        out, titles = [], set()
-        for r in rows:                       # aynı sorunun tekrar koşuları tek kayıt olarak döner
-            e = json.loads(r[0])
-            if e["title"] not in titles:
-                titles.add(e["title"])
-                out.append(e)
-        return out[:k]
+            return self.db.execute(sql, [query, *args, limit]).fetchall()
+
+    def _nearest(self, text: str, limit: int, where: str, args: list) -> list[tuple[str, str]]:
+        if not self.embedder or not text.strip() or not self._embed_missing():
+            return []
+        try:
+            q = self.embedder([text])[0]
+        except Exception as exc:          # model download/load failed: recall still works with bm25
+            return self._disable(exc)
+        sql = (f"SELECT m.project, m.summary, v.vec FROM memory m JOIN memory_vec v ON v.project = m.project "
+               f"WHERE v.model = ?{where}")
+        with self.lock:
+            rows = self.db.execute(sql, [self.embedder.name, *args]).fetchall()
+        hits = []
+        for project, summary, blob in rows:
+            sim = sum(a * b for a, b in zip(q, array("f", blob)))
+            if sim >= MIN_SIMILARITY:
+                hits.append((sim, project, summary))
+        hits.sort(reverse=True)
+        return [(p, s) for _, p, s in hits[:limit]]
+
+    def _embed_missing(self) -> bool:
+        """Embeds projects that have no vector for the current model. False if embeddings are unavailable."""
+        if not self.embedder:
+            return False
+        with self.lock:
+            rows = self.db.execute("SELECT m.project, m.title, m.body FROM memory m LEFT JOIN memory_vec v "
+                                   "ON v.project = m.project AND v.model = ? WHERE v.project IS NULL",
+                                   (self.embedder.name,)).fetchall()
+        if not rows:
+            return True
+        try:
+            vecs = self.embedder([f"{title}\n{body}" for _, title, body in rows])
+        except Exception as exc:
+            return self._disable(exc) or False
+        with self.lock:
+            self.db.executemany("INSERT OR REPLACE INTO memory_vec (project, model, vec) VALUES (?, ?, ?)",
+                                [(r[0], self.embedder.name, array("f", v).tobytes()) for r, v in zip(rows, vecs)])
+            self.db.commit()
+        return True
+
+    def _disable(self, exc: Exception) -> list:
+        print(f"quaera: memory embeddings disabled, using bm25 only ({type(exc).__name__}: {exc})"[:300], file=sys.stderr)
+        self.embedder = None
+        return []
 
     def close(self) -> None:
         self.db.close()

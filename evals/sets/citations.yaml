@@ -1,6 +1,6 @@
-# Kaynak doğrulama seti v0.1
-# real: var olduğu bilinen yayınlar · fake: var olmayan (uydurma) kimlikler.
-# Kaynak doğrulayıcı gerçekleri kabul etmeli, uydurmaları reddetmelidir.
+# Citation verification set v0.1
+# real: publications known to exist · fake: nonexistent (fabricated) identifiers.
+# The citation checker must accept the real ones and reject the fabricated ones.
 version: 0.1.0
 cases:
   - { id: cit-01, kind: arxiv, ref: "1706.03762", expected: real, note: "Attention Is All You Need" }

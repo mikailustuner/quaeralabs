@@ -1,0 +1,12 @@
+id: mathlib-search
+version: 0.1.0
+description: Searches Mathlib for relevant lemmas and definitions.
+domains:
+- math
+tools:
+- name: mathlib.search
+  protocol: mcp
+  server: lean
+requiredPermissions:
+  literatureRead: true
+eval: pending

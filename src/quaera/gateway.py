@@ -80,6 +80,11 @@ def worst_case_cost(model: str, system: str, prompt: str, max_output_tokens: int
     return (tokens_in * price_in + max_output_tokens * OUTPUT_SAFETY * price_out) / 1_000_000
 
 
+# Extended thinking is counted against the CLI's output-token limit. Without headroom a high-effort answer is cut off,
+# the CLI continues it in a new turn and `result` then holds only the last fragment (seen as "invalid JSON").
+THINKING_HEADROOM = {"low": 2000, "medium": 4000, "high": 8000, "xhigh": 16000, "max": 32000}
+
+
 class ClaudeCLIProvider:
     """Kullanıcının giriş yapmış `claude` CLI'si üzerinden Anthropic modelleri.
 
@@ -95,7 +100,8 @@ class ClaudeCLIProvider:
 
     def complete(self, model: str, system: str, prompt: str, max_output_tokens: int, budget_usd: float,
                  effort: str | None = None) -> Completion:
-        env = dict(os.environ, CLAUDE_CODE_MAX_OUTPUT_TOKENS=str(max_output_tokens))
+        limit = max_output_tokens + THINKING_HEADROOM.get(effort or "", 0)
+        env = dict(os.environ, CLAUDE_CODE_MAX_OUTPUT_TOKENS=str(limit))
         cmd = [
             self.binary, "-p", "--output-format", "json", "--model", model,
             "--tools", "", "--system-prompt", system, "--no-session-persistence",
@@ -111,6 +117,9 @@ class ClaudeCLIProvider:
             raise ModelError(f"claude CLI returned invalid output: {proc.stdout[:300]} {proc.stderr[:300]}") from exc
         if data.get("is_error") or data.get("subtype", "success") != "success":
             raise ModelError(f"claude CLI error: {data.get('result') or data.get('subtype')}",
+                             float(data.get("total_cost_usd", 0.0)))
+        if int(data.get("num_turns") or 1) > 1:       # no tools, so more than one turn means the answer was continued
+            raise ModelError(f"claude CLI answer was cut off at the {limit}-token output limit",
                              float(data.get("total_cost_usd", 0.0)))
         usage = data.get("usage", {})
         resolved = next(iter(data.get("modelUsage", {})), model)
@@ -223,6 +232,12 @@ class Gateway:
             if fam not in avoid:
                 return fam, bool(avoid)
         return families[0], False
+
+    def alternative(self, role: str, failed: str | None) -> str | None:
+        """Another family to retry a role on after `failed` kept failing; keeps the role's mustDifferFrom rule if it can."""
+        avoid = {self.role_families.get(r) for r in self.agent_specs[role]["model"].get("mustDifferFrom", [])}
+        others = [f for f in self.providers if f != failed]
+        return next((f for f in others if f not in avoid), others[0] if others else None)
 
     def call(self, role: str, system: str, prompt: str, max_output_tokens: int = 8000,
              family: str | None = None) -> tuple[Completion, bool]:

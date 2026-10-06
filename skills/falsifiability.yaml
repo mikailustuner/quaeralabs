@@ -1,0 +1,12 @@
+id: falsifiability
+version: 0.1.0
+description: Adds a note to each hypothesis stating which observation would refute it;
+  rejects unfalsifiable hypotheses.
+domains:
+- math
+- ml
+tools:
+- name: graph.read
+  protocol: builtin
+requiredPermissions: {}
+eval: pending

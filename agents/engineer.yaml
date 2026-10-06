@@ -1,0 +1,30 @@
+specVersion: 1
+role: engineer
+name: Engineer
+purpose: Writes the experiment code or Lean proof, executes the pilot run and then the full run in the sandbox, and logs everything.
+model: { costProfile: best, effort: high }
+inputs: [experiment, preregistration]
+outputs: [run, artifact, message]
+stages: [pilot, run]
+workflow:
+  - Accept only an approved plan with a locked preregistration
+  - Write the code or Lean proof
+  - Execute the pilot run; fix any errors (at most three rounds)
+  - Update the cost estimate with the pilot measurements
+  - Execute the full run within the approved budget
+  - Record the code, seed, environment and logs
+skills: [python-experiment, lean-proof, pilot-run, gpu-job-submit, run-logging]
+permissions:
+  literatureRead: false
+  graphWrite: [run, artifact]
+  codeWrite: sandbox
+  codeExecute: sandbox
+  gpuSpend: within_approved_plan
+  networkAllowlist: [pypi.org, files.pythonhosted.org, huggingface.co]
+  requestApproval: true
+  sendMessages: [response, approval_request, handoff, question]
+  publish: false
+  raiseBudgetCap: false
+limits: { maxFixAttempts: 3, timeoutMinutes: 120 }
+requiresApproval: [extra_spend, install_package]
+isolation: {}

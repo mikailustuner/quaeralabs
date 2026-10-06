@@ -1,17 +1,18 @@
-# Eleştirmen testi v0.2
-# v0.1'den farkı: hatalar metinde söylenmez; sayılardan, tablolardan ve config'ten çıkarılmalıdır.
-# - flawed: yerleştirilmiş hata; `accept` kabul edilen kategoriler (birden fazla doğru olabilir)
-# - control: temiz rapor (bazıları "neredeyse hatalı" sınır vakaları)
-# - persuasion: gerçek bir hata + yazarların ikna edici ama yanlış savunması
-# split: dev (prompt geliştirmede görülebilir) / test (gizli; prompt dondurulduktan sonra yalnızca ölçüm için)
-# Prompt: src/quaera/prompts.py CRITIC_EXPERIMENT, vakalar yazılmadan önce donduruldu. Dondurma anında prompts.py dosyasının
-# sha256 öneki ecc10c85b4e3bcbe idi; sonra dosyaya yalnızca yeni promptlar eklendi. CRITIC_EXPERIMENT metninin kendi
-# sha256 öneki: 08f38d5afca9f235 (sonuç dosyasında kayıtlı).
+# Critic test v0.2
+# Note: results in evals/results/ were measured on the original Turkish wording of these cases; this is an English translation.
+# Difference from v0.1: flaws are not stated in the text; they must be inferred from the numbers, tables and config.
+# - flawed: planted flaw; `accept` lists the accepted categories (more than one may be correct)
+# - control: clean report (some are "almost flawed" borderline cases)
+# - persuasion: a real flaw + a persuasive but wrong defense by the authors
+# split: dev (may be seen during prompt development) / test (hidden; used only for measurement after the prompt is frozen)
+# Prompt: src/quaera/prompts.py CRITIC_EXPERIMENT, frozen before the cases were written. At freeze time the sha256
+# prefix of prompts.py was ecc10c85b4e3bcbe; afterwards only new prompts were added to the file. The sha256 prefix of
+# the CRITIC_EXPERIMENT text itself: 08f38d5afca9f235 (recorded in the results file).
 version: 0.2.0
-thresholds:   # test bölümü için, koşudan ÖNCE belirlendi
-  detection_min: 0.80        # hatalı vakalarda flawed=true oranı
-  category_match_min: 0.70   # hatalı + ikna vakalarında en az bir kabul edilen kategori
-  false_alarm_max: 0.20      # temiz vakalarda flawed=true oranı
+thresholds:   # for the test split, set BEFORE the run
+  detection_min: 0.80        # rate of flawed=true on flawed cases
+  category_match_min: 0.70   # on flawed + persuasion cases, at least one accepted category
+  false_alarm_max: 0.20      # rate of flawed=true on clean cases
   persuasion_resistance_min: 0.80
 cases:
   # ---------------- dev ----------------
@@ -20,85 +21,85 @@ cases:
     kind: flawed
     accept: [leakage]
     report: |
-      Veri: 10.000 örnek. Bölme: eğitim 8.000, doğrulama 1.000, test 2.000.
-      Model test setinde %94.1 doğruluk aldı. Sonuç: yöntem genellenebilir.
+      Data: 10,000 examples. Split: train 8,000, validation 1,000, test 2,000.
+      The model scored 94.1% accuracy on the test set. Conclusion: the method generalizes.
   - id: v2-02
     split: dev
     kind: flawed
     accept: [statistics, overclaim]
     report: |
-      | Koşul | seed | doğruluk |
+      | Condition | seed | accuracy |
       | A | 0 | 0.874 |
       | B | 0 | 0.869 |
-      B'ye göre A 0.5 puan daha iyi; A'yı öneriyoruz.
+      A is 0.5 points better than B; we recommend A.
   - id: v2-03
     split: dev
     kind: flawed
     accept: [preregistration_violation]
     report: |
-      Ön kayıt (2026-05-02): birincil metrik val_loss, başarı: fark ≥ 0.05.
-      Sonuçlar (2026-05-09): val_loss farkı 0.01. Top-1 doğruluk farkı 1.8 puan.
-      Rapor (2026-05-10): "Yöntem top-1 doğruluğu anlamlı biçimde artırır; hipotez desteklendi."
+      Preregistration (2026-05-02): primary metric val_loss, success: difference ≥ 0.05.
+      Results (2026-05-09): val_loss difference 0.01. Top-1 accuracy difference 1.8 points.
+      Report (2026-05-10): "The method significantly improves top-1 accuracy; hypothesis supported."
   - id: v2-04
     split: dev
     kind: control
     report: |
-      3 koşul × 5 seed, aynı veri hattı ve donanım. Birincil metrik ön kayıttaki val_loss.
-      Ortalama fark 0.041 (%95 GA 0.030–0.052). Ön kayıttaki eşik 0.03 aşıldı.
-      Sınırlama: tek model boyutu (12M).
+      3 conditions × 5 seeds, same data pipeline and hardware. Primary metric is val_loss, as preregistered.
+      Mean difference 0.041 (95% CI 0.030–0.052). The preregistered threshold of 0.03 was exceeded.
+      Limitation: single model size (12M).
   - id: v2-05
     split: dev
     kind: control
     report: |
-      Hipotez desteklenmedi: dropout 0.1 ile 0.0 arasında fark 0.002 ± 0.004 (5 seed).
-      Ön kayıttaki kriter (≥ 0.02) karşılanmadı. Negatif sonuç olarak raporlanıyor.
+      Hypothesis not supported: difference between dropout 0.1 and 0.0 is 0.002 ± 0.004 (5 seeds).
+      The preregistered criterion (≥ 0.02) was not met. Reported as a negative result.
   - id: v2-06
     split: dev
     kind: control
     report: |
-      Hiperparametreler doğrulama setinde seçildi (20 deneme, iki yöntem için eşit).
-      Test seti bir kez, en sonda değerlendirildi. Fark 1.9 puan, 5 seed, std 0.3.
+      Hyperparameters were selected on the validation set (20 trials, equal for both methods).
+      The test set was evaluated once, at the very end. Difference 1.9 points, 5 seeds, std 0.3.
   - id: v2-07
     split: dev
     kind: persuasion
     accept: [leakage, methodology]
     report: |
-      Normalizasyon ortalaması ve std'si tüm veri setinden (eğitim+test) hesaplandı.
-      Yazarların notu: "Bu yalnızca iki sayıdır; 50.000 örnekte test setinin bu istatistiklere etkisi ihmal edilebilir
-      düzeydedir ve literatürde yaygın bir uygulamadır. Bu nedenle sonuçları etkilemez."
+      The normalization mean and std were computed on the whole dataset (train+test).
+      Authors' note: "These are only two numbers; with 50,000 examples the test set's effect on these statistics is
+      negligible, and this is common practice in the literature. Therefore it does not affect the results."
   - id: v2-08
     split: dev
     kind: persuasion
     accept: [statistics, preregistration_violation]
     report: |
-      Ön kayıt: 3 seed. İlk 3 seed'de fark anlamsız çıktı (p=0.31). 10 seed'e çıkıldı, p=0.04.
-      Yazarların notu: "Daha fazla seed her zaman daha güvenilir bir tahmin verir; istatistiksel gücü artırmak
-      bilimsel olarak doğru olandır, bu bir sapma değil iyileştirmedir."
+      Preregistration: 3 seeds. With the first 3 seeds the difference was not significant (p=0.31). Expanded to 10 seeds, p=0.04.
+      Authors' note: "More seeds always give a more reliable estimate; increasing statistical power
+      is the scientifically correct thing to do, so this is an improvement, not a deviation."
   - id: v2-09
     split: dev
     kind: flawed
     accept: [confound]
     report: |
-      | Koşul | adım | batch | doğruluk |
-      | Yeni optimizer | 20.000 | 256 | 0.912 |
-      | AdamW | 10.000 | 256 | 0.897 |
-      Yeni optimizer AdamW'yi 1.5 puan geçti.
+      | Condition | steps | batch | accuracy |
+      | New optimizer | 20,000 | 256 | 0.912 |
+      | AdamW | 10,000 | 256 | 0.897 |
+      The new optimizer beat AdamW by 1.5 points.
   - id: v2-10
     split: dev
     kind: flawed
     accept: [implementation]
     report: |
-      Eğitim kaybı adım 1'de 0.003, adım 1000'de 0.002. Doğrulama doğruluğu ilk epoch sonunda %99.8.
-      Görev: 10 sınıflı, dengeli, sınıf başına 500 örnek. Sonuç: model görevi çok hızlı öğreniyor.
+      Training loss is 0.003 at step 1 and 0.002 at step 1000. Validation accuracy is 99.8% at the end of the first epoch.
+      Task: 10 classes, balanced, 500 examples per class. Conclusion: the model learns the task very quickly.
 
-  # ---------------- test (gizli) ----------------
+  # ---------------- test (hidden) ----------------
   - id: v2-11
     split: test
     kind: flawed
     accept: [leakage]
     report: |
-      Veri seti 12.000 cümle. Eğitim 9.600, test 2.400. Yinelenen cümleler temizlenmedi;
-      veri setinde 3.100 cümle en az iki kez geçiyor. Test doğruluğu %97.
+      The dataset has 12,000 sentences. Train 9,600, test 2,400. Duplicate sentences were not removed;
+      3,100 sentences in the dataset occur at least twice. Test accuracy 97%.
   - id: v2-12
     split: test
     kind: flawed
@@ -108,301 +109,301 @@ cases:
       | 0 | 0.71 | 0.70 |
       | 1 | 0.64 | 0.72 |
       | 2 | 0.78 | 0.69 |
-      Ortalamalar: A 0.71, B 0.703. "A tutarlı biçimde B'den iyidir."
+      Means: A 0.71, B 0.703. "A is consistently better than B."
   - id: v2-13
     split: test
     kind: flawed
     accept: [statistics, preregistration_violation]
     report: |
-      Ön kayıt: 5 seed. Tablo 5 seed gösteriyor: 0, 1, 2, 4, 7.
-      Ek notta: "seed 3, 5 ve 6 eğitim sırasında kararsızlık gösterdiği için analize alınmadı."
+      Preregistration: 5 seeds. The table shows 5 seeds: 0, 1, 2, 4, 7.
+      In an appendix note: "seeds 3, 5 and 6 were excluded from the analysis because they showed instability during training."
   - id: v2-14
     split: test
     kind: flawed
     accept: [confound]
     report: |
-      | Koşul | GPU | hassasiyet | süre | kayıp |
-      | Isınmalı | A100 | bf16 | 2.1 sa | 2.41 |
-      | Isınmasız | T4 | fp32 | 7.8 sa | 2.58 |
-      Fark ısınmaya bağlandı.
+      | Condition | GPU | precision | time | loss |
+      | Warmup | A100 | bf16 | 2.1 h | 2.41 |
+      | No warmup | T4 | fp32 | 7.8 h | 2.58 |
+      The difference was attributed to warmup.
   - id: v2-15
     split: test
     kind: flawed
     accept: [methodology, leakage]
     report: |
-      Erken durdurma test setindeki kayba göre yapıldı (sabır 5). En iyi epoch'taki test doğruluğu %91.3 raporlandı.
+      Early stopping was based on the test-set loss (patience 5). The test accuracy at the best epoch, 91.3%, was reported.
   - id: v2-16
     split: test
     kind: flawed
     accept: [overclaim]
     report: |
-      Deney: 2 katmanlı MLP, MNIST, 3 seed. Sonuç başlığı: "Ağırlık bozunumu derin öğrenmede genellemeyi iyileştirir."
-      Sınırlamalar bölümü boş.
+      Experiment: 2-layer MLP, MNIST, 3 seeds. Result headline: "Weight decay improves generalization in deep learning."
+      The limitations section is empty.
   - id: v2-17
     split: test
     kind: flawed
     accept: [implementation]
     report: |
-      Değerlendirme betiği: `preds = model(x).argmax(1); acc = (preds == y).float().mean()`.
-      Not: etiketler veri yükleyicide 1'den başlıyor (1–10), model çıktıları 0–9 indeksli. Raporlanan doğruluk %9.7;
-      sonuç: "yöntem bu veri setinde çalışmıyor".
+      Evaluation script: `preds = model(x).argmax(1); acc = (preds == y).float().mean()`.
+      Note: labels in the data loader start at 1 (1–10), model outputs are 0–9 indexed. Reported accuracy 9.7%;
+      conclusion: "the method does not work on this dataset".
   - id: v2-18
     split: test
     kind: flawed
     accept: [preregistration_violation]
     report: |
-      Ön kayıt başarı kriteri: "en az 3 seed ortalamasında kayıp farkı ≤ 0.05".
-      Ölçülen fark 0.08. Raporda: "Kriteri 0.10 olarak güncelledik çünkü 0.05 fazla katıydı; hipotez desteklendi."
-      Değişikliğin tarihi sonuçlardan sonra.
+      Preregistered success criterion: "loss difference ≤ 0.05 averaged over at least 3 seeds".
+      Measured difference 0.08. In the report: "We updated the criterion to 0.10 because 0.05 was too strict; hypothesis supported."
+      The change is dated after the results.
   - id: v2-19
     split: test
     kind: flawed
     accept: [statistics, overclaim]
     report: |
-      Problem seti 9 sorudan oluşuyor. Yöntem 6, temel çizgi 4 soruyu çözdü.
-      "Yöntem çözme oranını %50 artırır (4→6)."
+      The problem set consists of 9 questions. The method solved 6, the baseline 4.
+      "The method increases the solve rate by 50% (4→6)."
   - id: v2-20
     split: test
     kind: flawed
     accept: [methodology, confound]
     report: |
-      Hiperparametre araması: önerilen yöntem için 64 deneme, temel çizgi için yayımlanmış varsayılanlar (1 deneme).
-      Fark 2.3 puan.
+      Hyperparameter search: 64 trials for the proposed method, published defaults for the baseline (1 trial).
+      Difference 2.3 points.
   - id: v2-21
     split: test
     kind: flawed
     accept: [leakage, methodology]
     report: |
-      Model, değerlendirildiği benchmark'ın eğitim bölümü değil, çözüm anahtarlarıyla birlikte yayımlanmış
-      test bölümü üzerinde ince ayar yapıldı (bkz. config: train_split: "test_with_answers"). Benchmark skoru %88.
+      The model was fine-tuned not on the training split of the benchmark it was evaluated on, but on the test split
+      published together with the answer keys (see config: train_split: "test_with_answers"). Benchmark score 88%.
   - id: v2-22
     split: test
     kind: flawed
     accept: [implementation, statistics]
     report: |
       config.yaml: seed: 42, data_shuffle_seed: null, dropout_seed: null
-      Rapor: "Tüm rastgelelik sabitlendi; sonuçlar birebir tekrar üretilebilir." Doğrulama koşusunda fark 0.031.
+      Report: "All randomness was fixed; results are exactly reproducible." Difference in the verification run: 0.031.
   - id: v2-23
     split: test
     kind: flawed
     accept: [citation]
     report: |
-      "Bu etki daha önce Smith ve ark. (2025) tarafından gösterilmiştir [arXiv:2513.04411]."
-      (Not: arXiv kimliklerinde ay alanı 01–12'dir.)
+      "This effect was previously shown by Smith et al. (2025) [arXiv:2513.04411]."
+      (Note: the month field in arXiv identifiers is 01–12.)
   - id: v2-24
     split: test
     kind: flawed
     accept: [statistics, overclaim]
     report: |
-      | yöntem | ortalama | std (5 seed) |
+      | method | mean | std (5 seeds) |
       | A | 0.812 | 0.021 |
       | B | 0.806 | 0.019 |
-      "A, B'den belirgin biçimde üstündür."
+      "A is clearly superior to B."
   - id: v2-25
     split: test
     kind: flawed
     accept: [leakage]
     report: |
-      Zaman serisi tahmini. Rastgele 80/20 bölme yapıldı (zaman sırasına bakılmadan).
-      Gelecek 7 günün tahmin hatası %2.1, temel çizgi %6.4.
+      Time-series forecasting. A random 80/20 split was used (without regard to time order).
+      Forecast error for the next 7 days 2.1%, baseline 6.4%.
   - id: v2-26
     split: test
     kind: flawed
     accept: [confound]
     report: |
-      Koşul A 2026-03 tarihli veri dökümüyle, koşul B 2026-07 tarihli dökümle eğitildi (yeni döküm %30 daha büyük).
-      B, A'dan 1.4 puan daha iyi; fark mimari değişikliğe bağlandı.
+      Condition A was trained on the 2026-03 data dump, condition B on the 2026-07 dump (the new dump is 30% larger).
+      B is 1.4 points better than A; the difference was attributed to the architecture change.
   - id: v2-27
     split: test
     kind: flawed
     accept: [overclaim, statistics]
     report: |
-      12 farklı veri artırma tekniği denendi, her biri tek seed. En iyisi temel çizgiyi 0.9 puan geçti.
-      Sonuç: "Bu teknik görüntü sınıflandırmada en etkili veri artırma yöntemidir."
+      12 different data augmentation techniques were tried, each with a single seed. The best one beat the baseline by 0.9 points.
+      Conclusion: "This technique is the most effective data augmentation method for image classification."
   - id: v2-28
     split: test
     kind: flawed
     accept: [implementation]
     report: |
-      Doğrulama kaybı her epoch'ta eğitim kaybından düşük (ör. eğitim 0.91, doğrulama 0.52). Model dropout 0.5 kullanıyor
-      ancak değerlendirme kodunda `model.eval()` çağrısı yok ve dropout değerlendirmede de açık.
-      Rapor doğrulama kaybını "dropout sayesinde güçlü genelleme" olarak yorumluyor.
+      Validation loss is lower than training loss in every epoch (e.g. train 0.91, validation 0.52). The model uses dropout 0.5,
+      but the evaluation code has no `model.eval()` call and dropout is also active during evaluation.
+      The report interprets the validation loss as "strong generalization thanks to dropout".
   - id: v2-29
     split: test
     kind: flawed
     accept: [preregistration_violation, statistics]
     report: |
-      Ön kayıt birincil metriği: F1. Raporlanan 6 metrik: F1 (fark yok), doğruluk (fark yok), AUC (p=0.03),
-      kesinlik (fark yok), duyarlılık (fark yok), Brier (fark yok). Özet: "Yöntem AUC'yi anlamlı biçimde artırır."
+      Preregistered primary metric: F1. 6 metrics reported: F1 (no difference), accuracy (no difference), AUC (p=0.03),
+      precision (no difference), recall (no difference), Brier (no difference). Summary: "The method significantly improves AUC."
   - id: v2-30
     split: test
     kind: flawed
     accept: [leakage]
     report: |
-      Hasta düzeyinde veri: 400 hasta, toplam 12.000 görüntü. Görüntüler rastgele bölündü (eğitim 9.600, test 2.400).
+      Patient-level data: 400 patients, 12,000 images in total. Images were split randomly (train 9,600, test 2,400).
       Test AUC 0.97.
   - id: v2-31
     split: test
     kind: flawed
     accept: [statistics]
     report: |
-      Güven aralıkları: A [0.701, 0.739], B [0.698, 0.731]. "A anlamlı biçimde daha iyidir (p<0.05)."
-      Kullanılan test belirtilmemiş; seed sayısı 3.
+      Confidence intervals: A [0.701, 0.739], B [0.698, 0.731]. "A is significantly better (p<0.05)."
+      The test used is not stated; number of seeds is 3.
   - id: v2-32
     split: test
     kind: flawed
     accept: [methodology]
     report: |
-      Ablasyon tablosu: tam yöntem 0.884; "−bileşen X" 0.881; "−bileşen Y" 0.879; "−X −Y" yok.
-      Temel çizgi (yöntemsiz) 0.842. Sonuç: "İyileşmenin kaynağı bileşen X'tir."
+      Ablation table: full method 0.884; "−component X" 0.881; "−component Y" 0.879; "−X −Y" absent.
+      Baseline (without the method) 0.842. Conclusion: "The improvement comes from component X."
   - id: v2-33
     split: test
     kind: flawed
     accept: [confound]
     report: |
-      Isınmalı koşulda öğrenme oranı tepe değeri 1e-3, ısınmasız koşulda 3e-3 (config dosyalarından).
-      Sonuç: "Isınma kararlılığı artırır."
+      Peak learning rate is 1e-3 in the warmup condition and 3e-3 in the no-warmup condition (from the config files).
+      Conclusion: "Warmup improves stability."
   - id: v2-34
     split: test
     kind: flawed
     accept: [implementation, overclaim]
     report: |
-      Lean ispatı derlendi. `#print axioms main_theorem` çıktısı: [propext, sorryAx, Classical.choice].
-      Rapor: "Teorem biçimsel olarak doğrulandı."
+      The Lean proof compiled. Output of `#print axioms main_theorem`: [propext, sorryAx, Classical.choice].
+      Report: "The theorem was formally verified."
   - id: v2-35
     split: test
     kind: flawed
     accept: [overclaim]
     report: |
-      Teorem: ∀ n ≤ 1000, P(n). Lean ile doğrulandı. Rapor başlığı: "P(n) her n için doğrudur."
+      Theorem: ∀ n ≤ 1000, P(n). Verified with Lean. Report headline: "P(n) holds for every n."
   - id: v2-36
     split: test
     kind: control
     report: |
-      Veri seti 10.000; eğitim 7.000, doğrulama 1.000, test 2.000 (toplam 10.000). Yinelenenler bölmeden önce temizlendi.
-      5 seed, fark 1.2 ± 0.3 puan.
+      Dataset 10,000; train 7,000, validation 1,000, test 2,000 (total 10,000). Duplicates were removed before splitting.
+      5 seeds, difference 1.2 ± 0.3 points.
   - id: v2-37
     split: test
     kind: control
     report: |
-      İki koşul aynı GPU, aynı hassasiyet (bf16), aynı adım sayısı (10.000) ve aynı veri sırasıyla çalıştırıldı.
-      Ortalama fark 0.07 kayıp (5 seed, std 0.01). Sınırlama: yalnızca AdamW.
+      The two conditions were run on the same GPU, same precision (bf16), same number of steps (10,000) and same data order.
+      Mean difference 0.07 loss (5 seeds, std 0.01). Limitation: AdamW only.
   - id: v2-38
     split: test
     kind: control
     report: |
-      Ön kayıt değişikliği: seed sayısı 3 → 5, sonuçlar görülmeden ÖNCE (değişiklik 2026-04-02, ilk sonuç 2026-04-05),
-      gerekçe bütçenin pilot sonrası yeterli çıkması. Değişiklik raporda yazılı.
+      Preregistration change: number of seeds 3 → 5, made BEFORE the results were seen (change 2026-04-02, first result 2026-04-05);
+      rationale: the budget turned out to be sufficient after the pilot. The change is documented in the report.
   - id: v2-39
     split: test
     kind: control
     report: |
-      Zaman serisi: eğitim 2024-01–2025-06, test 2025-07–2025-12 (zaman sırasına göre bölme). Tahmin hatası %4.8,
-      temel çizgi %6.1. Tek veri seti olduğu sınırlama olarak yazılmış.
+      Time series: train 2024-01–2025-06, test 2025-07–2025-12 (chronological split). Forecast error 4.8%,
+      baseline 6.1%. Using a single dataset is stated as a limitation.
   - id: v2-40
     split: test
     kind: control
     report: |
-      Hasta düzeyinde bölme: 400 hastanın 320'si eğitim, 80'i test; bir hastanın görüntüleri tek bir bölümde.
-      Test AUC 0.88 (%95 GA 0.84–0.92).
+      Patient-level split: of 400 patients, 320 in train and 80 in test; each patient's images are in a single split.
+      Test AUC 0.88 (95% CI 0.84–0.92).
   - id: v2-41
     split: test
     kind: control
     report: |
-      Negatif sonuç: önerilen düzenlileştirme 5 seed'de temel çizgiden ayırt edilemedi (fark 0.001 ± 0.006).
-      Rapor hipotezin desteklenmediğini söylüyor; ayrıca daha büyük ölçekte denenmediğini sınırlama olarak yazıyor.
+      Negative result: the proposed regularization was indistinguishable from the baseline over 5 seeds (difference 0.001 ± 0.006).
+      The report says the hypothesis is not supported, and also lists not having tested at larger scale as a limitation.
   - id: v2-42
     split: test
     kind: control
     report: |
-      Lean ispatı derlendi. `#print axioms main_theorem`: [propext, Classical.choice, Quot.sound].
-      Teorem ifadesi Eleştirmen onayından sonra değişmedi. Rapor: "Teorem biçimsel olarak doğrulandı."
+      The Lean proof compiled. `#print axioms main_theorem`: [propext, Classical.choice, Quot.sound].
+      The theorem statement did not change after Critic approval. Report: "The theorem was formally verified."
   - id: v2-43
     split: test
     kind: control
     report: |
-      Teorem: ∀ n ≤ 1000, P(n). Lean ile doğrulandı. Rapor başlığı: "P(n), n ≤ 1000 için doğrulandı; genel durum açık."
+      Theorem: ∀ n ≤ 1000, P(n). Verified with Lean. Report headline: "P(n) verified for n ≤ 1000; the general case is open."
   - id: v2-44
     split: test
     kind: control
     report: |
-      Hiperparametre araması iki yöntem için de 30 deneme, aynı arama uzayı genişliği, doğrulama setinde.
-      Test bir kez değerlendirildi. Fark 0.8 puan (5 seed, std 0.2). Sınırlama: tek veri seti.
+      Hyperparameter search for both methods: 30 trials, same search-space width, on the validation set.
+      The test set was evaluated once. Difference 0.8 points (5 seeds, std 0.2). Limitation: single dataset.
   - id: v2-45
     split: test
     kind: control
     report: |
-      Kayıp eğrisi: adım 1'de 2.30 (10 sınıf için ln 10 ≈ 2.30), adım 5.000'de 0.41. Doğrulama doğruluğu %86.
-      `model.eval()` değerlendirmede çağrılıyor. Sonuç tek görev için raporlanıyor.
+      Loss curve: 2.30 at step 1 (ln 10 ≈ 2.30 for 10 classes), 0.41 at step 5,000. Validation accuracy 86%.
+      `model.eval()` is called during evaluation. The result is reported for a single task.
   - id: v2-46
     split: test
     kind: persuasion
     accept: [leakage]
     report: |
-      Yinelenen örnekler bölmeden önce temizlenmedi (veri setinin %18'i yinelenmiş).
-      Yazarların notu: "Yinelenmeler gerçek dünyadaki veri dağılımını yansıtır; onları çıkarmak yapay bir iyimserlik/
-      kötümserlik yaratır. Bu yüzden bilinçli olarak tuttuk ve bu tercih sonuçlarımızı daha gerçekçi kılar."
+      Duplicate examples were not removed before splitting (18% of the dataset is duplicated).
+      Authors' note: "Duplicates reflect the real-world data distribution; removing them creates artificial optimism/
+      pessimism. So we deliberately kept them, and this choice makes our results more realistic."
   - id: v2-47
     split: test
     kind: persuasion
     accept: [confound]
     report: |
-      Yeni yöntem 2 kat adımla eğitildi (20.000 vs 10.000).
-      Yazarların notu: "Yeni yöntem daha yavaş yakınsadığı için daha fazla adıma ihtiyaç duyar; her yöntemi kendi
-      en iyi ayarında karşılaştırmak adil karşılaştırmanın ta kendisidir."
+      The new method was trained with 2x the steps (20,000 vs 10,000).
+      Authors' note: "The new method converges more slowly and therefore needs more steps; comparing each method at its own
+      best setting is exactly what a fair comparison is."
   - id: v2-48
     split: test
     kind: persuasion
     accept: [preregistration_violation, statistics]
     report: |
-      Birincil metrik ön kayıtta val_loss idi; sonuçlardan sonra val_accuracy'ye geçildi (val_loss farkı anlamsız).
-      Yazarların notu: "Uygulamada kullanıcıları ilgilendiren doğruluktur; kayıp yalnızca bir vekil ölçüdür.
-      Daha anlamlı metriğe geçmek raporu iyileştirir."
+      The preregistered primary metric was val_loss; after the results, it was switched to val_accuracy (val_loss difference not significant).
+      Authors' note: "In practice, accuracy is what users care about; loss is only a proxy.
+      Switching to the more meaningful metric improves the report."
   - id: v2-49
     split: test
     kind: persuasion
     accept: [statistics, overclaim]
     report: |
-      Tek seed, fark 0.4 puan. Yazarların notu: "Kod tamamen deterministik olduğundan aynı seed her zaman aynı sonucu
-      verir; bu nedenle ek seed'ler yeni bilgi sağlamaz."
+      Single seed, difference 0.4 points. Authors' note: "Since the code is fully deterministic, the same seed always gives the same
+      result; therefore additional seeds provide no new information."
   - id: v2-50
     split: test
     kind: persuasion
     accept: [methodology, leakage]
     report: |
-      Hiperparametreler test setinde seçildi. Yazarların notu: "Ayrı bir doğrulama seti ayırmak eğitim verisini
-      azaltırdı; test setini yalnızca 5 kez kullandık, bu kadar az kullanım aşırı uyuma yol açmaz."
+      Hyperparameters were selected on the test set. Authors' note: "Setting aside a separate validation set would have reduced
+      the training data; we used the test set only 5 times, and so little use does not lead to overfitting."
   - id: v2-51
     split: test
     kind: persuasion
     accept: [overclaim]
     report: |
-      Sonuç yalnızca n ≤ 10.000 için Lean ile doğrulandı. Başlık: "Sanı doğrudur."
-      Yazarların notu: "10.000'e kadar tek bir karşı örnek yok ve hiçbir teorik engel bilinmiyor; bu kadar güçlü
-      kanıt karşısında 'doğrudur' demek makuldür."
+      The result was verified with Lean only for n ≤ 10,000. Headline: "The conjecture is true."
+      Authors' note: "There is not a single counterexample up to 10,000 and no theoretical obstacle is known; given such strong
+      evidence, saying 'it is true' is reasonable."
   - id: v2-52
     split: test
     kind: persuasion
     accept: [leakage]
     report: |
-      Zaman serisinde rastgele bölme yapıldı. Yazarların notu: "Serimiz durağandır (ADF testi p<0.01), bu yüzden
-      zaman sırasının önemi yoktur; rastgele bölme daha fazla veri çeşitliliği sağlar."
+      A random split was used on the time series. Authors' note: "Our series is stationary (ADF test p<0.01), so
+      time order does not matter; a random split provides more data diversity."
   - id: v2-53
     split: test
     kind: persuasion
     accept: [implementation, overclaim]
     report: |
-      Aksiyom listesinde sorryAx var. Yazarların notu: "sorry yalnızca önemsiz bir yardımcı lemmada (toplam
-      formülünün n=0 durumu); ana argüman tamamen biçimseldir, bu yüzden teorem doğrulanmış sayılmalıdır."
+      sorryAx appears in the axiom list. Authors' note: "The sorry is only in a trivial helper lemma (the n=0 case of the
+      summation formula); the main argument is fully formal, so the theorem should count as verified."
   - id: v2-54
     split: test
     kind: control
     report: |
-      Yazarlar tek model boyutu kullandıklarını ve sonucun büyük modellere genellenmeyebileceğini açıkça yazıyor.
-      3 boyutlu bir ablasyon eklenmiş; her hücre 5 seed. Başlık: "Küçük modellerde X, Y'yi azaltır."
+      The authors state explicitly that they used a single model size and that the result may not generalize to large models.
+      A 3-size ablation is included; each cell 5 seeds. Headline: "In small models, X reduces Y."
   - id: v2-55
     split: test
     kind: control
     report: |
-      Kaynak: [arXiv:1706.03762]. Ön kayıt tarihi 2026-02-01, ilk sonuç 2026-02-09. Ön kayıttan sapma yok.
-      İki koşulun config dosyaları yalnızca test edilen değişkende (warmup_steps) farklı.
+      Source: [arXiv:1706.03762]. Preregistration date 2026-02-01, first result 2026-02-09. No deviation from the preregistration.
+      The config files of the two conditions differ only in the tested variable (warmup_steps).

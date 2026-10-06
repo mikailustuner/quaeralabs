@@ -159,6 +159,64 @@ def parse_opencode(stdout: str, stderr: str, model: str, family: str) -> Complet
                       output_tokens=int(tokens.get("output", 0) or 0))
 
 
+class AntigravityCLIProvider:
+    """Google models through the signed-in Antigravity CLI.
+
+    The prompt goes over stdin as one stream-json `user` message (no argument-length limit, and the model never has
+    to open a file), in an empty working directory; `--mode plan` and `--sandbox` keep the agent read-only.
+    """
+
+    family = "google"
+    billing = "subscription"
+
+    def __init__(self, binary: str = "agy", model: str | None = None, timeout_s: int = 900):
+        self.binary, self.timeout_s = binary, timeout_s
+        self.model = model or os.environ.get("QUAERA_AGY_MODEL") or None
+
+    def model_for(self, profile: str) -> str:
+        return f"{self.model or 'default'}@{CODEX_EFFORT.get(profile, 'medium')}"
+
+    def price(self, model: str) -> tuple[float, float]:
+        return (0.0, 0.0)
+
+    def complete(self, model: str, system: str, prompt: str, max_output_tokens: int, budget_usd: float,
+                 effort: str | None = None) -> Completion:
+        name, _, prof_effort = model.partition("@")
+        eff = EFFORT_MAP.get(effort or "", prof_effort or "medium")
+        text = (f"{NO_TOOLS}\n\n=== SYSTEM ===\n{system}\n\n=== TASK ===\n{prompt}\n\n"
+                f"Keep the answer under about {max_output_tokens} tokens.")
+        message = json.dumps({"event": "user", "message": {"content": text}}, ensure_ascii=False) + "\n"
+        cmd = [self.binary, "--input-format", "stream-json", "--output-format", "stream-json", "--mode", "plan",
+               "--sandbox", "--effort", eff, "--print-timeout", f"{self.timeout_s}s"] + (["--model", name] if name != "default" else [])
+        cwd = _workdir()
+        try:
+            proc = subprocess.run(cmd, input=message, capture_output=True, text=True, timeout=self.timeout_s + 30, cwd=cwd)
+        except subprocess.TimeoutExpired as exc:
+            raise ModelError(f"agy did not finish within {self.timeout_s} s") from exc
+        finally:
+            shutil.rmtree(cwd, ignore_errors=True)
+        return parse_agy(proc.stdout, proc.stderr, name)
+
+
+def parse_agy(stdout: str, stderr: str, model: str) -> Completion:
+    """Reads the final `result` event of a stream-json run (same shape as the `--output-format json` envelope)."""
+    env: dict = {}
+    for line in stdout.splitlines():
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(ev, dict) and ev.get("event") == "result":
+            env = ev.get("result") or {}
+    text = (env.get("response") or "").strip()
+    if env.get("status") != "SUCCESS" or not text:
+        raise ModelError(f"agy error: {env.get('error') or env.get('status') or stderr.strip()[-300:] or 'empty answer'}")
+    usage = env.get("usage") or {}
+    return Completion(text=text, model=f"agy/{model}", family="google", cost_usd=0.0,
+                      input_tokens=int(usage.get("input_tokens", 0) or 0),
+                      output_tokens=int(usage.get("output_tokens", 0) or 0))   # already includes thinking tokens
+
+
 # --- tespit ----------------------------------------------------------------------------------
 
 def _version(binary: str) -> str | None:
@@ -189,6 +247,11 @@ def detect() -> list[dict]:
                   "version": _version(oc) if oc else None, "billing": "subscription / free models (no per-call charge reported)",
                   "model": os.environ.get("QUAERA_OPENCODE_MODEL") or "OpenCode default", "ready": bool(oc),
                   "note": "" if oc else "not installed"})
+    agy = shutil.which(os.environ.get("QUAERA_AGY_BIN", "agy"))
+    found.append({"id": "agy", "name": "Antigravity CLI", "family": "google", "binary": agy,
+                  "version": _version(agy) if agy else None, "billing": "subscription (no per-call charge reported)",
+                  "model": os.environ.get("QUAERA_AGY_MODEL") or "Antigravity default", "ready": bool(agy),
+                  "note": "" if agy else "not installed"})
     return found
 
 
@@ -213,6 +276,8 @@ def build_cli_providers(only: set[str] | None = None) -> dict:
         elif d["id"] == "opencode":
             p = OpenCodeCLIProvider(d["binary"])
             out[p.family] = p
+        elif d["id"] == "agy":
+            out["google"] = AntigravityCLIProvider(d["binary"])
     return out
 
 

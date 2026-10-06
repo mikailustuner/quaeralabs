@@ -1,12 +1,12 @@
-# miniF2F (Lean 4) kaynak yapılandırması
+# miniF2F (Lean 4) source configuration
 version: 0.2.0
 source:
-  description: "miniF2F'in Lean 4 sürümü (DeepSeek-Prover-V1.5 deposundaki veri seti); olimpiyat düzeyi problemler"
+  description: "Lean 4 version of miniF2F (the dataset in the DeepSeek-Prover-V1.5 repository); olympiad-level problems"
   upstream: "https://github.com/deepseek-ai/DeepSeek-Prover-V1.5/blob/main/datasets/minif2f.jsonl"
   pinned_commit: 2c4ba9119eef74d0d611f494261b2c5bae98c69a
   local_copy: evals/data/minif2f-deepseek-v15.jsonl
 splits: [valid, test]
-metric: "pass@k: k deneme içinde (derleyici geri bildirimiyle) sorry ve standart dışı aksiyom olmadan derlenen ispat oranı"
+metric: "pass@k: fraction of proofs that compile without sorry or non-standard axioms within k attempts (with compiler feedback)"
 compatibility: >
-  İfadeler eski bir Mathlib için yazılmıştır. Her ifade önce güncel Mathlib'de `sorry` ile derlenir (pilot);
-  derlenmeyenler değerlendirme dışı bırakılır ve sayısı raporlanır. Eski `∑ x in s` sözdizimi `∑ x ∈ s` olarak güncellenir.
+  The statements were written for an older Mathlib. Each statement is first compiled with `sorry` against current Mathlib (pilot);
+  those that fail to compile are excluded from evaluation and their count is reported. The old `∑ x in s` syntax is updated to `∑ x ∈ s`.

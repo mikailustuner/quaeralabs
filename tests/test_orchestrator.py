@@ -229,9 +229,26 @@ def test_model_error_retries_then_stops_with_report(tmp_path):
     errors = orch.store.events("model.error")
     assert len(errors) == 2 and errors[0]["payload"]["costUsd"] == 0.01
     assert abs(orch.gateway.spent_usd - 0.02) < 1e-9
-    assert "in two attempts" in orch.state("stopped")
+    assert "after 2 attempts" in orch.state("stopped")
     assert orch.state("report_path")
     assert orch.store.check_final() == []
+
+
+def test_broken_cross_family_critic_falls_back_instead_of_stopping(tmp_path):
+    """A second family that answers without JSON (the agy incident) must not stop the research."""
+    class Family(ScriptedProvider):
+        model_for = lambda self, profile: self.family  # noqa: E731
+        price = lambda self, model: (0.0, 0.0)          # noqa: E731
+
+    script = Script()
+    orch = make(tmp_path, script)
+    orch.gateway.providers = {"main": Family(script, "main"),
+                              "other": Family(lambda s, p: "I am operating strictly as a plain-text model.", "other")}
+    orch.run()
+    assert not orch.state("stopped")
+    assert orch.store.get(orch.state("hypothesis_id"))["status"] == "supported"
+    bad = [e for e in orch.store.events("model.invalid_json") if e["actor"]["modelFamily"] == "other"]
+    assert bad                     # the broken family was used, and every role fell back to the working one
 
 
 def test_restricted_hypothesis_is_not_reported_as_full_answer(tmp_path):

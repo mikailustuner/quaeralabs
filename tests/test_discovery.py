@@ -214,3 +214,31 @@ def test_discovery_lessons_and_server_create(tmp_path, monkeypatch):
 def test_tolerates_malformed_model_fields():
     from quaera.discovery import score_of
     assert score_of("7/10") == 7.0 and score_of(None) == 0.0 and score_of(12) == 10.0 and score_of("high") == 0.0
+
+
+def test_discovery_approach_branch_reruns_ideation_without_repeating_strategies(tmp_path):
+    from quaera import tree
+    orch, a, b = make_discovery(tmp_path, "rh")
+    orch.run()
+    child = tree.branch_project(tmp_path, "rh", "approach", "Both strategies were tried; look for a new idea.",
+                                note="Avoid induction; try a combinatorial picture.", by={"kind": "agent", "role": "director",
+                                "model": "m", "modelFamily": "anthropic"}, budget=5.0)
+    store = Store(tmp_path / child / "quaera.db", Permissions.load())
+    assert store.meta("branch")["atStage"] == "design"                   # the target is kept, ideation runs again
+    seen = []
+
+    class Again(DiscoveryScript):
+        def __call__(self, system, prompt):
+            if key_of(system) == "IDEATE":
+                seen.append(prompt)
+                return json.dumps({"strategies": [
+                    {"title": "Telescoping squares", "idea": "old idea again", "direction": "prove"},
+                    {"title": "Dot-grid picture of odd sums", "idea": "count L-shaped layers of a square grid", "direction": "prove"}]})
+            return super().__call__(system, prompt)
+    perms = Permissions.load()
+    record = lambda k, p: store.append(k, {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"}, p)  # noqa: E731
+    gw = Gateway({"anthropic": Fam(Again("anthropic"), "anthropic"), "openai": Fam(Again("openai"), "openai")}, 5.0, perms.agents, record)
+    DiscoveryOrchestrator(store, gw, LemmaTools(perms), AutoApprover(100.0), perms, log=lambda m: None, reports_dir=tmp_path / child).run()
+    assert seen and all("Telescoping squares" in p and "combinatorial picture" in p for p in seen)   # every lane got the history
+    new = [e["payload"]["title"] for e in store.events("strategy.proposed") if e["seq"] > store.meta("branch")["atSeq"]]
+    assert new == ["Dot-grid picture of odd sums"] and store.events("strategy.repeat_skipped")
