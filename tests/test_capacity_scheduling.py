@@ -19,10 +19,18 @@ class Family(ScriptedProvider):
 
 
 def blocking_result(second_says_blocking: bool):
+    """The FIRST result review (whichever family the Critic lands on) rates the concern blocking; the second opinion
+    confirms or not. Independent of which family the parallel hypothesis lanes leave for the Critic."""
+    seen = []
+    lock = threading.Lock()
+
     def critic(family):
         def answer(system, prompt):
             if system == prompts.CRITIC_RESULT:
-                sev = "blocking" if family == "openai" or second_says_blocking else "low"
+                with lock:
+                    seen.append(family)
+                    first = len(seen) == 1
+                sev = "blocking" if first or second_says_blocking else "low"
                 return json.dumps({"concerns": [{"severity": sev, "body": f"The proof is suspicious ({family})."}]})
             return SCRIPT(system, prompt)
         return answer
@@ -37,8 +45,8 @@ def run_with_committee(tmp_path, confirm: bool, name: str):
     SCRIPT = Script()
     orch = make(tmp_path, SCRIPT, name=name)
     crit = blocking_result(confirm)
-    orch.gateway.providers = {"anthropic": Family(crit("anthropic"), "anthropic"), "openai": Family(crit("openai"), "openai"),
-                              "google": Family(crit("google"), "google")}
+    # four families: whichever two the parallel hypothesis lanes use, an independent second opinion always remains
+    orch.gateway.providers = {f: Family(crit(f), f) for f in ("anthropic", "openai", "google", "mistral")}
     orch.gateway.__post_init__()
     orch.run()
     return orch
@@ -98,3 +106,16 @@ def test_provider_concurrency_limit_holds_under_parallel_calls():
     gw = Gateway({"local": prov}, 5.0, AGENTS)
     Scheduler(8).run_all([lambda: gw.call("writer", "s", "p", 10) for _ in range(4)])
     assert peak[0] == 1 and len(prov.calls) == 4
+
+
+def test_without_an_independent_family_the_blocking_rating_stands(tmp_path):
+    """Two families only: no family is left that is neither the author's nor the Critic's, so no downgrade happens."""
+    global SCRIPT
+    SCRIPT = Script()
+    orch = make(tmp_path, SCRIPT, name="two")
+    crit = blocking_result(False)
+    orch.gateway.providers = {f: Family(crit(f), f) for f in ("anthropic", "openai")}
+    orch.gateway.__post_init__()
+    orch.run()
+    crit_objs = [c for c in orch.store.latest("critique") if c.get("category") == "overclaim"]
+    assert crit_objs and crit_objs[0]["severity"] == "blocking" and not orch.store.events("critique.unconfirmed")
