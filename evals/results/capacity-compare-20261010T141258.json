@@ -1,0 +1,302 @@
+{
+  "createdAt": "2026-10-10T15:13:59+00:00",
+  "complete": true,
+  "data": "minif2f-deepseek-v15.jsonl (miniF2F valid, seed 11)",
+  "profile": "cheap",
+  "models": [
+    "anthropic/claude-haiku-4-5-20251001"
+  ],
+  "tasks": 12,
+  "perTaskUsd": 0.23,
+  "budgetUsd": 6.0,
+  "spentUsd": 3.3339,
+  "arms": {
+    "before": {
+      "solved": 7,
+      "attempted": 12,
+      "modelCalls": 44,
+      "spentUsd": 1.6998,
+      "secondsTotal": 1685.0
+    },
+    "after": {
+      "solved": 7,
+      "attempted": 12,
+      "modelCalls": 82,
+      "spentUsd": 1.6343,
+      "secondsTotal": 1977.0
+    }
+  },
+  "rows": {
+    "before": [
+      {
+        "name": "aimeII_2001_p3",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 4,
+        "usd": 0.2727,
+        "seconds": 193.0
+      },
+      {
+        "name": "algebra_sqineq_2unitcircatblt1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0218,
+        "seconds": 29.5
+      },
+      {
+        "name": "algebra_sqineq_4bap1lt4bsqpap1sq",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0241,
+        "seconds": 22.5
+      },
+      {
+        "name": "amc12a_2016_p3",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0708,
+        "seconds": 48.6
+      },
+      {
+        "name": "induction_seq_mul2pnp1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole",
+          "whole",
+          "whole"
+        ],
+        "calls": 3,
+        "usd": 0.1079,
+        "seconds": 111.9
+      },
+      {
+        "name": "amc12_2000_p11",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole",
+          "whole",
+          "whole",
+          "whole"
+        ],
+        "calls": 4,
+        "usd": 0.1435,
+        "seconds": 151.9
+      },
+      {
+        "name": "imo_1979_p1",
+        "solved": false,
+        "kinds": [
+          "automation",
+          "whole",
+          "whole",
+          "whole",
+          "whole",
+          "whole",
+          "sketch",
+          "sketch"
+        ],
+        "calls": 7,
+        "usd": 0.2686,
+        "seconds": 335.8
+      },
+      {
+        "name": "algebra_sqineq_36azm9asqle36zsq",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0133,
+        "seconds": 18.8
+      },
+      {
+        "name": "amc12a_2003_p1",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 6,
+        "usd": 0.2412,
+        "seconds": 241.7
+      },
+      {
+        "name": "amc12_2000_p5",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0513,
+        "seconds": 46.1
+      },
+      {
+        "name": "algebra_amgm_prod1toneq1_sum1tongeqn",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 5,
+        "usd": 0.2351,
+        "seconds": 232.4
+      },
+      {
+        "name": "amc12a_2020_p13",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 5,
+        "usd": 0.2495,
+        "seconds": 252.8
+      }
+    ],
+    "after": [
+      {
+        "name": "aimeII_2001_p3",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 11,
+        "usd": 0.2335,
+        "seconds": 267.1
+      },
+      {
+        "name": "algebra_sqineq_2unitcircatblt1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0298,
+        "seconds": 32.5
+      },
+      {
+        "name": "algebra_sqineq_4bap1lt4bsqpap1sq",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0395,
+        "seconds": 38.7
+      },
+      {
+        "name": "amc12a_2016_p3",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy"
+        ],
+        "calls": 0,
+        "usd": 0.0,
+        "seconds": 45.7
+      },
+      {
+        "name": "induction_seq_mul2pnp1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole",
+          "whole",
+          "whole"
+        ],
+        "calls": 3,
+        "usd": 0.1259,
+        "seconds": 118.4
+      },
+      {
+        "name": "amc12_2000_p11",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole",
+          "whole",
+          "whole",
+          "interactive"
+        ],
+        "calls": 6,
+        "usd": 0.1605,
+        "seconds": 143.6
+      },
+      {
+        "name": "imo_1979_p1",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 17,
+        "usd": 0.2625,
+        "seconds": 332.4
+      },
+      {
+        "name": "algebra_sqineq_36azm9asqle36zsq",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0307,
+        "seconds": 33.6
+      },
+      {
+        "name": "amc12a_2003_p1",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 11,
+        "usd": 0.2365,
+        "seconds": 293.9
+      },
+      {
+        "name": "amc12_2000_p5",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0483,
+        "seconds": 42.2
+      },
+      {
+        "name": "algebra_amgm_prod1toneq1_sum1tongeqn",
+        "solved": false,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole",
+          "whole",
+          "whole",
+          "interactive",
+          "sketch"
+        ],
+        "calls": 13,
+        "usd": 0.2077,
+        "seconds": 284.5
+      },
+      {
+        "name": "amc12a_2020_p13",
+        "solved": false,
+        "stopped": "task budget $0.230 used",
+        "calls": 13,
+        "usd": 0.2594,
+        "seconds": 344.4
+      }
+    ]
+  }
+}
