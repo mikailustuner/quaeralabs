@@ -58,6 +58,8 @@ def build_package(project: Path, approver: str | None = None) -> bytes:
     }
     if report_file(project).exists():
         files["report.md"] = report_file(project).read_bytes()
+    from .observability import metrics   # O1: where the budget went, per stage and provider (signed like every file)
+    files["observability.json"] = json.dumps(metrics(store), ensure_ascii=False, indent=2).encode()
     for o in objs:
         if o["type"] == "artifact" and o.get("sha256"):
             try:

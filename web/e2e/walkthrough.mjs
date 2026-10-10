@@ -220,7 +220,7 @@ try {
   await audit("settings");
   const models = await page.getByRole("region", { name: "Model providers (scrollable)" }).innerText();
   step("settings detect Codex CLI and OpenCode CLI", /Codex CLI/.test(models) && /OpenCode CLI/.test(models));
-  await page.getByRole("row", { name: /Codex CLI/ }).getByRole("button", { name: "Test" }).click();
+  await page.getByRole("row", { name: /Codex CLI/ }).getByRole("button", { name: "Test", exact: true }).click();
   await page.getByRole("row", { name: /Codex CLI/ }).getByText(/✓ 51/).waitFor({ timeout: 10000 });
   step("provider test button answers", true);
 

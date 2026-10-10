@@ -121,6 +121,7 @@ class Orchestrator:
     actors: dict = field(default_factory=dict)
     memory: object | None = None          # memory.LabMemory; None means no memory is used (tests, evals)
     bank: object | None = None            # bank.LemmaBank (capacity plan K1); None in tests and evals
+    results: object | None = None         # bank.ResultBank (ML2); None in tests and evals
     stats: object | None = None           # capability.ModelStats (S2); None in tests and evals
     rungs: dict = field(default_factory=dict)   # role -> current rung of its escalation ladder (S1)
 

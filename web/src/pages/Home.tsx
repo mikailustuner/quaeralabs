@@ -75,7 +75,7 @@ const EXAMPLES = [
 /** Home page: a large centred composer as in the reference; domain, budget and autonomy below it. */
 export function NewResearch() {
   const [f, setF] = useState({ question: "", domain: "math", mode: "verify", budget: 2, dataDir: "", scope: "", autonomy: "manual", autoLimit: 0.5,
-                               keepTrying: false, maxCalls: "", maxHours: "" });
+                               keepTrying: false, maxCalls: "", maxHours: "", gpu: false });
   const settings = useLoad(api.settings, []);
   const models: any[] = (settings.data?.models || []).filter((m: any) => m.enabled);
   const [families, setFamilies] = useState<string[] | null>(null);       // null: all available ones
@@ -192,6 +192,14 @@ export function NewResearch() {
                 {errors.dataDir && <span id="e-dataDir" className="err">{errors.dataDir}</span>}
               </label>
             )}
+            {f.domain === "ml" && (
+              <label className="check-row">
+                <input id="f-gpu" type="checkbox" checked={f.gpu} onChange={(e) => set("gpu", e.target.checked)} aria-describedby="h-gpu" />
+                <span>Run experiments on a GPU
+                  <span id="h-gpu" className="help">Uses the remote GPU runner when one is configured (QUAERA_REMOTE_RUNNER), otherwise this machine's GPU,
+                    under the same sandbox: no network, read-only data. The approval card shows where it runs.</span></span>
+              </label>
+            )}
             <label>Scope <span className="help">(optional)</span>
               <input id="f-scope" type="text" value={f.scope} onChange={(e) => set("scope", e.target.value)} aria-describedby="h-scope"
                 placeholder={f.domain === "math" ? "Formal proof in Lean 4 + Mathlib" : "Data under /data."} />
@@ -233,6 +241,7 @@ export function NewResearch() {
 
 export function Settings() {
   const { data, error, loading, reload } = useLoad(api.settings, []);
+  const [probes, setProbes] = useState(0);
   return (
     <div className="page">
       <div className="page-head"><div><h1>Settings</h1><p>QuaeraLabs runs locally. API keys come from environment variables or the private ~/.quaera/secrets.env file and are never shown here.</p></div></div>
@@ -241,7 +250,8 @@ export function Settings() {
           <section className="card stack"><h2>Version and data</h2>
             <p>QuaeraLabs <span className="mono">{data.version}</span></p>
             <p className="faint clamp">Projects: <span className="mono">{data.home}</span></p></section>
-          <ModelsCard data={data} />
+          <ModelsCard data={data} onProbe={() => setProbes((n) => n + 1)} />
+          <Scoreboard n={probes} />
           <RegistryCard models={data.models || []} onChanged={reload} />
           <section className="card stack"><h2>Sandbox limits</h2>
             <p>Memory {data.sandbox.mem} · CPU {data.sandbox.cpu} · Lean memory {data.sandbox.leanMem}</p>
@@ -253,11 +263,17 @@ export function Settings() {
 }
 
 /** Model CLIs found on this machine; "Test" asks a small real question (subscription CLIs report no cost). */
-function ModelsCard({ data }: { data: any }) {
+function ModelsCard({ data, onProbe }: { data: any; onProbe?: () => void }) {
   const [res, setRes] = useState<Record<string, any>>({});
   const test = async (id: string) => {
     setRes((r) => ({ ...r, [id]: { busy: true } }));
     try { const out = await api.testProvider(id); setRes((r) => ({ ...r, [id]: out })); }
+    catch (e: any) { setRes((r) => ({ ...r, [id]: { ok: false, error: e.message } })); }
+  };
+  const deep = async (id: string) => {
+    if (!confirm("Deep test: six real model calls (five Lean proofs and one JSON answer). On a metered provider this costs a few cents. Continue?")) return;
+    setRes((r) => ({ ...r, [id]: { busy: true, deep: true } }));
+    try { const out = await api.deepTest(id); setRes((r) => ({ ...r, [id]: out })); onProbe?.(); }
     catch (e: any) { setRes((r) => ({ ...r, [id]: { ok: false, error: e.message } })); }
   };
   return (
@@ -277,8 +293,12 @@ function ModelsCard({ data }: { data: any }) {
                   <td className="faint">{m.billing}</td>
                   <td>{m.enabled ? <span className="badge good">enabled</span> : m.ready ? <span className="badge">disabled</span> : <span className="badge warn">{m.note || "not ready"}</span>}</td>
                   <td>
-                    {m.ready && <button className="btn sm" onClick={() => test(m.id)} disabled={r?.busy}>{r?.busy ? "Testing…" : "Test"}</button>}
-                    {r && !r.busy && <span className={r.ok ? "" : "err"} role="status" style={{ marginLeft: 8 }}>{r.ok ? `✓ ${r.answer} · ${r.seconds}s` : `✗ ${r.error || r.answer}`}</span>}
+                    {m.ready && <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+                      <button className="btn sm" onClick={() => test(m.id)} disabled={r?.busy}>{r?.busy && !r.deep ? "Testing…" : "Test"}</button>
+                      <button className="btn sm" onClick={() => deep(m.id)} disabled={r?.busy} title="Five small Lean proofs checked by Lean, plus one JSON question (six model calls)">
+                        {r?.busy && r.deep ? "Proving…" : "Deep test"}</button></div>}
+                    {r && !r.busy && <span className={r.ok ? "" : "err"} role="status" style={{ marginLeft: 8 }}>{r.provingScore != null
+                      ? `${r.provingScore}/${r.of} proved · JSON ${r.jsonOk ? "✓" : "✗"} · ${r.seconds}s` : r.ok ? `✓ ${r.answer} · ${r.seconds}s` : `✗ ${r.error || r.answer}`}</span>}
                   </td>
                 </tr>
               );
@@ -287,6 +307,34 @@ function ModelsCard({ data }: { data: any }) {
         </table>
       </div>
       <p className="faint">Project manager chat budget: ${data.managerCapUsd?.toFixed?.(2) ?? "0.50"} per project (<span className="mono">QUAERA_MANAGER_CAP_USD</span>). Subscription CLIs report no per-call charge; Discovery limits them by rounds (<span className="mono">QUAERA_DISCOVERY_ROUNDS</span>).</p>
+    </section>
+  );
+}
+
+/** Capability scoreboard (capacity plan M2): what each model did in this lab's research, and its deep-probe score. */
+function Scoreboard({ n }: { n: number }) {
+  const rows = useLoad(api.models, [n]);
+  const pct = (x: number | null) => (x == null ? "—" : `${Math.round(x * 100)}%`);
+  return (
+    <section className="card stack" style={{ gridColumn: "1 / -1" }} aria-labelledby="sb-h">
+      <div className="card-head" style={{ marginBottom: 0 }}><h2 id="sb-h">Capability scoreboard</h2><span className="faint">from this lab's runs · ~/.quaera/stats.db</span></div>
+      <p className="faint">The proof search adapts to these numbers: models that rarely write compiling Lean prove step by step first and write more, shorter candidates.</p>
+      {rows.loading && !rows.data ? <StateBox kind="loading" /> : rows.error ? <StateBox kind="error">{rows.error}</StateBox> :
+        !(rows.data || []).length ? <StateBox kind="empty">No observations yet. They are recorded as research runs, or run a deep test above.</StateBox> : (
+          <div className="table-wrap" tabIndex={0} role="region" aria-label="Capability scoreboard (scrollable)">
+            <table className="data-table">
+              <thead><tr><th scope="col">Model</th><th scope="col">Calls</th><th scope="col">Cost / call</th><th scope="col">Errors</th>
+                <th scope="col">Valid JSON</th><th scope="col">Lean compiles</th><th scope="col">Deep probe</th><th scope="col">Adapts the search</th></tr></thead>
+              <tbody>{rows.data!.map((r) => (
+                <tr key={r.model}><td className="mono">{r.model}</td><td>{r.calls}{r.cached ? <span className="faint"> (+{r.cached} cached)</span> : null}</td>
+                  <td>{r.meanUsd == null ? "—" : money(r.meanUsd)}</td><td>{pct(r.errorRate)}</td>
+                  <td>{pct(r.json_reliability)} <span className="faint">({r.json_n})</span></td><td>{pct(r.compile_rate)} <span className="faint">({r.compile_n})</span></td>
+                  <td>{r.probe ? `${r.probe.score}/${r.probe.of}${r.probe.jsonOk ? "" : " · JSON ✗"}` : "—"}</td>
+                  <td className="faint" style={{ textAlign: "left" }}>{r.adapts.join("; ") || "defaults"}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
     </section>
   );
 }

@@ -79,7 +79,17 @@ def build(project: Path, budget: float | None, auto_limit: float | None, provide
     if cap is None:
         raise SystemExit("no budget cap: pass --budget")
     store.set_meta("budgetCapUsd", cap)
-    record = lambda kind, payload: store.append(kind, {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"}, payload)  # noqa: E731
+    from .capability import ModelStats
+    stats = ModelStats(HOME.parent / "stats.db") if memory else None
+
+    def record(kind: str, payload: dict) -> None:
+        store.append(kind, {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"}, payload)
+        if stats is not None and kind in ("model.call", "model.error"):   # M2 scoreboard: cost, calls, errors per model
+            try:
+                (stats.record_call if kind == "model.call" else stats.record_error)(payload)
+            except Exception as exc:   # auxiliary; recorded, never fatal
+                store.append("stats.error", {"kind": "agent", "role": "director", "model": "quaera/deterministic",
+                                             "modelFamily": "quaera"}, {"error": str(exc)[:200]})
     paid = [e["payload"] for e in store.events("model.call") if not e["payload"].get("cached")]
     spent = sum(c["costUsd"] for c in paid)
     if providers is None:
@@ -112,11 +122,11 @@ def build(project: Path, budget: float | None, auto_limit: float | None, provide
     # Evals run with memory=False so a previous result of the same task cannot leak from memory.
     lab_memory = LabMemory(HOME.parent / "memory.db") if memory else None   # HOME is read at call time (tests change it)
     # Lemma bank (K1) and capability scoreboard (S2) are lab knowledge like the memory: off for evals.
-    from .bank import LemmaBank
-    from .capability import ModelStats
-    bank = LemmaBank(HOME.parent / "bank.db") if memory and os.environ.get("QUAERA_BANK", "on") != "off" else None
-    stats = ModelStats(HOME.parent / "stats.db") if memory else None
-    return cls(store, gateway, tools, approver, perms, reports_dir=project, memory=lab_memory, bank=bank, stats=stats)
+    from .bank import LemmaBank, ResultBank
+    use_bank = memory and os.environ.get("QUAERA_BANK", "on") != "off"
+    bank = LemmaBank(HOME.parent / "bank.db") if use_bank else None
+    results = ResultBank(HOME.parent / "bank.db") if use_bank else None
+    return cls(store, gateway, tools, approver, perms, reports_dir=project, memory=lab_memory, bank=bank, stats=stats, results=results)
 
 
 def limits_meta(calls: int | None, hours: float | None, tokens: int | None, prev: dict | None = None) -> dict | None:
@@ -410,17 +420,42 @@ def cmd_bank(a) -> int:
 
 
 def cmd_models(a) -> int:
-    """Capability scoreboard (M2/S2): per model JSON reliability and Lean compile rate from this lab's runs."""
+    """Capability scoreboard (M2/S2): per model calls, cost, errors, JSON reliability, Lean compile rate and the deep
+    probe. `quaera models probe <provider>` runs the deep probe (five small Lean proofs, one JSON question)."""
     from .capability import ModelStats, adapt
     stats = ModelStats(HOME.parent / "stats.db")
+    if a.action == "probe":
+        from .lean import LeanChecker
+        from .providers import build_providers, deep_probe
+        provs = build_providers()
+        if a.provider not in provs:
+            raise SystemExit(f"no ready provider '{a.provider}': {', '.join(provs) or 'none'}")
+        lean = LeanChecker()
+        try:
+            res = deep_probe(provs[a.provider], lean.check, a.profile)
+        finally:
+            lean.close()
+        label = f"{getattr(provs[a.provider], 'family', a.provider)}/{res['model']}"
+        stats.set_probe(label, res["provingScore"], res["of"], res["jsonOk"])
+        print(json.dumps({**res, "recordedAs": label}, ensure_ascii=False, indent=2))
+        return 0
     rows = stats.board()
     if not rows:
-        print("No observations yet: the scoreboard fills as research runs.")
+        print("No observations yet: the scoreboard fills as research runs (or run `quaera models probe <provider>`).")
+    fmt = lambda x: "—" if x is None else f"{x:.0%}"  # noqa: E731
     for p in rows:
         _, why = adapt(p)
-        fmt = lambda x: "—" if x is None else f"{x:.0%}"  # noqa: E731
-        print(f"{p['model']:<40} JSON {fmt(p['json_reliability'])} ({p['json_n']})  compile {fmt(p['compile_rate'])} ({p['compile_n']})"
-              + (f"\n    adapts: {'; '.join(why)}" if why else ""))
+        probe = p["probe"]
+        print(f"{p['model']:<40} calls {p['calls']} · ${p['meanUsd'] or 0:.4f}/call · errors {fmt(p['errorRate'])} · "
+              f"JSON {fmt(p['json_reliability'])} ({p['json_n']}) · compile {fmt(p['compile_rate'])} ({p['compile_n']})"
+              + (f" · probe {probe['score']}/{probe['of']}" if probe else "") + (f"\n    adapts: {'; '.join(why)}" if why else ""))
+    return 0
+
+
+def cmd_sandbox_exec(a) -> int:
+    """Runs one command in this machine's sandbox and prints the JSON result: the remote end of the ML3 runner."""
+    from .mcp_servers.sandbox_server import sandbox_exec
+    print(sandbox_exec(a.workdir, a.command, a.data_dir, a.timeout, a.gpu))
     return 0
 
 
@@ -519,7 +554,18 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("text", nargs="*")
     s.add_argument("-k", type=int, default=8)
     s.set_defaults(fn=cmd_bank)
-    sub.add_parser("models", help="capability scoreboard: JSON reliability and compile rate per model").set_defaults(fn=cmd_models)
+    s = sub.add_parser("models", help="capability scoreboard per model; `models probe <provider>` runs the deep probe")
+    s.add_argument("action", nargs="?", default="list", choices=["list", "probe"])
+    s.add_argument("provider", nargs="?")
+    s.add_argument("--profile", default="cheap", choices=["cheap", "balanced", "best"])
+    s.set_defaults(fn=cmd_models)
+    s = sub.add_parser("sandbox-exec", help="run a command in this machine's sandbox (the remote end of a GPU runner)")
+    s.add_argument("--workdir", required=True)
+    s.add_argument("--data-dir")
+    s.add_argument("--timeout", type=int, default=600)
+    s.add_argument("--gpu", action="store_true")
+    s.add_argument("command", nargs=argparse.REMAINDER)
+    s.set_defaults(fn=lambda a: cmd_sandbox_exec(argparse.Namespace(**{**vars(a), "command": [c for c in a.command if c != "--"]})))
     s = sub.add_parser("cache", help="completion cache: stats | clear")
     s.add_argument("action", choices=["stats", "clear"])
     s.set_defaults(fn=cmd_cache)

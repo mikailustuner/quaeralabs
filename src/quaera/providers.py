@@ -299,6 +299,49 @@ def build_cli_providers(only: set[str] | None = None) -> dict:
     return out
 
 
+# Deep probe (capacity plan M2): five small Lean statements of different kinds and one JSON question. A model call each;
+# the proofs are checked by Lean, so the score is what the model actually proves, not what it claims.
+DEEP_PROBE = [
+    "theorem probe_1 (n : ℕ) : n + 0 = n := by\n",
+    "theorem probe_2 (x y : ℝ) (h₀ : x + y = 10) (h₁ : x - y = 2) : x = 6 := by\n",
+    "theorem probe_3 : (8 ^ 70) % 17 = 4 := by\n",
+    "theorem probe_4 (n : ℕ) : 2 ∣ n * (n + 1) := by\n",
+    "theorem probe_5 (a b : ℝ) : 2 * a * b ≤ a ^ 2 + b ^ 2 := by\n",
+]
+
+
+def deep_probe(provider, check, profile: str = "cheap") -> dict:
+    """`check(source, theorem, approved) -> LeanReport` (a LeanChecker's `check`). Returns the proving score (0–5), JSON
+    validity and the time; no budget beyond the five plus one calls (each capped by the provider's own limit)."""
+    from . import prompts
+    from .gateway import parse_json
+    from .lean import statement_of
+    from .orchestrator import extract_lean
+    started = time.monotonic()
+    model = provider.model_for(profile) if hasattr(provider, "model_for") else "haiku"
+    proved, details = 0, []
+    for stmt in DEEP_PROBE:
+        name = stmt.split()[1]
+        src = "import Mathlib\n\n" + stmt + "  sorry\n"
+        try:
+            c = provider.complete(model, prompts.PROVE.replace("`quaera_main`", f"`{name}`"),
+                                  f"Prove this theorem; keep its name and statement exactly.\n```lean\n{src}```", 4000, 0.2)
+            rep = check(extract_lean(c.text), name, statement_of(src, name))
+            ok = bool(rep.verified)
+        except ModelError as exc:
+            ok, rep = False, None
+            details.append({"theorem": name, "error": str(exc)[:160]})
+        proved += ok
+        details.append({"theorem": name, "verified": ok})
+    try:
+        c = provider.complete(model, "Answer only with JSON.", 'Return {"answer": 51} where 51 is 17 * 3, as a JSON object only.', 300, 0.05)
+        json_ok = isinstance(parse_json(c.text), dict)
+    except ModelError:
+        json_ok = False
+    return {"ok": proved > 0, "provingScore": proved, "of": len(DEEP_PROBE), "jsonOk": json_ok, "model": model,
+            "details": details, "seconds": round(time.monotonic() - started, 1)}
+
+
 def probe(provider, profile: str = "cheap") -> dict:
     """Tests the provider with a real but small call (the "Test" button on the settings page)."""
     started = time.monotonic()

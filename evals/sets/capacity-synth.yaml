@@ -1,0 +1,75 @@
+# Capacity plan M1: tiered synthetic set (ids only). Frozen; never regenerate. The hidden ids must not reach prompts or rules.
+version: 1
+seed: 2026
+tiers:
+  tier1:
+    source: synth-math-2026.jsonl
+    ids:
+    - qsm_powmod_0
+    - qsm_sum_1
+    - qsm_count_1
+    - qsm_compose_0
+    - qsm_amgm_2
+    - qsm_compose_2
+    - qsm_quad_pos_1
+    - qsm_amgm_1
+    - qsm_gcd_1
+    - qsm_count_2
+  tier2:
+    source: synth-math-hard-2027.jsonl
+    ids:
+    - qsm_recurrence_closed_1
+    - qsm_no_dioph_1
+    - qsm_vertex_0
+    - qsm_cauchy_2
+    - qsm_bezout_2
+    - qsm_no_dioph_0
+    - qsm_cauchy_0
+    - qsm_sym_ineq_0
+    - qsm_recurrence_closed_2
+    - qsm_pow_div_1
+  tier3:
+    source: synth-math-olympiad-2028.jsonl
+    ids:
+    - qsm_ind_div_0
+    - qsm_no_rational_root_1
+    - qsm_ind_div_2
+    - qsm_fermat_poly_0
+    - qsm_ineq3_0
+    - qsm_gcd_linear_2
+    - qsm_mod_powers_1
+    - qsm_no_rational_root_2
+    - qsm_ineq3_1
+    - qsm_fib_identity_2
+hidden:
+- qsm_amgm_2
+- qsm_bezout_2
+- qsm_cauchy_2
+- qsm_compose_0
+- qsm_compose_2
+- qsm_fermat_poly_0
+- qsm_gcd_linear_2
+- qsm_ind_div_2
+- qsm_no_dioph_0
+- qsm_no_rational_root_2
+- qsm_powmod_0
+- qsm_sum_1
+dev:
+- qsm_amgm_1
+- qsm_cauchy_0
+- qsm_count_1
+- qsm_count_2
+- qsm_fib_identity_2
+- qsm_gcd_1
+- qsm_ind_div_0
+- qsm_ineq3_0
+- qsm_ineq3_1
+- qsm_mod_powers_1
+- qsm_no_dioph_1
+- qsm_no_rational_root_1
+- qsm_pow_div_1
+- qsm_quad_pos_1
+- qsm_recurrence_closed_1
+- qsm_recurrence_closed_2
+- qsm_sym_ineq_0
+- qsm_vertex_0

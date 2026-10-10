@@ -325,6 +325,8 @@ async def api_create(request: Request):
         return JSONResponse({"error": "maxCalls must be an integer and maxHours a number"}, 400)
     if lim:
         pre.set_meta("budget", lim)
+    if body.get("gpu") and domain == "ml":      # ML3: GPU jobs (remote runner when configured); the Engineer's permission applies
+        pre.set_meta("gpu", True)
     pre.close()
     orch = build(path, budget, None, domain=domain)
     orch.store.set_meta("title", question)
@@ -598,6 +600,19 @@ async def api_keep_trying(request: Request):
     return JSONResponse({"keepTrying": on})
 
 
+async def api_metrics(request: Request):
+    """O1: per-stage and per-provider cost, calls, tokens, failures and alerts of one project."""
+    from .observability import metrics
+    try:
+        s = open_store(request.path_params["pid"])
+    except FileNotFoundError:
+        return JSONResponse({"error": "no such project"}, 404)
+    try:
+        return JSONResponse(metrics(s))
+    finally:
+        s.close()
+
+
 async def api_jobs(request: Request):
     """S4: parallel jobs running or queued in the lab's scheduler (optionally one project's)."""
     from .scheduler import SCHEDULER
@@ -750,7 +765,41 @@ async def api_provider_test(request: Request):
         else:
             prov = {"claude": lambda: ClaudeCLIProvider(), "codex": lambda: CodexCLIProvider(d["binary"]),
                     "opencode": lambda: OpenCodeCLIProvider(d["binary"]), "agy": lambda: AntigravityCLIProvider(d["binary"])}[pid]()
-    return JSONResponse(await asyncio.to_thread(probe, prov))
+    body = await request.json() if request.headers.get("content-length") not in (None, "0") else {}
+    if not body.get("deep"):
+        return JSONResponse(await asyncio.to_thread(probe, prov))
+    # M2 deep probe: five small Lean proofs checked by Lean + one JSON question; the result feeds the scoreboard (S2)
+    from .capability import ModelStats
+    from .lean import LeanChecker, LeanUnavailable
+    from .providers import deep_probe
+
+    def run():
+        lean = LeanChecker()
+        try:
+            return deep_probe(prov, lean.check, body.get("profile") or "cheap")
+        finally:
+            lean.close()
+    try:
+        res = await asyncio.to_thread(run)
+    except LeanUnavailable as exc:
+        return JSONResponse({"ok": False, "error": f"Lean is not available: {exc}"}, 400)
+    stats = ModelStats(HOME.parent / "stats.db")
+    try:
+        stats.set_probe(f"{getattr(prov, 'family', pid)}/{res['model']}", res["provingScore"], res["of"], res["jsonOk"])
+    finally:
+        stats.close()
+    return JSONResponse(res)
+
+
+async def api_models(request: Request):
+    """M2: the capability scoreboard (per model calls, cost, errors, JSON reliability, compile rate, deep probe)."""
+    from .capability import ModelStats, adapt
+    stats = ModelStats(HOME.parent / "stats.db")
+    try:
+        rows = stats.board()
+    finally:
+        stats.close()
+    return JSONResponse([{**r, "adapts": adapt(r)[1]} for r in rows])
 
 
 async def index(request: Request):
@@ -813,6 +862,7 @@ def create_app() -> Starlette:
         Route("/api/projects/{pid}/blob/{sha}", api_blob),
         Route("/api/projects/{pid}/iterate", api_iterate, methods=["POST"]),
         Route("/api/projects/{pid}/budget", api_budget, methods=["POST"]),
+        Route("/api/projects/{pid}/metrics", api_metrics),
         Route("/api/projects/{pid}/keep-trying", api_keep_trying, methods=["POST"]),
         Route("/api/projects/{pid}/branch", api_branch, methods=["POST"]),
         Route("/api/projects/{pid}/report.md", api_report_md),
@@ -822,6 +872,7 @@ def create_app() -> Starlette:
         Route("/api/providers/{id}/test", api_provider_test, methods=["POST"]),
         Route("/api/registry", api_registry, methods=["GET", "PUT"]),
         Route("/api/jobs", api_jobs),
+        Route("/api/models", api_models),
         Route("/api/registry/{id}", api_registry_delete, methods=["DELETE"]),
         Route("/api/memory", api_memory),
         Route("/api/memory/learnings", api_learnings),

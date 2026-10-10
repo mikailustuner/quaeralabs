@@ -31,6 +31,10 @@ export const api = {
   settings: () => req<any>("/api/settings"),
   testProvider: (id: string) => req<{ ok: boolean; answer?: string; model?: string; family?: string; error?: string; seconds: number }>(
     `/api/providers/${encodeURIComponent(id)}/test`, { method: "POST", body: "{}" }),
+  deepTest: (id: string) => req<{ ok: boolean; provingScore?: number; of?: number; jsonOk?: boolean; model?: string; error?: string; seconds: number }>(
+    `/api/providers/${encodeURIComponent(id)}/test`, { method: "POST", body: JSON.stringify({ deep: true }) }),
+  models: () => req<ModelRow[]>("/api/models"),
+  metrics: (id: string) => req<RunMetrics>(`/api/projects/${encodeURIComponent(id)}/metrics`),
   tree: (id: string) => req<TreeData>(`/api/projects/${encodeURIComponent(id)}/tree`),
   branchWith: (id: string, body: object) =>
     req<{ id: string }>(`/api/projects/${encodeURIComponent(id)}/branch`, { method: "POST", body: JSON.stringify(body) }),
@@ -68,6 +72,17 @@ export type RegistryProvider = {
   id: string; name: string; kind: string; family: string; models: Record<string, string>; apiBase?: string | null; keyEnv: string | null;
   keySet: boolean; price: Record<string, [number, number]>; free: boolean; limits: { concurrent?: number }; enabled: boolean; ready: boolean; note: string;
 };
+export type StageMetrics = { stage: string; usd: number; calls: number; cached: number; tokens: number; escalations: number; repairs: number; failures: Record<string, number> };
+export type RunMetrics = {
+  totals: { usd: number; calls: number; cached: number; tokens: number; escalations: number; repairs: number };
+  stages: StageMetrics[]; providers: { provider: string; calls: number; errors: number; usd: number; tokens: number; errorRate: number | null }[];
+  alerts: { at: string; kind?: string; message?: string; provider?: string }[];
+};
+export type ModelRow = {
+  model: string; calls: number; cached: number; errors: number; errorRate: number | null; meanUsd: number | null; meanTokens: number | null;
+  json_reliability: number | null; json_n: number; compile_rate: number | null; compile_n: number; verified: number;
+  probe: { score: number; of: number; jsonOk: boolean; at: string } | null; adapts: string[];
+};
 export type Job = { id: number; project: string; label: string; state: "queued" | "running"; queuedAt: number; startedAt?: number; nested: boolean };
 export type Registry = { providers: RegistryProvider[]; routing: Record<string, string>; ladders: Record<string, string[]>; kinds: string[] };
 export type DiffOp = ["=" | "-" | "+", string];
@@ -81,6 +96,7 @@ export type TreeNode = {
   outcome: "running" | "supported" | "refuted" | "inconclusive" | "stopped"; answer: string | null; proofVerified: boolean;
   reproduced: string | null; metric: { name: string; mean: number; ci95?: number[] } | null; stopped: string | null;
   progress?: { score: number; parts: Record<string, number> }; closed?: boolean; selections?: number; stopRejected?: number;
+  grid?: { parameter: string; value: string; cell: number; of: number } | null;
   stagesDone: number; costUsd: number; metricDelta: number | null;
   diff: { hypothesis: DiffOp[] | null; method: DiffOp[] | null; formal: DiffOp[] | null; successCriterion: DiffOp[] | null } | null;
 };
@@ -353,6 +369,8 @@ export function describe(e: QEvent): Described | null {
     case "tree.decision": return { who: "director", text: `Tree search: expanding ${p.selected} (score ${p.score}) with up to ${money(p.budgetUsd)}`, tone: "info" };
     case "branch.stop_rejected": return { who: "director", text: `Stop overruled: untried directions remain (${(p.gaps || []).length}); a second model proposed one`, tone: "info" };
     case "branch.stop_confirmed": return { who: "director", text: `Stop confirmed by a second opinion: ${p.reason || ""}`, tone: "warn" };
+    case "provider.alert": return { who: "director", text: `Provider alert: ${p.message}`, tone: "bad" };
+    case "provider.recovered": return { who: "director", text: `Provider ${p.provider} recovered`, tone: "good" };
     case "critique.confirmed": return { who: "critic", text: `Blocking objection confirmed by a second family (${p.second})`, tone: "warn" };
     case "critique.unconfirmed": return { who: "critic", text: `A second family (${p.second}) did not confirm "blocking": the objection stays open as high severity`, tone: "info" };
     case "branch.closed": return { who: "director", text: `No more branches from here: ${p.reason}` };

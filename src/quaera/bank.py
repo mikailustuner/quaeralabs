@@ -16,6 +16,7 @@ report lists reused lemmas with their origin. Evals use no bank (or an isolated 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import sqlite3
 import threading
@@ -126,3 +127,90 @@ def hint_block(items: list[dict], with_proofs: bool = True, limit_chars: int = 5
         used += len(part)
     return ("\n\nAlready verified in this lab (Lean-checked; you may copy these lemmas WITH their proofs above your theorem "
             "instead of proving them again):\n" + "\n".join(out)) if out else ""
+
+
+# --- ML results (capacity plan ML2) -----------------------------------------------------------------------
+
+def data_hash(directory: str | Path | None, max_bytes: int = 512 * 1024 * 1024) -> str | None:
+    """A fingerprint of the data directory: sha256 over every file's relative path and content (or, beyond `max_bytes`
+    in total, over path + size + mtime). Results are comparable only on the same data."""
+    if not directory or not Path(directory).is_dir():
+        return None
+    root = Path(directory)
+    files = sorted(p for p in root.rglob("*") if p.is_file())
+    total = sum(p.stat().st_size for p in files)
+    h = hashlib.sha256()
+    for p in files:
+        h.update(str(p.relative_to(root)).encode())
+        if total <= max_bytes:
+            with p.open("rb") as f:
+                for chunk in iter(lambda: f.read(1 << 20), b""):
+                    h.update(chunk)
+        else:
+            st = p.stat()
+            h.update(f"{st.st_size}:{int(st.st_mtime)}".encode())
+    return h.hexdigest()
+
+
+class ResultBank:
+    """Verified ML results across projects: what was measured, on which data, with which code, and whether the Verifier
+    reproduced it. Recalled as orientation for new designs (never as evidence; the report cites only its own runs)."""
+
+    def __init__(self, path: Path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.db = sqlite3.connect(path, check_same_thread=False)
+        self.lock = threading.Lock()
+        with self.lock:
+            self.db.executescript("""
+                CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY, project TEXT NOT NULL, question TEXT NOT NULL,
+                    hypothesis TEXT NOT NULL, metric TEXT NOT NULL, direction TEXT, mean REAL, ci TEXT, seeds INTEGER, relation TEXT,
+                    reproduced TEXT NOT NULL, commit_sha TEXT, code TEXT, data_hash TEXT, method TEXT, created TEXT NOT NULL,
+                    UNIQUE(project, metric));
+                CREATE VIRTUAL TABLE IF NOT EXISTS result_fts USING fts5(question, hypothesis, method, content='results', content_rowid='id');
+                CREATE TRIGGER IF NOT EXISTS results_ai AFTER INSERT ON results BEGIN
+                    INSERT INTO result_fts(rowid, question, hypothesis, method) VALUES (new.id, new.question, new.hypothesis, new.method); END;
+            """)
+            self.db.commit()
+
+    def add(self, **r) -> bool:
+        with self.lock:
+            cur = self.db.execute(
+                "INSERT OR IGNORE INTO results (project, question, hypothesis, metric, direction, mean, ci, seeds, relation, reproduced, "
+                "commit_sha, code, data_hash, method, created) VALUES (:project, :question, :hypothesis, :metric, :direction, :mean, :ci, "
+                ":seeds, :relation, :reproduced, :commit, :code, :data_hash, :method, :created)",
+                {**{k: None for k in ("direction", "mean", "ci", "seeds", "relation", "commit", "code", "data_hash", "method")}, **r,
+                 "ci": json.dumps(r.get("ci")), "created": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+            self.db.commit()
+        return cur.rowcount > 0
+
+    def search(self, text: str, k: int = 5, data: str | None = None, exclude_project: str | None = None) -> list[dict]:
+        words = list(dict.fromkeys(w.lower() for w in WORD.findall(text or "")))[:20]
+        if not words:
+            return []
+        match = " OR ".join('"' + w.replace('"', "") + '"' for w in words)
+        sql = ("SELECT r.project, r.question, r.hypothesis, r.metric, r.direction, r.mean, r.ci, r.seeds, r.relation, r.reproduced, "
+               "r.commit_sha, r.data_hash, r.method FROM result_fts f JOIN results r ON r.id = f.rowid WHERE result_fts MATCH ?"
+               + (" AND r.project != ?" if exclude_project else "") + " ORDER BY bm25(result_fts) LIMIT ?")
+        with self.lock:
+            rows = self.db.execute(sql, [match] + ([exclude_project] if exclude_project else []) + [k]).fetchall()
+        keys = ("project", "question", "hypothesis", "metric", "direction", "mean", "ci", "seeds", "relation", "reproduced", "commit", "dataHash", "method")
+        out = [dict(zip(keys, r)) for r in rows]
+        for o in out:
+            o["ci"] = json.loads(o["ci"]) if o["ci"] else None
+            o["sameData"] = bool(data and o["dataHash"] == data)
+        return out
+
+    def close(self) -> None:
+        with self.lock:
+            self.db.close()
+
+
+def results_block(items: list[dict]) -> str:
+    """Prompt text: earlier verified ML results (orientation only: they are not evidence and may not be cited)."""
+    if not items:
+        return ""
+    lines = [f"- {i['hypothesis'][:200]} → {i['metric']} = {i['mean']}" + (f" (95% CI {i['ci']})" if i.get("ci") else "")
+             + f", {i['seeds']} seeds, {i['relation']}, reproduced: {i['reproduced']}" + (" — SAME DATA as this project" if i["sameData"] else "")
+             for i in items]
+    return ("\n\nVerified results from earlier projects in this lab (orientation only — not evidence, never cite them; a result on the "
+            "same data is a useful baseline to beat):\n" + "\n".join(lines))

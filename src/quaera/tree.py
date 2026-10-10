@@ -142,7 +142,7 @@ def node_summary(home: Path, pid: str) -> dict:
         finished = bool(s.events("report.written"))
         outcome = ("running" if not finished else "stopped" if st.get("stopped") else
                    "supported" if status == "supported" else "refuted" if status == "refuted" else "inconclusive")
-        return {"id": pid, "title": s.meta("title"), "domain": s.meta("domain", "math"), "branch": s.meta("branch"),
+        return {"id": pid, "title": s.meta("title"), "domain": s.meta("domain", "math"), "branch": s.meta("branch"), "grid": s.meta("grid"),
                 "hypothesis": hyp and {"id": hyp["id"], "statement": hyp["statement"], "status": status,
                                        "scope": (hyp.get("scopeRelation") or {}).get("relation")},
                 "design": prereg and {k: prereg.get(k) for k in ("primaryMetric", "successCriterion", "seeds")},
@@ -246,10 +246,13 @@ Options:
   In discovery mode the target statement is fixed: use "approach" and describe the new strategy directions to explore and what to avoid.
 - "continue": discovery only — keep the chosen strategy's lemma program (verified lemmas stay) and attack its OPEN lemmas
   differently (say how: other tactics, a reformulation, which lemma to split). Best when the program made progress.
+- "grid": AI/ML only — keep the hypothesis and run a small grid over ONE experimental factor (a hyperparameter, an ablation,
+  a data size); each value becomes its own branch, scored by the preregistered primary metric. Give 2 to 4 values.
 - "stop": no promising change is left (explain why). You may stop only when the directions listed as untried below are
   genuinely hopeless; otherwise propose one of them.
-Return only JSON: {"decision": "hypothesis"|"approach"|"continue"|"stop", "newHypothesis": "Turkish, only for hypothesis",
-"instructions": "Turkish, concrete, for approach and continue", "reason": "Turkish, one or two sentences: what failed and why this change should help"}""".replace("Turkish", LANGUAGE)
+Return only JSON: {"decision": "hypothesis"|"approach"|"continue"|"grid"|"stop", "newHypothesis": "Turkish, only for hypothesis",
+"instructions": "Turkish, concrete, for approach and continue", "parameter": "only for grid: the factor", "values": ["only for grid"],
+"reason": "Turkish, one or two sentences: what failed and why this change should help"}""".replace("Turkish", LANGUAGE)
 
 
 def needs_iteration(summary: dict) -> bool:
@@ -326,7 +329,8 @@ def tried_hypotheses(home: Path, pid: str) -> list[str]:
 # --- tree search (T1–T4, S3) ------------------------------------------------------------------------------
 
 MAX_CHILDREN = int(os.environ.get("QUAERA_MAX_CHILDREN", "3"))     # expansions per node before it counts as exhausted
-WEIGHTS = {"verifiedLemmas": 1.0, "liveStrategies": 0.3, "bestReview": 0.1, "stages": 0.5, "openCritiques": -0.3, "depth": -0.15}
+WEIGHTS = {"verifiedLemmas": 1.0, "liveStrategies": 0.3, "bestReview": 0.1, "stages": 0.5, "openCritiques": -0.3, "depth": -0.15,
+           "metricGain": 2.0}
 
 
 def _after(s: Store, kind: str) -> list[dict]:
@@ -349,8 +353,32 @@ def progress_score(home: Path, pid: str) -> dict:
     finally:
         s.close()
     parts = {"verifiedLemmas": len(verified), "liveStrategies": len(proposed - dead), "bestReview": max(reviews, default=0.0),
-             "stages": round(stages, 3), "openCritiques": crit, "depth": len(lineage(home, pid)) - 1}
+             "stages": round(stages, 3), "openCritiques": crit, "depth": len(lineage(home, pid)) - 1,
+             "metricGain": metric_gain(home, pid)}
     return {"score": round(sum(WEIGHTS[k] * v for k, v in parts.items()), 3), "parts": parts}
+
+
+def metric_gain(home: Path, pid: str) -> float:
+    """ML1: the primary metric's improvement over the root of the line, relative and signed by the metric's direction
+    (higher_is_better / lower_is_better), clipped to [-1, 1]. 0 for math projects and nodes without a metric."""
+    line = lineage(home, pid)
+    me, root = node_summary(home, pid)["metric"], node_summary(home, line[0])["metric"]
+    if not me or not root or me["name"] != root["name"] or line[0] == pid:
+        return 0.0
+    direction = metric_direction(home, pid, me["name"])
+    gain = (me["mean"] - root["mean"]) / max(abs(root["mean"]), 1e-9)
+    gain = -gain if direction == "lower_is_better" else gain
+    return round(max(-1.0, min(1.0, gain)), 4)
+
+
+def metric_direction(home: Path, pid: str, name: str) -> str:
+    """The direction of metric `name` in the project's experiment plan (higher_is_better unless stated otherwise)."""
+    s = Store(home / pid / "quaera.db")
+    try:
+        exp = (s.latest("experiment") or [{}])[-1]
+    finally:
+        s.close()
+    return next((m.get("direction") for m in exp.get("metrics", []) if m.get("name") == name), None) or "higher_is_better"
 
 
 def children(home: Path, pid: str) -> list[str]:
@@ -463,6 +491,10 @@ def _director(home: Path, pid: str, providers: dict, agent_specs: dict, memory, 
             parent.append("branch.revision_failed", {"kind": "agent", "role": "director", "model": "quaera/deterministic",
                                                      "modelFamily": "quaera"}, {"error": str(exc)[:300]})
             return None, None, str(exc)
+        if decision.get("decision") == "grid" and (parent.meta("domain") != "ml" or not isinstance(decision.get("values"), list)
+                                                   or len(decision.get("values") or []) < 2 or not decision.get("parameter")):
+            decision = {**decision, "decision": "approach",
+                        "instructions": decision.get("instructions") or f"Vary {decision.get('parameter')}: {decision.get('values')}"}
         if decision.get("decision") == "continue" and (parent.meta("mode") != "discover" or
                                                        "program" not in [e["payload"]["stage"] for e in parent.events("stage.done")]):
             decision = {**decision, "decision": "approach"}        # continue needs a lemma program; otherwise an approach change
@@ -488,7 +520,7 @@ def decide(home: Path, pid: str, providers: dict, agent_specs: dict, memory=None
                                                 f"remain: {'; '.join(gaps)}. Propose the most promising of them unless all are hopeless.")
             s = Store(home / pid / "quaera.db")
             try:
-                if second and second.get("decision") in ("hypothesis", "approach", "continue"):
+                if second and second.get("decision") in ("hypothesis", "approach", "continue", "grid"):
                     s.append("branch.stop_rejected", actor2, {"firstReason": decision.get("reason"), "gaps": gaps,
                                                               "secondFamily": actor2["modelFamily"]})
                     return second, actor2
@@ -571,9 +603,28 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
             st.append("branch.proposed", director, decision)
             st.close()
             kind = decision.get("decision")
-            if kind not in ("hypothesis", "approach", "continue"):
+            if kind not in ("hypothesis", "approach", "continue", "grid"):
                 log(f"the Director proposed no new branch for {n['id']}: {decision.get('reason', '')}")
                 _close(home, n["id"], decision.get("reason") or "stop")
+                continue
+            if kind == "grid":
+                # ML1: one approach branch per grid value, the budget split evenly, at most the branches still allowed
+                values = [str(v) for v in decision["values"]][:max(1, min(4, max_branches - len(created) - len(plans)))]
+                cell_budget = max(MIN_BRANCH_USD, branch_budget / len(values))
+                for i, v in enumerate(values, 1):
+                    note = (f"Grid cell {i}/{len(values)} over «{decision['parameter']}»: set it to {v}. Change nothing else from the "
+                            f"parent's experiment, so the cells are comparable on the preregistered primary metric.")
+                    try:
+                        child = branch_project(home, n["id"], "approach", f"{decision.get('reason') or 'grid'} ({decision['parameter']} = {v})",
+                                               note=note, by=director, budget=cell_budget)
+                    except ValueError as exc:
+                        log(f"grid cell not opened for {n['id']}: {exc}")
+                        continue
+                    st = Store(home / child / "quaera.db")
+                    st.set_meta("grid", {"parameter": decision["parameter"], "value": v, "cell": i, "of": len(values)})
+                    st.close()
+                    plans.append((child, cell_budget))
+                log(f"grid over {decision['parameter']}: {', '.join(values)}")
                 continue
             try:
                 child = branch_project(home, n["id"], kind, decision.get("reason") or "Director revision",

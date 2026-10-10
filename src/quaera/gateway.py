@@ -308,6 +308,8 @@ class Gateway:
     reserved_calls: int = 0
     cache: object | None = None                                    # cache.CompletionCache (C1)
     semaphores: dict[str, threading.Semaphore] = field(default_factory=dict, repr=False)   # per route (S4)
+    outcomes: dict[str, list[bool]] = field(default_factory=dict, repr=False)               # route -> recent ok/error (O1)
+    alerted: set = field(default_factory=set, repr=False)
 
     def __post_init__(self):
         for key, prov in self.providers.items():
@@ -317,6 +319,28 @@ class Gateway:
 
     def remaining(self) -> float:
         return max(0.0, self.cap_usd - self.spent_usd)
+
+    ALERT_WINDOW, ALERT_MIN, ALERT_RATE = 10, 4, 0.5
+
+    def _outcome(self, key: str, ok: bool, model: str) -> None:
+        """O1: a provider whose recent calls mostly fail raises one `provider.alert` (and another after it recovers)."""
+        with self.lock:
+            hist = self.outcomes.setdefault(key, [])
+            hist.append(ok)
+            del hist[:-self.ALERT_WINDOW]
+            errors = hist.count(False)
+            rate = errors / len(hist)
+            fire = len(hist) >= self.ALERT_MIN and rate >= self.ALERT_RATE and key not in self.alerted
+            recovered = key in self.alerted and len(hist) >= self.ALERT_MIN and rate < self.ALERT_RATE / 2
+            if fire:
+                self.alerted.add(key)
+            if recovered:
+                self.alerted.discard(key)
+        if fire:
+            self.record("provider.alert", {"kind": "error_rate", "provider": key, "model": model, "errorRate": round(rate, 2),
+                                           "window": len(hist), "message": f"{key}: {errors} of the last {len(hist)} calls failed"})
+        if recovered:
+            self.record("provider.recovered", {"provider": key, "errorRate": round(rate, 2)})
 
     def family_of(self, key: str | None) -> str | None:
         """The model family of a route (a route id equals its family for the built-in CLI providers)."""
@@ -467,6 +491,7 @@ class Gateway:
                 self.calls += 1
             self.record("model.error", {"role": role, "model": model, "provider": key, "error": str(exc)[:300],
                                         "costUsd": round(exc.cost_usd, 6), "spentUsd": round(self.spent_usd, 6)})
+            self._outcome(key, False, model)
             raise
         except BaseException:
             with self.lock:
@@ -480,6 +505,7 @@ class Gateway:
             self.calls += 1
             self.tokens += completion.input_tokens + completion.output_tokens
         self.role_families.setdefault(role, fam)
+        self._outcome(key, True, model)
         if estimate > 0 and completion.cost_usd > estimate:
             # Estimate exceeded: scale later estimates for this model by the observed ratio (+10%) and record it.
             ratio = completion.cost_usd / estimate * 1.1 * self.calibration.get(model, 1.0)

@@ -32,6 +32,8 @@ class ModelStats:
         with self.lock:
             self.db.execute("CREATE TABLE IF NOT EXISTS stats (model TEXT NOT NULL, purpose TEXT NOT NULL, metric TEXT NOT NULL, "
                             "n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (model, purpose, metric))")
+            self.db.execute("CREATE TABLE IF NOT EXISTS probes (model TEXT PRIMARY KEY, score INTEGER NOT NULL, of INTEGER NOT NULL, "
+                            "json_ok INTEGER NOT NULL, at TEXT DEFAULT CURRENT_TIMESTAMP)")
             self.db.commit()
 
     def bump(self, model: str, purpose: str, metric: str, n: int = 1) -> None:
@@ -45,17 +47,43 @@ class ModelStats:
             row = self.db.execute("SELECT COALESCE(SUM(n), 0) FROM stats WHERE model = ? AND metric = ?", (model, metric)).fetchone()
         return int(row[0])
 
+    def record_call(self, payload: dict) -> None:
+        """M2: every gateway `model.call` (from the record hook): calls, cost (micro-USD), tokens and cache hits per model."""
+        model = payload.get("model")
+        if not model:
+            return
+        role = payload.get("role") or "?"
+        self.bump(model, role, "cached" if payload.get("cached") else "call")
+        self.bump(model, role, "usd_micro", int(round(float(payload.get("costUsd") or 0) * 1e6)))
+        self.bump(model, role, "tokens", int(payload.get("inputTokens") or 0) + int(payload.get("outputTokens") or 0))
+
+    def record_error(self, payload: dict) -> None:
+        if payload.get("model"):
+            self.bump(payload["model"], payload.get("role") or "?", "error")
+
+    def set_probe(self, model: str, score: int, of: int, json_ok: bool) -> None:
+        with self.lock:
+            self.db.execute("INSERT OR REPLACE INTO probes (model, score, of, json_ok) VALUES (?, ?, ?, ?)", (model, score, of, int(json_ok)))
+            self.db.commit()
+
     def profile(self, model: str) -> dict:
         valid, invalid = self._sum(model, "json_ok"), self._sum(model, "json_bad")
         ok, bad = self._sum(model, "compile_ok"), self._sum(model, "compile_bad")
-        return {"model": model, "calls": self._sum(model, "call"),
+        calls, errors = self._sum(model, "call"), self._sum(model, "error")
+        with self.lock:
+            pr = self.db.execute("SELECT score, of, json_ok, at FROM probes WHERE model = ?", (model,)).fetchone()
+        return {"model": model, "calls": calls, "cached": self._sum(model, "cached"), "errors": errors,
+                "errorRate": round(errors / (calls + errors), 3) if calls + errors else None,
+                "meanUsd": round(self._sum(model, "usd_micro") / 1e6 / calls, 5) if calls else None,
+                "meanTokens": round(self._sum(model, "tokens") / calls) if calls else None,
                 "json_reliability": round(valid / (valid + invalid), 3) if valid + invalid else None, "json_n": valid + invalid,
                 "compile_rate": round(ok / (ok + bad), 3) if ok + bad else None, "compile_n": ok + bad,
-                "verified": self._sum(model, "verified")}
+                "verified": self._sum(model, "verified"),
+                "probe": {"score": pr[0], "of": pr[1], "jsonOk": bool(pr[2]), "at": pr[3]} if pr else None}
 
     def board(self) -> list[dict]:
         with self.lock:
-            models = [r[0] for r in self.db.execute("SELECT DISTINCT model FROM stats ORDER BY model")]
+            models = [r[0] for r in self.db.execute("SELECT model FROM stats UNION SELECT model FROM probes ORDER BY 1")]
         return [self.profile(m) for m in models]
 
     def close(self) -> None:
@@ -76,6 +104,15 @@ def adapt(profile: dict | None) -> tuple[dict, list[str]]:
         elif rate < 0.45:
             out.update(samples=3)
             why.append(f"compile rate {rate:.0%}: 3 parallel candidates")
+    probe = profile.get("probe")
+    if (rate is None or n < MIN_OBSERVATIONS) and probe and probe.get("of"):
+        # M2: before enough real observations, the deep probe (five small Lean proofs) decides
+        if probe["score"] <= 1:
+            out.update(interactive_first=True, samples=4, max_tokens=8000, depth=3)
+            why.append(f"deep probe {probe['score']}/{probe['of']}: step-by-step REPL first, 4 short candidates, deeper decomposition")
+        elif probe["score"] <= 3:
+            out.update(samples=3)
+            why.append(f"deep probe {probe['score']}/{probe['of']}: 3 parallel candidates")
     rel, jn = profile.get("json_reliability"), profile.get("json_n", 0)
     if rel is not None and jn >= MIN_OBSERVATIONS and rel < 0.7:
         why.append(f"JSON reliability {rel:.0%}: structured answers go through the repair pass (R1)")

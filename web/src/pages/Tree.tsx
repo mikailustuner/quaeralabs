@@ -6,7 +6,7 @@ import { go } from "../router";
 const KIND_NAME: Record<string, string> = { hypothesis: "Hypothesis changed", approach: "Approach changed", note: "Note added",
   continue: "Program continued" };
 const PART_NAME: Record<string, string> = { verifiedLemmas: "verified lemmas", liveStrategies: "live strategies", bestReview: "best review",
-  stages: "stages reached", openCritiques: "open objections", depth: "depth" };
+  stages: "stages reached", openCritiques: "open objections", depth: "depth", metricGain: "metric gain" };
 const OUTCOME: Record<string, [string, string]> = {
   supported: ["good", "supported"], refuted: ["bad", "refuted"], inconclusive: ["warn", "inconclusive"],
   stopped: ["warn", "stopped"], running: ["info", "running"],
@@ -128,6 +128,7 @@ export function TreeView({ pid, n }: { pid: string; n: number }) {
             <div className="stack" style={{ gap: 6 }}>
               <p><strong>{KIND_NAME[node.branch.kind]}</strong> <span className="faint">· after {STAGE_NAME[node.branch.atStage] || node.branch.atStage} · {node.branch.by.kind === "human" ? "human decision" : `proposed by ${ROLE_NAME[node.branch.by.role || "director"]}`}</span></p>
               <p className="clamp">Reason: {node.branch.reason}</p>
+              {node.grid && <p><span className="badge info">Grid cell {node.grid.cell}/{node.grid.of}</span> {node.grid.parameter} = <strong>{node.grid.value}</strong></p>}
               {node.branch.note && <p className="faint clamp">Instructions: {node.branch.note}</p>}
             </div>
           ) : <p className="muted">Root of the tree.</p>}

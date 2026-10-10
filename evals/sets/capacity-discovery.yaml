@@ -1,0 +1,19 @@
+# Capacity plan M1: discovery mini-set. Open-ended targets attacked in discovery mode; scored by lemma progress
+# (verified / refuted lemmas, dead strategies, synthesis), never by a yes/no answer. Run: evals/capacity_run.py --set discovery
+version: 1
+targets:
+  - id: odd-sums
+    question: "Is the sum of the first n odd numbers equal to n² for every natural number n? Prove it in Lean exactly as stated."
+    note: "Control target: solvable; the program should verify every lemma and synthesize the main theorem."
+  - id: collatz-small
+    question: "Prove or disprove: every natural number n with 1 ≤ n ≤ 2^10 reaches 1 under the Collatz map."
+    note: "Finite but large; rewards computation-aware strategies (decide, interval splitting)."
+  - id: amgm-n
+    question: "For positive reals x₁,…,xₙ with product 1, is their sum at least n? Prove it in Lean exactly as stated."
+    note: "Classical (AM–GM); a lemma program should find the induction or Jensen route."
+  - id: sum-of-squares-primes
+    question: "Prove: every prime p with p % 4 = 1 is a sum of two squares of natural numbers."
+    note: "Known (Fermat); Mathlib has it — measures whether the team finds and reuses it."
+  - id: erdos-straus
+    question: "Prove or disprove: for every natural number n ≥ 2, 4/n = 1/x + 1/y + 1/z has a solution in positive integers."
+    note: "Open problem (Erdős–Straus); only partial progress (lemmas for residue classes) is expected."

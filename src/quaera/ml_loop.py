@@ -97,13 +97,42 @@ class MLOrchestrator(Orchestrator):
         self.set_state("data_profile", profile)
         self.store.append("data.profiled", actor, {"files": [f.get("file") for f in profile.get("files", [])]})
 
+    def compute_label(self) -> str:
+        """Where the experiment runs (shown on the approval card): local CPU, local GPU or the remote GPU runner (ML3)."""
+        if not self.store.meta("gpu"):
+            return "local CPU"
+        from .mcp_servers.sandbox_server import remote_runner
+        r = remote_runner()
+        return f"remote GPU runner {r['label']} (same sandbox contract: no network, read-only data)" if r else "local GPU"
+
     def plan_text(self, plan: dict) -> str:
         return json.dumps(plan, ensure_ascii=False, indent=1)
+
+    def data_fingerprint(self) -> str | None:
+        """ML2: the data directory's fingerprint (computed once per project)."""
+        fp = self.state("data_hash")
+        if fp is None and self.data_dir:
+            from .bank import data_hash
+            fp = data_hash(self.data_dir)
+            if fp:
+                self.set_state("data_hash", fp)
+        return fp
+
+    def results_hints(self, text: str) -> str:
+        if self.results is None:
+            return ""
+        from .bank import results_block
+        items = self.results.search(text, k=4, data=self.data_fingerprint(), exclude_project=self.store.path.parent.name)
+        if items:
+            self.store.append("results.recalled", self.det("director"), {"items": [{"project": i["project"], "metric": i["metric"],
+                                                                                    "sameData": i["sameData"]} for i in items]})
+        return results_block(items)
 
     def _design(self, feedback: str = "") -> tuple[dict, dict]:
         h, q = self.selected_hypothesis(), self.question()
         plan, actor = self.ask_json("experiment_designer", prompts.DESIGN_ML,
-                                   f"Question: {q['title']}\nData: {q['scope']}\nHypothesis: {h['statement']}\n{feedback}", 3000)
+                                   f"Question: {q['title']}\nData: {q['scope']}\nHypothesis: {h['statement']}\n{feedback}"
+                                   + self.results_hints(f"{q['title']} {h['statement']}"), 3000)
         plan["seeds"] = max(3, min(int(plan.get("seeds", 3)), 5))
         return plan, actor
 
@@ -183,7 +212,7 @@ class MLOrchestrator(Orchestrator):
         verdict = exp["noveltyCheck"]["verdict"]
         options = ["Proceed", "Replicate the known result", "Change direction (stop the research)"] if verdict not in ("novel", "unknown") else None
         summary = (f"{exp['id']}: {exp['method']}\nPreregistration {pre['id']}: {pre['primaryMetric']} · {pre['successCriterion']} · {pre['seeds']} seed\n"
-                   f"Novelty: {verdict} ({exp['noveltyCheck'].get('basis')}) · Model budget: ${exp['budget']['estimatedUsd']:.2f} · Compute: local")
+                   f"Novelty: {verdict} ({exp['noveltyCheck'].get('basis')}) · Model budget: ${exp['budget']['estimatedUsd']:.2f} · Compute: {self.compute_label()}")
         decision = self.ask_human(exp["createdBy"], "approve_experiment", exp["id"], summary, exp["budget"]["estimatedUsd"], options)
         if not decision.approved or (options and decision.choice == 2):
             raise StopResearch("the human did not approve the experiment")
@@ -194,8 +223,11 @@ class MLOrchestrator(Orchestrator):
                         "budget": {**exp["budget"], "approvedUsd": exp["budget"]["estimatedUsd"]}}, by=self.human())
 
     def _exec(self, role: str, args: list[str], workdir: str | None = None, timeout_s: int = 600) -> dict:
+        # ML3: a project approved for GPU runs the Engineer's experiment with gpu=True (the tool registry checks the role's
+        # permission; the sandbox server sends it to the remote runner when one is configured)
+        gpu = bool(self.store.meta("gpu")) and role == "engineer"
         return self.tools.call_json(role, "sandbox.exec", workdir=workdir or self.workdir, command=["python", *args],
-                                    data_dir=self.data_dir, timeout_s=timeout_s)
+                                    data_dir=self.data_dir, timeout_s=timeout_s, **({"gpu": True} if gpu else {}))
 
     def _run_obj(self, actor: dict, kind: str, seed: int, ok: bool, started: str, metrics: dict, commit: str, log: str) -> dict:
         digest = self.store.put_blob(log.encode())
@@ -203,7 +235,7 @@ class MLOrchestrator(Orchestrator):
                               "provider": "local", "sha256": digest, "mediaType": "text/plain"})
         return self.store.put({"type": "run", "createdBy": actor, "experimentId": self.state("experiment_id"), "kind": kind,
                                "status": "succeeded" if ok else "failed", "seed": seed,
-                               "config": {"commit": commit, "pilot": kind == "pilot"}, "hardware": "local CPU",
+                               "config": {"commit": commit, "pilot": kind == "pilot"}, "hardware": self.compute_label().split(" (")[0],
                                "startedAt": started, "endedAt": now(), "metrics": metrics, "logs": art["id"]})
 
     def stage_pilot(self) -> None:
@@ -211,6 +243,13 @@ class MLOrchestrator(Orchestrator):
         q = self.question()
         limit = self.permissions.spec("engineer")["limits"].get("maxFixAttempts", 3)
         prompt = f"Question: {q['title']}\nData: {q['scope']}\nApproved plan:\n{self.plan_text(plan)}"
+        parent_code = Path(self.workdir) / "experiment.py"
+        if (self.store.meta("branch") or {}).get("parent") and parent_code.exists():
+            # ML2: a branch starts from the parent's script (copied with the working directory) instead of rewriting it
+            prompt += ("\n\nStarting point: the parent branch's experiment.py (it ran and produced the metrics). Change ONLY what this "
+                       "branch's change requires and keep everything else (data handling, seeds, metric printing) identical, so "
+                       f"the results stay comparable:\n```python\n{parent_code.read_text(encoding='utf-8')[:12000]}```")
+            self.store.append("code.reused", self.det("engineer"), {"from": self.store.meta("branch")["parent"], "file": "experiment.py"})
         wanted = {m["name"] for m in plan.get("metrics", [])}
         for attempt in range(limit + 1):
             started = now()
@@ -352,6 +391,26 @@ class MLOrchestrator(Orchestrator):
         self.store.put({"type": "verification", "createdBy": verifier, "resultId": self.state("result_id"),
                         "verificationRunIds": [run["id"]], "reproduced": reproduced, "crossModel": False,
                         "tolerance": "exact (|diff| ≤ 1e-9); partial up to 1%", "differences": diffs[:10]})
+        if reproduced in ("yes", "partial") and self.results is not None:
+            self._bank_result(reproduced, ref["config"]["commit"], clean)
+
+    def _bank_result(self, reproduced: str, commit: str, workdir: str) -> None:
+        """ML2: a reproduced result enters the lab's result bank (orientation for later designs, never evidence)."""
+        pre, table, ok = self._analysis_input()
+        metric = pre["primaryMetric"]
+        row = table.get(metric) or {}
+        exp = self.store.get(self.state("experiment_id"))
+        code_path = Path(workdir) / "experiment.py"
+        try:
+            if self.results.add(project=self.store.path.parent.name, question=self.question()["title"],
+                                hypothesis=self.selected_hypothesis()["statement"], metric=metric,
+                                direction=next((m.get("direction") for m in exp.get("metrics", []) if m.get("name") == metric), None),
+                                mean=row.get("mean"), ci=row.get("ci95"), seeds=row.get("n"), relation=(self.state("analysis") or {}).get("relation"),
+                                reproduced=reproduced, commit=commit, code=code_path.read_text(encoding="utf-8")[:20000] if code_path.exists() else None,
+                                data_hash=self.data_fingerprint(), method=exp.get("method")):
+                self.store.append("results.added", self.det("verifier"), {"metric": metric, "mean": row.get("mean"), "reproduced": reproduced})
+        except Exception as exc:   # auxiliary: recorded, never fatal
+            self.store.append("bank.error", self.det("director"), {"error": str(exc)[:200]})
 
     def stage_conclude(self) -> None:
         h = self.state("hypothesis_id") and self.selected_hypothesis()
