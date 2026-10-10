@@ -45,6 +45,7 @@ def main() -> int:
     ap.add_argument("--profile", default="cheap")
     ap.add_argument("--minif2f", action="store_true", help="sample from miniF2F (valid split, without the easy mathd_* problems)")
     ap.add_argument("--seed", type=int, default=11)
+    ap.add_argument("--names", help="comma-separated task names to run first (e.g. the ones an earlier run left unsolved)")
     a = ap.parse_args()
 
     a.data = a.data or str(ROOT / "evals/data" / ("minif2f-deepseek-v15.jsonl" if a.minif2f else "putnam-sample-7.jsonl"))
@@ -54,8 +55,10 @@ def main() -> int:
         sys.path.insert(0, str(ROOT / "evals"))
         from minif2f_run import HEADER, modernize
         pool = [r for r in rows if r.get("split") == "valid" and not r["name"].startswith("mathd")]
-        rows = [{"name": r["name"], "statement_file": HEADER + modernize(r["formal_statement"]).rstrip() + " sorry\n"}
-                for r in random.Random(a.seed).sample(pool, min(len(pool), a.n * 3))]
+        wanted = [x for x in (a.names or "").split(",") if x]
+        picked = [r for w in wanted for r in pool if r["name"] == w] + \
+            [r for r in random.Random(a.seed).sample(pool, min(len(pool), a.n * 3)) if r["name"] not in wanted]
+        rows = [{"name": r["name"], "statement_file": HEADER + modernize(r["formal_statement"]).rstrip() + " sorry\n"} for r in picked]
     events: list[dict] = []
     gw = Gateway({"anthropic": ClaudeCLIProvider()}, a.budget, Permissions.load().agents, lambda k, p: events.append({"kind": k, **p}),
                  profile_overrides={"engineer": a.profile}, effort_overrides={"engineer": "default"})
