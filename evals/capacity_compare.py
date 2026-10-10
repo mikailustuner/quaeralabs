@@ -39,13 +39,23 @@ def main() -> int:
     from quaera.prover import Interactive, prove_search
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default=str(ROOT / "evals/data/putnam-sample-7.jsonl"))
+    ap.add_argument("--data", help="jsonl tasks (default: the Putnam sample, or miniF2F with --minif2f)")
     ap.add_argument("--n", type=int, default=8, help="tasks whose statement compiles")
     ap.add_argument("--budget", type=float, default=3.0, help="hard total USD cap for both arms together")
     ap.add_argument("--profile", default="cheap")
+    ap.add_argument("--minif2f", action="store_true", help="sample from miniF2F (valid split, without the easy mathd_* problems)")
+    ap.add_argument("--seed", type=int, default=11)
     a = ap.parse_args()
 
+    a.data = a.data or str(ROOT / "evals/data" / ("minif2f-deepseek-v15.jsonl" if a.minif2f else "putnam-sample-7.jsonl"))
     rows = [json.loads(l) for l in Path(a.data).read_text(encoding="utf-8").splitlines()]
+    if a.minif2f:
+        import random
+        sys.path.insert(0, str(ROOT / "evals"))
+        from minif2f_run import HEADER, modernize
+        pool = [r for r in rows if r.get("split") == "valid" and not r["name"].startswith("mathd")]
+        rows = [{"name": r["name"], "statement_file": HEADER + modernize(r["formal_statement"]).rstrip() + " sorry\n"}
+                for r in random.Random(a.seed).sample(pool, min(len(pool), a.n * 3))]
     events: list[dict] = []
     gw = Gateway({"anthropic": ClaudeCLIProvider()}, a.budget, Permissions.load().agents, lambda k, p: events.append({"kind": k, **p}),
                  profile_overrides={"engineer": a.profile}, effort_overrides={"engineer": "default"})
@@ -58,13 +68,16 @@ def main() -> int:
             tasks.append((name, stmt))
         if len(tasks) >= a.n:
             break
-    per_task = a.budget / (2 * len(tasks))
+    # 8% margin: the gateway refuses a call whose worst case exceeds what is left, so the last tasks keep their full share
+    if not tasks:
+        raise SystemExit("no task statement compiles with this Mathlib version")
+    per_task = a.budget * 0.92 / (2 * len(tasks))
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     out_path = ROOT / "evals/results" / f"capacity-compare-{stamp}.json"
     results = {"before": [], "after": []}
 
     def save(final: bool) -> dict:
-        summary = {"createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"), "complete": final, "data": Path(a.data).name,
+        summary = {"createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"), "complete": final, "data": Path(a.data).name + (f" (miniF2F valid, seed {a.seed})" if a.minif2f else ""),
                    "profile": a.profile, "models": sorted({e["model"] for e in events if e["kind"] == "model.call"}),
                    "tasks": len(tasks), "perTaskUsd": round(per_task, 4), "budgetUsd": a.budget, "spentUsd": round(gw.spent_usd, 4),
                    "arms": {arm: {"solved": sum(r["solved"] for r in rs), "attempted": len(rs),
