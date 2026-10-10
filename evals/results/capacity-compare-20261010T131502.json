@@ -1,0 +1,179 @@
+{
+  "createdAt": "2026-10-10T14:09:26+00:00",
+  "complete": true,
+  "data": "putnam-sample-7.jsonl",
+  "profile": "cheap",
+  "models": [
+    "anthropic/claude-haiku-4-5-20251001"
+  ],
+  "tasks": 8,
+  "perTaskUsd": 0.1875,
+  "budgetUsd": 3.0,
+  "spentUsd": 2.7432,
+  "arms": {
+    "before": {
+      "solved": 0,
+      "attempted": 8,
+      "modelCalls": 32,
+      "spentUsd": 1.483,
+      "secondsTotal": 1532.6
+    },
+    "after": {
+      "solved": 0,
+      "attempted": 8,
+      "modelCalls": 79,
+      "spentUsd": 1.2602,
+      "secondsTotal": 1730.6
+    }
+  },
+  "rows": {
+    "before": [
+      {
+        "name": "putnam_1964_b1",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 4,
+        "usd": 0.2431,
+        "seconds": 247.7
+      },
+      {
+        "name": "putnam_1965_a2",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 6,
+        "usd": 0.2009,
+        "seconds": 230.1
+      },
+      {
+        "name": "putnam_1965_b3",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 3,
+        "usd": 0.1964,
+        "seconds": 151.5
+      },
+      {
+        "name": "putnam_1966_a6",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 4,
+        "usd": 0.2009,
+        "seconds": 184.6
+      },
+      {
+        "name": "putnam_1967_a1",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 4,
+        "usd": 0.2027,
+        "seconds": 202.3
+      },
+      {
+        "name": "putnam_1967_a4",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 4,
+        "usd": 0.1896,
+        "seconds": 174.7
+      },
+      {
+        "name": "putnam_1967_b1",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 5,
+        "usd": 0.2089,
+        "seconds": 259.3
+      },
+      {
+        "name": "putnam_1970_b6",
+        "solved": false,
+        "stopped": "total cap: engineer call may cost up to $0.171 in the worst case; remaining budget $0.082",
+        "calls": 2,
+        "usd": 0.0405,
+        "seconds": 82.4
+      }
+    ],
+    "after": [
+      {
+        "name": "putnam_1964_b1",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 10,
+        "usd": 0.1945,
+        "seconds": 282.6
+      },
+      {
+        "name": "putnam_1965_a2",
+        "solved": false,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole",
+          "whole",
+          "whole",
+          "interactive",
+          "sketch"
+        ],
+        "calls": 16,
+        "usd": 0.2033,
+        "seconds": 261.2
+      },
+      {
+        "name": "putnam_1965_b3",
+        "solved": false,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole",
+          "whole",
+          "whole",
+          "interactive",
+          "sketch"
+        ],
+        "calls": 6,
+        "usd": 0.1837,
+        "seconds": 219.1
+      },
+      {
+        "name": "putnam_1966_a6",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 14,
+        "usd": 0.19,
+        "seconds": 260.0
+      },
+      {
+        "name": "putnam_1967_a1",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 13,
+        "usd": 0.195,
+        "seconds": 260.1
+      },
+      {
+        "name": "putnam_1967_a4",
+        "solved": false,
+        "stopped": "task budget $0.188 used",
+        "calls": 16,
+        "usd": 0.2167,
+        "seconds": 278.1
+      },
+      {
+        "name": "putnam_1967_b1",
+        "solved": false,
+        "stopped": "total cap: engineer call may cost up to $0.172 in the worst case; remaining budget $0.101",
+        "calls": 2,
+        "usd": 0.0388,
+        "seconds": 94.5
+      },
+      {
+        "name": "putnam_1970_b6",
+        "solved": false,
+        "stopped": "total cap: engineer call may cost up to $0.172 in the worst case; remaining budget $0.062",
+        "calls": 2,
+        "usd": 0.0382,
+        "seconds": 75.0
+      }
+    ]
+  }
+}
