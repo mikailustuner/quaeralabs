@@ -141,10 +141,17 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     cost = sum(c["costUsd"] for c in calls)
     fams = Counter(c.get("family", "?") for c in calls)
     subs = sum(1 for c in calls if c.get("billing") == "subscription")
+    cached = sum(1 for c in calls if c.get("cached"))
+    lim = store.meta("budget") or {}
+    dims = ([f"at most {lim['calls']} model calls"] if lim.get("calls") else []) + \
+        ([f"{lim['hours']:g} h wall-clock"] if lim.get("hours") else []) + ([f"{lim['tokens']} tokens"] if lim.get("tokens") else [])
     lines += ["", "## Cost and record", "",
-              f"- Model calls: {len(calls)} · total ${cost:.4f} · budget cap ${gateway.cap_usd:.2f}",
+              f"- Model calls: {len(calls) - cached} · total ${cost:.4f} · budget cap ${gateway.cap_usd:.2f}"
+              + (f" · other limits: {', '.join(dims)}" if dims else "")
+              + (f" · {cached} answer(s) reused from the completion cache (no charge)" if cached else ""),
               "- Model families: " + ", ".join(f"{k} {v}" for k, v in fams.items())
               + (f" · {subs} call(s) via subscription CLIs (no per-call charge reported)" if subs else ""),
+              *reuse_lines(store),
               f"- Events: {len(store.events())} · objects: " + ", ".join(f"{k} {v}" for k, v in Counter(o['type'] for o in objs).items()),
               "", "## Reproduce", "", "```bash", f"quaera verify {store.path.parent}", "```", ""]
 
@@ -159,6 +166,15 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     store.append("report.written", {"kind": "agent", "role": "writer", "model": "quaera/deterministic", "modelFamily": "quaera"},
                  {"path": str(path), "sha256": store.put_blob(text.encode()), "ruleViolations": errors})
     return path
+
+
+def reuse_lines(store: Store) -> list[str]:
+    """Lemma bank (K1): lemmas reused from earlier projects are listed with their origin; each was recompiled here."""
+    reused = [e["payload"] for e in store.events("bank.reused")]
+    if not reused:
+        return []
+    return ["- Reused from the lab's lemma bank (each recompiled in this project before counting): "
+            + ", ".join(f"{r['id']} (verified in {r['project']})" for r in reused)]
 
 
 def discovery_section(store: Store) -> list[str]:

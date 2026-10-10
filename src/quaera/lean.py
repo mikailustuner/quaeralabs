@@ -69,6 +69,15 @@ def normalize(stmt: str) -> str:
     return " ".join(stmt.replace(":= by", "").replace(":=", "").split())
 
 
+def mathlib_rev(workspace: Path = DEFAULT_WORKSPACE) -> str:
+    """The pinned Mathlib revision (lemma bank and Mathlib index are keyed by it)."""
+    try:
+        m = re.search(r'rev = "([^"]+)"', (workspace / "lakefile.toml").read_text())
+    except OSError:
+        return "unknown"
+    return m.group(1) if m else "unknown"
+
+
 def statement_of(source: str, theorem: str) -> str | None:
     """Returns the `theorem NAME ... :=` header with whitespace normalized."""
     m = re.search(rf"(?:theorem|lemma)\s+{re.escape(theorem)}\b(.*?):=", source, re.S)
@@ -231,6 +240,51 @@ class LeanChecker:
             messages = [("error", 0, resp["message"])]
         output = "\n".join(f"{s}:{ln}: {d}" for s, ln, d in messages)
         return self._finish("repl", theorem, messages, problems, output, False, started)
+
+    # --- interactive proof states (capacity plan K2) ----------------------------------
+    def _repl_ready(self) -> _Repl:
+        if not self.repl_bin.exists():
+            raise LeanUnavailable("REPL is not built; run `lake build REPL/repl` in lean/")
+        if self._repl is None or not self._repl.alive():
+            self._repl = _Repl(self._repl_argv(), self.load_timeout_s)
+        return self._repl
+
+    def goals(self, source: str) -> list[dict]:
+        """The goal state at every `sorry` of the file: [{"proofState", "goal", "line"}]. Proof states live in the
+        REPL process; a restart invalidates them (the caller then sees an error from `tactic`)."""
+        body, problems = self._prepare(source)
+        if problems or FORBIDDEN_CMD_RE.search(source) or re.search(r"^\s*axiom\s", source, re.M):
+            return []
+        repl = self._repl_ready()
+        resp = repl.send({"cmd": body, "env": repl.base_env}, self.timeout_s)
+        if resp is None:
+            self._repl.close()
+            self._repl = None
+            return []
+        return [{"proofState": x["proofState"], "goal": x.get("goal", ""), "line": (x.get("pos") or {}).get("line", 0)}
+                for x in resp.get("sorries", []) if "proofState" in x]
+
+    def tactic(self, proof_state: int, tactic: str) -> dict:
+        """Applies one tactic to a proof state: {"proofState", "goals", "error"}. The result is NOT a verdict; the finished
+        script is compiled as a file through `check` like every other proof."""
+        if self._repl is None or not self._repl.alive():
+            return {"proofState": None, "goals": [], "error": "the REPL restarted; proof states are gone"}
+        # The REPL's tactic mode parses ONE tactic; a sequence (`a; b`, several lines) is sent as one parenthesized
+        # tactic block, which Lean accepts as a single tactic with the same effect.
+        text = tactic.strip()
+        if ";" in text or "\n" in text:
+            text = "(" + text + ")"
+        resp = self._repl.send({"tactic": text, "proofState": int(proof_state)}, min(self.timeout_s, 120))
+        if resp is None:
+            self._repl.close()
+            self._repl = None
+            return {"proofState": None, "goals": [], "error": "timed out"}
+        errors = [m.get("data", "") for m in resp.get("messages", []) if m.get("severity") == "error"]
+        if "message" in resp and "proofState" not in resp:
+            errors.append(str(resp["message"]))
+        if errors:
+            return {"proofState": None, "goals": [], "error": "; ".join(errors)[:600]}
+        return {"proofState": resp.get("proofState"), "goals": resp.get("goals", []), "error": None}
 
     # --- one-shot, clean environment --------------------------------------------
     def _oneshot(self, source: str, theorem, problems, started) -> LeanReport:

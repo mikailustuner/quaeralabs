@@ -184,6 +184,15 @@ Return only JSON: {"ranking": [{"index": <candidate index>, "testability": n, "p
 "cost": n, "reason": "Turkish, one sentence"}]}  — include every candidate exactly once."""
 
 
+PROVE_STEP = COMMON + """
+Role: Engineer, proving `quaera_main` interactively in the Lean REPL. You see the CURRENT goal state, the tactics applied
+so far and the tactics that already failed at this state. Propose the NEXT step only: one to three alternative single
+tactics (each may be a short `have … := by …` or a combinator like `<;>`), most promising first. Do not repeat a failed
+tactic. Forbidden: `sorry`, `admit`, `native_decide`, `#` commands.
+Steps must leave goals open, not fail: use plain `induction n` / `cases h` (then `rename_i` to name the new variables) and
+`· tac` to close one goal; a structured `induction … with | … =>` block is fine only when every arm is complete.
+Return only JSON: {"tactics": ["tactic 1", "tactic 2"], "why": "one short sentence"}"""
+
 SKETCH = COMMON + """
 Role: Engineer. Direct proof attempts of the approved theorem failed. Write a PROOF SKETCH that splits the work into lemmas.
 Rules:

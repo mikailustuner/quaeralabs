@@ -101,11 +101,14 @@ def test_keep_trying_until_the_total_budget_is_spent_with_full_history(tmp_path)
                            agent_specs=Permissions.load().agents, approve=lambda text, cost: True, max_branches=50,
                            total_budget=total, log=lambda m: None)
     assert len(created) >= 2                                            # kept going after the first failed branch
-    spent = sum(tree.node_summary(tmp_path, p)["costUsd"] for p in tree.lineage(tmp_path, created[-1]))
+    spent = tree.line_usage(tmp_path, "root")["usd"]                    # the budget belongs to the whole tree (T1)
     assert total - spent - tree.REVISE_CAP_USD < tree.MIN_BRANCH_USD    # stopped because the budget ran out
     assert all(b <= total for b in budgets) and budgets == sorted(budgets, reverse=True)   # each branch gets what is left
-    assert tree.lineage(tmp_path, created[-1])[:2] == ["root", created[0]]
-    assert "Strategy 1: try a different tactic." in prompts_seen[-1]    # the Director sees every earlier attempt
+    assert all(tree.lineage(tmp_path, c)[0] == "root" for c in created)
+    # the Director sees every earlier attempt: its own line and the branches already opened from the node it expands
+    assert all(any(f"Strategy {i}: try a different tactic." in p for p in prompts_seen[i:]) for i in range(1, len(created)))
+    decisions = [e["payload"] for c in ["root"] + created for e in make(tmp_path, Script(), name=c).store.events("tree.decision")]
+    assert decisions and all("score" in d and "parts" in d for d in decisions)
 
 
 def test_repeated_hypothesis_is_rejected_and_the_loop_stops(tmp_path):
@@ -116,5 +119,8 @@ def test_repeated_hypothesis_is_rejected_and_the_loop_stops(tmp_path):
     created = tree.iterate(tmp_path, "root", build=None, providers={"scripted": director}, agent_specs=Permissions.load().agents,
                            approve=lambda text, cost: True, max_branches=3, budget_per_branch=1.0, log=lambda m: None)
     parent = make(tmp_path, Script(), name="root").store
-    assert created == [] and len(parent.events("branch.repeat_rejected")) == 2
+    # two repeats → stop; untried directions remain (an approach change), so a second opinion is asked (T3/S3); it only
+    # repeats too, so the stop is confirmed and the node is closed
+    assert created == [] and len(parent.events("branch.repeat_rejected")) == 4
+    assert parent.events("branch.stop_confirmed") and parent.events("branch.closed")
     assert parent.events("branch.proposed")[-1]["payload"]["decision"] == "stop"

@@ -1,4 +1,4 @@
-"""Lean MCP server: the lean_compile and mathlib_search tools."""
+"""Lean MCP server: lean_compile, lean_goals, lean_tactic and mathlib_search."""
 
 from __future__ import annotations
 
@@ -29,8 +29,28 @@ def lean_compile(source: str, theorem: str | None = None, approved_statement: st
 
 
 @mcp.tool()
+def lean_goals(source: str) -> str:
+    """Goal states at every `sorry` of the file (interactive proving): [{"proofState", "goal", "line"}]."""
+    return json.dumps(checker().goals(source), ensure_ascii=False)
+
+
+@mcp.tool()
+def lean_tactic(proof_state: int, tactic: str) -> str:
+    """Applies one tactic to a REPL proof state: {"proofState", "goals", "error"} (not a verdict)."""
+    return json.dumps(checker().tactic(proof_state, tactic), ensure_ascii=False)
+
+
+@mcp.tool()
 def mathlib_search(query: str, limit: int = 20) -> str:
-    """Searches the Mathlib sources for theorem/lemma/def lines that contain every word of the query."""
+    """Ranked search over Mathlib declarations (names, signatures, docstrings; symbols such as ∑ ≤ ∣ are matched by
+    name). Falls back to a plain grep when the index cannot be built."""
+    from quaera.mathlib_index import MathlibIndex
+    try:
+        hits = MathlibIndex.default().search(query, limit)
+        if hits:
+            return json.dumps(hits, ensure_ascii=False)
+    except Exception:   # index unavailable (no Mathlib sources, read-only home): the grep below still works
+        pass
     root = DEFAULT_WORKSPACE / ".lake" / "packages" / "mathlib" / "Mathlib"
     words = [w for w in re.split(r"\s+", query.strip()) if w][:6]
     if not words or not root.exists():

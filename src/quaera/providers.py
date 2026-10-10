@@ -252,6 +252,9 @@ def detect() -> list[dict]:
                   "version": _version(agy) if agy else None, "billing": "subscription (no per-call charge reported)",
                   "model": os.environ.get("QUAERA_AGY_MODEL") or "Antigravity default", "ready": bool(agy),
                   "note": "" if agy else "not installed"})
+    from . import registry
+    registry.load_secrets()
+    found += [registry.describe(e) for e in registry.load()["providers"]]   # API-key providers (capacity plan P1)
     return found
 
 
@@ -261,8 +264,23 @@ def enabled_ids() -> set[str] | None:
     return None if raw in ("", "auto") else {x.strip() for x in raw.split(",") if x.strip()}
 
 
+def build_providers(only: set[str] | None = None) -> dict:
+    """Every ready provider keyed by route id: the CLIs (keyed by their family, as before) plus registry entries
+    (keyed by their id; several may share a family, the cross-model rule compares families)."""
+    from . import registry
+    out = build_cli_providers(only)
+    allow = only if only is not None else enabled_ids()
+    for e in registry.load()["providers"]:
+        if e.get("enabled", True) and registry.has_key(e) and (allow is None or e["id"] in allow) and e["id"] not in out:
+            try:
+                out[e["id"]] = registry.build(e)
+            except ImportError:   # litellm not installed (uv sync --extra providers)
+                continue
+    return out
+
+
 def build_cli_providers(only: set[str] | None = None) -> dict:
-    """Ready CLI providers keyed by family. A second provider of the same family is not added (cross-checks are per family)."""
+    """Ready CLI providers keyed by family. A second CLI of the same family is not added (cross-checks are per family)."""
     from .gateway import ClaudeCLIProvider
     allow = only if only is not None else enabled_ids()
     out: dict = {}

@@ -80,7 +80,8 @@ class Script:
                 "BACKTRANSLATE", "REFUTE", "EXPLORE_MATH", "RANK_HYPOTHESES", "SKETCH")
         key = next((k for k in keys if getattr(prompts, k) == system), None)
         if key is None:   # lemma proof prompt: the main proof prompt with the theorem name replaced by the lemma name
-            key = next(k for k in keys if getattr(prompts, k) == re.sub(r"`quaera_step_\d+`", "`quaera_main`", system))
+            norm = re.sub(r"`quaera_(?:d\d+_)?step_\d+`", "`quaera_main`", re.sub(r"quaera_d\d+_step_", "quaera_step_", system))
+            key = next(k for k in keys if getattr(prompts, k) == norm)
         self.n[key] = self.n.get(key, 0) + 1
         i = self.n[key]
         if key == "LITERATURE_PLAN":

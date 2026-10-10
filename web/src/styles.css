@@ -511,6 +511,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .chip:hover { background: var(--fill-2); }
 .chip[aria-pressed="true"] { background: var(--text); color: var(--bg-elev); border-color: var(--text); }
 .lesson-group h3 { font-family: var(--serif); font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.lesson-group h3 a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }   /* a link next to plain text must not rely on colour alone */
 .lessons { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .lessons li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 14px; }
 .lessons .badge { justify-self: start; text-transform: capitalize; }
@@ -601,3 +602,5 @@ code.ic, .rich code { font-family: var(--mono); font-size: 0.86em; background: v
 .clamp-lines { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp-lines .katex-display { margin: 0.2em 0; }
 #discovery-panel > .segmented { justify-self: start; }
+/* on the selected (accent-tinted) strategy card the accent badge becomes solid, so it keeps AA contrast */
+.board-item[aria-selected="true"] .badge.accent { background: var(--accent); color: var(--on-accent); }

@@ -54,8 +54,8 @@ def make_providers(families: list[str] | None = None) -> dict:
 
     `families`: the families chosen for the project (e.g. ["anthropic", "openai"]); None means every ready one.
     """
-    from .providers import build_cli_providers
-    providers = build_cli_providers()
+    from .providers import build_providers
+    providers = build_providers()
     # API-key provider (LiteLLM): QUAERA_LITELLM_MODELS='{"cheap": "openai/…", "balanced": "…", "best": "…"}'
     if os.environ.get("QUAERA_LITELLM_MODELS"):
         from .gateway import LiteLLMProvider
@@ -63,8 +63,8 @@ def make_providers(families: list[str] | None = None) -> dict:
         providers.setdefault(extra.family, extra)
     if not providers:
         providers = {"anthropic": ClaudeCLIProvider()}       # none ready: old behaviour, the error shows up on the call
-    if families:
-        chosen = {f: p for f, p in providers.items() if f in families}
+    if families:   # the project's chosen routes; older projects stored family names, which match a route or its family
+        chosen = {k: p for k, p in providers.items() if k in families or getattr(p, "family", k) in families}
         providers = chosen or providers
     # The primary family (Engineer, Hypothesis lane A) is Claude; the others serve cross-checks and parallel lanes.
     order = sorted(providers, key=lambda f: (f != "anthropic", f))
@@ -80,10 +80,21 @@ def build(project: Path, budget: float | None, auto_limit: float | None, provide
         raise SystemExit("no budget cap: pass --budget")
     store.set_meta("budgetCapUsd", cap)
     record = lambda kind, payload: store.append(kind, {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"}, payload)  # noqa: E731
-    spent = sum(e["payload"]["costUsd"] for e in store.events("model.call"))
+    paid = [e["payload"] for e in store.events("model.call") if not e["payload"].get("cached")]
+    spent = sum(c["costUsd"] for c in paid)
     if providers is None:
         providers = make_providers(store.meta("families"))
-    gateway = Gateway(providers, cap, perms.agents, record, spent_usd=spent)
+    from . import registry
+    from .cache import CompletionCache, enabled as cache_enabled
+    from .gateway import Limits
+    reg = registry.load()
+    routing = {**reg["routing"], **(store.meta("routing") or {})}
+    ladders = {**reg["ladders"], **(store.meta("ladders") or {})}
+    lim = store.meta("budget") or {}          # P4: {"calls": n, "tokens": n, "deadline": unix time}
+    gateway = Gateway(providers, cap, perms.agents, record, spent_usd=spent, routing=routing, ladders=ladders,
+                      limits=Limits(lim.get("calls"), lim.get("tokens"), lim.get("deadline")), calls=len(paid),
+                      tokens=sum(c.get("inputTokens", 0) + c.get("outputTokens", 0) for c in paid),
+                      cache=CompletionCache(HOME.parent / "cache.db") if memory and cache_enabled() else None)
     tools = ToolRegistry(perms, record)
     if autonomy == "cap":
         approver = CapApprover(gateway)
@@ -100,7 +111,33 @@ def build(project: Path, budget: float | None, auto_limit: float | None, provide
     from .memory import LabMemory
     # Evals run with memory=False so a previous result of the same task cannot leak from memory.
     lab_memory = LabMemory(HOME.parent / "memory.db") if memory else None   # HOME is read at call time (tests change it)
-    return cls(store, gateway, tools, approver, perms, reports_dir=project, memory=lab_memory)
+    # Lemma bank (K1) and capability scoreboard (S2) are lab knowledge like the memory: off for evals.
+    from .bank import LemmaBank
+    from .capability import ModelStats
+    bank = LemmaBank(HOME.parent / "bank.db") if memory and os.environ.get("QUAERA_BANK", "on") != "off" else None
+    stats = ModelStats(HOME.parent / "stats.db") if memory else None
+    return cls(store, gateway, tools, approver, perms, reports_dir=project, memory=lab_memory, bank=bank, stats=stats)
+
+
+def limits_meta(calls: int | None, hours: float | None, tokens: int | None, prev: dict | None = None) -> dict | None:
+    """P4: the budget dimensions besides USD as project meta; the deadline is fixed when the limit is set."""
+    import time
+    out = dict(prev or {})
+    if calls is not None:
+        out["calls"] = int(calls)
+    if tokens is not None:
+        out["tokens"] = int(tokens)
+    if hours is not None:
+        out["deadline"] = time.time() + float(hours) * 3600
+        out["hours"] = float(hours)
+    return out or None
+
+
+def apply_limits(store: Store, a) -> None:
+    lim = limits_meta(getattr(a, "max_calls", None), getattr(a, "max_hours", None), getattr(a, "max_tokens", None),
+                      store.meta("budget"))
+    if lim:
+        store.set_meta("budget", lim)
 
 
 def cmd_ask(a) -> int:
@@ -109,6 +146,9 @@ def cmd_ask(a) -> int:
         raise SystemExit(f"{project} already exists")
     if a.domain == "ml" and not a.data_dir:
         raise SystemExit("--domain ml requires --data-dir")
+    pre = Store(project / "quaera.db")
+    apply_limits(pre, a)
+    pre.close()
     orch = build(project, a.budget, a.auto_approve_under, autonomy=a.autonomy, domain=a.domain)
     orch.store.set_meta("title", a.question)
     if a.data_dir:
@@ -130,6 +170,9 @@ def finish(orch: Orchestrator) -> int:
 
 
 def cmd_resume(a) -> int:
+    pre = Store(project_path(a.project) / "quaera.db")
+    apply_limits(pre, a)
+    pre.close()
     orch = build(project_path(a.project), a.budget, a.auto_approve_under, autonomy=a.autonomy)
     return finish(orch)
 
@@ -190,8 +233,9 @@ def cmd_doctor(a) -> int:
         ("Linux (for the sandbox)", platform.system() == "Linux", "macOS/Windows: docs/installation.md"),
         ("bubblewrap sandbox works", bool(shutil.which("bwrap")) and runs(["bwrap", "--unshare-all", "--ro-bind", "/", "/", "true"]),
          "apt install bubblewrap; for namespace permission see docs/installation.md#bubblewrap"),
-        ("model provider (claude CLI or QUAERA_LITELLM_MODELS)", bool(shutil.which("claude") or os.environ.get("QUAERA_LITELLM_MODELS")),
-         "install Claude Code and log in"),
+        ("model provider (a CLI, an API key in the provider registry, or QUAERA_LITELLM_MODELS)",
+         bool(shutil.which("claude") or os.environ.get("QUAERA_LITELLM_MODELS") or any(d["ready"] for d in __import__("quaera.providers", fromlist=["detect"]).detect())),
+         "install Claude Code and log in, or add an API key: quaera providers add …"),
     ]
     optional = [
         ("systemd user session (memory/CPU limits)", bool(shutil.which("systemd-run")) and runs(["systemd-run", "--user", "--scope", "--quiet", "true"]),
@@ -270,11 +314,120 @@ def cmd_iterate(a) -> int:
     else:
         def approve(text, cost):
             return input(f"{text}\nApprove (at most ${cost:.2f})? [y/N] ").strip().lower() in ("y", "yes", "e", "evet")
+    s = Store(HOME / pid / "quaera.db")
+    root = s.meta("root") or pid
+    s.close()
+    rs = Store(HOME / root / "quaera.db")
+    lim = rs.meta("budget") or {}      # P4: the line's call and time budget is set on the root project
+    rs.close()
     created = iterate(HOME, pid, build=lambda path, budget: build(path, budget, a.auto_approve_under),
                       providers=make_providers(), agent_specs=Permissions.load().agents, approve=approve,
                       max_branches=a.max_branches, budget_per_branch=a.budget_per_branch, total_budget=a.total_budget,
-                      memory=LabMemory(HOME.parent / "memory.db"))
+                      memory=LabMemory(HOME.parent / "memory.db"), beam=a.beam,
+                      max_calls=a.max_calls if a.max_calls is not None else lim.get("calls"), deadline=lim.get("deadline"))
     print(f"{len(created)} new branches: {', '.join(created) or '—'}")
+    return 0
+
+
+def cmd_providers(a) -> int:
+    """API-key providers in ~/.quaera/providers.json (capacity plan P1): list | add | remove | test | key."""
+    from . import registry
+    from .providers import detect, probe
+    data = registry.load()
+    if a.action == "list":
+        for d in detect():
+            print(f"[{'✓' if d['ready'] else '–'}] {d['id']:<14} {d['family']:<10} {d.get('billing', '')}  {d.get('note') or ''}")
+        if data["routing"]:
+            print("routing: " + ", ".join(f"{r}→{k}" for r, k in data["routing"].items()))
+        if data["ladders"]:
+            print("ladders: " + "; ".join(f"{r}: {' → '.join(l)}" for r, l in data["ladders"].items()))
+        return 0
+    if a.action == "add":
+        models = {}
+        for item in a.model or []:
+            prof, _, name = item.partition("=")
+            models[prof if name else "balanced"] = name or prof
+        entry = {"id": a.id, "kind": a.kind, "models": models, "enabled": True}
+        for k, v in (("apiBase", a.api_base), ("family", a.family), ("apiKeyEnv", a.key_env)):
+            if v:
+                entry[k] = v
+        if a.free:
+            entry["free"] = True
+        if a.price:
+            entry["price"] = {m: [float(x) for x in pr.split(",")] for m, pr in (p.split("=", 1) for p in a.price)}
+        if a.concurrent:
+            entry["limits"] = {"concurrent": a.concurrent}
+        data["providers"] = [e for e in data["providers"] if e["id"] != a.id] + [entry]
+        registry.save(data)
+        print(f"{a.id} saved to {registry.registry_path()}" + ("" if registry.has_key(entry) else f"; set its key: quaera providers key {a.id}"))
+        return 0
+    if a.action == "remove":
+        data["providers"] = [e for e in data["providers"] if e["id"] != a.id]
+        data["routing"] = {r: k for r, k in data["routing"].items() if k != a.id}
+        registry.save(data)
+        print(f"{a.id} removed")
+        return 0
+    entry = next((e for e in data["providers"] if e["id"] == a.id), None)
+    if entry is None:
+        raise SystemExit(f"no registry provider '{a.id}'")
+    if a.action == "key":
+        import getpass
+        registry.set_secret(registry.key_env(entry) or f"QUAERA_KEY_{a.id.upper().replace('-', '_')}",
+                            getpass.getpass(f"API key for {a.id} (input hidden, empty = remove): "))
+        print(f"key stored in {registry.secrets_path()} (mode 600)")
+        return 0
+    registry.load_secrets()
+    print(json.dumps(probe(registry.build(entry)), ensure_ascii=False))
+    return 0
+
+
+def cmd_route(a) -> int:
+    """Role routing and escalation ladders (P2, S1): quaera route critic openrouter · quaera route engineer --ladder a@cheap b@best"""
+    from . import registry
+    data = registry.load()
+    if a.ladder:
+        data["ladders"][a.role] = a.ladder
+    elif a.provider in ("-", "none"):
+        data["routing"].pop(a.role, None)
+        data["ladders"].pop(a.role, None)
+    elif a.provider:
+        data["routing"][a.role] = a.provider
+    registry.save(data)
+    print(json.dumps({"routing": data["routing"], "ladders": data["ladders"]}, ensure_ascii=False))
+    return 0
+
+
+def cmd_bank(a) -> int:
+    """Lemma bank (K1): stats | search <text>."""
+    from .bank import LemmaBank
+    bank = LemmaBank(HOME.parent / "bank.db")
+    if a.action == "stats":
+        print(json.dumps(bank.stats()))
+        return 0
+    for it in bank.search(" ".join(a.text), k=a.k):
+        print(f"- [{it['id']}] {it['lean']}\n  {it['statement']}  (from {it['project']})")
+    return 0
+
+
+def cmd_models(a) -> int:
+    """Capability scoreboard (M2/S2): per model JSON reliability and Lean compile rate from this lab's runs."""
+    from .capability import ModelStats, adapt
+    stats = ModelStats(HOME.parent / "stats.db")
+    rows = stats.board()
+    if not rows:
+        print("No observations yet: the scoreboard fills as research runs.")
+    for p in rows:
+        _, why = adapt(p)
+        fmt = lambda x: "—" if x is None else f"{x:.0%}"  # noqa: E731
+        print(f"{p['model']:<40} JSON {fmt(p['json_reliability'])} ({p['json_n']})  compile {fmt(p['compile_rate'])} ({p['compile_n']})"
+              + (f"\n    adapts: {'; '.join(why)}" if why else ""))
+    return 0
+
+
+def cmd_cache(a) -> int:
+    from .cache import CompletionCache
+    c = CompletionCache(HOME.parent / "cache.db")
+    print(json.dumps(c.stats() if a.action == "stats" else {"cleared": c.clear()}))
     return 0
 
 
@@ -318,6 +471,12 @@ def cmd_triage(a) -> int:
     return 0
 
 
+def add_limit_args(s) -> None:
+    s.add_argument("--max-calls", type=int, help="budget dimension: at most this many model calls (bounds subscription CLIs)")
+    s.add_argument("--max-hours", type=float, help="budget dimension: wall-clock hours from now")
+    s.add_argument("--max-tokens", type=int, help="budget dimension: total input+output tokens")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="quaera", description="QuaeraLabs AI research team")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -329,13 +488,41 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--autonomy", choices=["manual", "under", "cap"], help="manual: every approval is asked · under: automatic below --auto-approve-under · cap: automatic up to the budget cap")
     s.add_argument("--budget", type=float, required=True, help="budget cap (USD); never exceeded")
     s.add_argument("--auto-approve-under", type=float, help="pre-grant approvals below this amount (autonomy level 2)")
+    add_limit_args(s)
     s.set_defaults(fn=cmd_ask)
     s = sub.add_parser("resume")
     s.add_argument("project")
     s.add_argument("--budget", type=float, help="to change the cap (human only)")
     s.add_argument("--auto-approve-under", type=float)
     s.add_argument("--autonomy", choices=["manual", "under", "cap"])
+    add_limit_args(s)
     s.set_defaults(fn=cmd_resume)
+    s = sub.add_parser("providers", help="API-key providers: list | add ID | remove ID | key ID | test ID")
+    s.add_argument("action", choices=["list", "add", "remove", "key", "test"])
+    s.add_argument("id", nargs="?")
+    s.add_argument("--kind", choices=["anthropic", "openai", "google", "openrouter", "openai-compatible"])
+    s.add_argument("--model", action="append", help="profile=model (cheap/balanced/best), repeatable; a bare name is 'balanced'")
+    s.add_argument("--api-base", help="openai-compatible: server URL (e.g. http://127.0.0.1:11434/v1)")
+    s.add_argument("--family", help="model family for the cross-model rule (default from the kind)")
+    s.add_argument("--key-env", help="environment variable holding the key")
+    s.add_argument("--price", action="append", help="model=in,out USD per million tokens (repeatable)")
+    s.add_argument("--free", action="store_true", help="local model: no per-call charge")
+    s.add_argument("--concurrent", type=int, help="maximum parallel calls")
+    s.set_defaults(fn=cmd_providers)
+    s = sub.add_parser("route", help="route a role to a provider, or give it an escalation ladder")
+    s.add_argument("role")
+    s.add_argument("provider", nargs="?", help="provider id ('-' clears)")
+    s.add_argument("--ladder", nargs="+", help="provider@profile … climbed on failure")
+    s.set_defaults(fn=cmd_route)
+    s = sub.add_parser("bank", help="lemma bank of Lean-verified statements: stats | search <text>")
+    s.add_argument("action", choices=["stats", "search"])
+    s.add_argument("text", nargs="*")
+    s.add_argument("-k", type=int, default=8)
+    s.set_defaults(fn=cmd_bank)
+    sub.add_parser("models", help="capability scoreboard: JSON reliability and compile rate per model").set_defaults(fn=cmd_models)
+    s = sub.add_parser("cache", help="completion cache: stats | clear")
+    s.add_argument("action", choices=["stats", "clear"])
+    s.set_defaults(fn=cmd_cache)
     for name, fn in (("status", cmd_status), ("verify", cmd_verify)):
         s = sub.add_parser(name)
         s.add_argument("project")
@@ -347,6 +534,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--total-budget", type=float,
                    help="keep trying until the whole research line has spent this much (each branch gets the remainder)")
     s.add_argument("--auto-approve-under", type=float, help="open new branches below this amount without asking")
+    s.add_argument("--beam", type=int, default=1, help="expand this many of the most promising nodes concurrently (tree search)")
+    s.add_argument("--max-calls", type=int, help="stop when the whole tree has made this many paid model calls")
     s.set_defaults(fn=cmd_iterate)
     s = sub.add_parser("audit", help="honesty audit: fabricated citations, fake verification, tampered report")
     s.add_argument("--offline", action="store_true", help="do not query the official API for sources")

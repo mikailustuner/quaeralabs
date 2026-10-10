@@ -8,7 +8,8 @@ export type QObject = { id: string; type: string; createdBy: Actor; [k: string]:
 
 export type Summary = {
   id: string; title: string; shortTitle: string; managerUsd: number; domain: "math" | "ml"; mode?: "verify" | "discover"; families?: string[] | null; stages: string[]; done: string[]; current: string | null;
-  running: boolean; error: string | null; stopped: any; spentUsd: number; capUsd: number | null; calls: number;
+  running: boolean; error: string | null; stopped: any; spentUsd: number; capUsd: number | null; calls: number; cachedCalls?: number;
+  keepTrying?: boolean; limits?: { calls?: number; tokens?: number; hours?: number; deadline?: number } | null;
   hypothesis: { id: string; status: string; statement: string } | null; branchOf: string | null; branchAt: number | null; createdAt: string | null;
 };
 export type Pending = { id: string; action: string; summary: string; cost_usd: number; options: string[] | null };
@@ -52,19 +53,34 @@ export const api = {
     req(`/api/projects/${encodeURIComponent(id)}/messages`, { method: "POST", body: JSON.stringify({ to, text }) }),
   run: (id: string, autonomy: string, autoLimit: number) =>
     req(`/api/projects/${encodeURIComponent(id)}/run`, { method: "POST", body: JSON.stringify({ autonomy, autoLimit }) }),
+  registry: () => req<Registry>("/api/registry"),
+  jobs: (project: string) => req<{ maxJobs: number; jobs: Job[] }>(`/api/jobs?project=${encodeURIComponent(project)}`),
+  saveRegistry: (body: object) => req<{ ok: boolean }>("/api/registry", { method: "PUT", body: JSON.stringify(body) }),
+  deleteProvider: (id: string) => req<{ ok: boolean }>(`/api/registry/${encodeURIComponent(id)}`, { method: "DELETE", body: "{}" }),
+  raiseBudget: (id: string, addUsd: number) =>
+    req<{ budgetCapUsd: number }>(`/api/projects/${encodeURIComponent(id)}/budget`, { method: "POST", body: JSON.stringify({ addUsd }) }),
+  keepTrying: (id: string, on: boolean) =>
+    req<{ keepTrying: boolean }>(`/api/projects/${encodeURIComponent(id)}/keep-trying`, { method: "POST", body: JSON.stringify({ on }) }),
   branch: (id: string, at: number) =>
     req<{ id: string }>(`/api/projects/${encodeURIComponent(id)}/branch`, { method: "POST", body: JSON.stringify({ at }) }),
 };
+export type RegistryProvider = {
+  id: string; name: string; kind: string; family: string; models: Record<string, string>; apiBase?: string | null; keyEnv: string | null;
+  keySet: boolean; price: Record<string, [number, number]>; free: boolean; limits: { concurrent?: number }; enabled: boolean; ready: boolean; note: string;
+};
+export type Job = { id: number; project: string; label: string; state: "queued" | "running"; queuedAt: number; startedAt?: number; nested: boolean };
+export type Registry = { providers: RegistryProvider[]; routing: Record<string, string>; ladders: Record<string, string[]>; kinds: string[] };
 export type DiffOp = ["=" | "-" | "+", string];
 export type TreeNode = {
   id: string; title: string; domain: string; parent: string | null; running?: boolean;
-  branch: { parent: string; atStage: string; kind: "hypothesis" | "approach" | "note"; reason: string; hypothesis: string | null;
+  branch: { parent: string; atStage: string; kind: "hypothesis" | "approach" | "note" | "continue"; reason: string; hypothesis: string | null;
             note: string | null; by: Actor; createdAt: string } | null;
   hypothesis: { id: string; statement: string; status: string; scope: string | null } | null;
   design: { primaryMetric: string; successCriterion: string; seeds: number } | null;
   method: string | null; formal: string | null;
   outcome: "running" | "supported" | "refuted" | "inconclusive" | "stopped"; answer: string | null; proofVerified: boolean;
   reproduced: string | null; metric: { name: string; mean: number; ci95?: number[] } | null; stopped: string | null;
+  progress?: { score: number; parts: Record<string, number> }; closed?: boolean; selections?: number; stopRejected?: number;
   stagesDone: number; costUsd: number; metricDelta: number | null;
   diff: { hypothesis: DiffOp[] | null; method: DiffOp[] | null; formal: DiffOp[] | null; successCriterion: DiffOp[] | null } | null;
 };
@@ -302,7 +318,7 @@ export function describe(e: QEvent): Described | null {
     case "fidelity.check": return { who: "engineer", text: p.check === "vacuity" ? (p.verified ? "Assumptions are contradictory: the statement is vacuously true!" : "Vacuity check: assumptions are consistent")
       : (p.verified ? "Refutation: the negation was proved in Lean" : "Refutation attempt: no counterexample found"), tone: p.verified ? (p.check === "vacuity" ? "bad" : "warn") : undefined };
     case "branch.change": return { who: e.actor.kind === "human" ? "human" : "director",
-      text: `This branch was opened (${({ hypothesis: "hypothesis changed", approach: "approach changed", note: "note added" } as any)[p.kind] || p.kind}): ${p.reason}`, tone: "info" };
+      text: `This branch was opened (${({ hypothesis: "hypothesis changed", approach: "approach changed", note: "note added", continue: "lemma program continued" } as any)[p.kind] || p.kind}): ${p.reason}`, tone: "info" };
     case "branch.spawned": return { who: e.actor.kind === "human" ? "human" : "director", text: `New branch opened: ${p.child} — ${p.reason}`, tone: "info" };
     case "branch.proposed": return { who: "director", text: p.decision === "stop" ? `No new branch proposed: ${p.reason}` : `Revision proposal (${p.decision}): ${p.reason}`, tone: "info" };
     case "branch.revision_failed": return { who: "director", text: `Could not get a revision proposal: ${p.error}`, tone: "warn" };
@@ -324,7 +340,25 @@ export function describe(e: QEvent): Described | null {
       : { who: "engineer", text: `${p.id} round ${p.round} via ${p.family}: ${({ verified: "verified in Lean", refuted: "refuted in Lean", failed: "no proof this round" } as any)[p.status] || p.status}`,
           tone: p.status === "verified" ? "good" : p.status === "refuted" ? "bad" : undefined, open: "program" };
     case "lemma.reverified": return { who: "verifier", text: `${p.id} recompiled in a clean process: ${p.verified ? "verified" : "FAILED"}`, tone: p.verified ? "good" : "bad" };
-    case "attack.round": return { who: "director", text: `Attack round ${p.round}: open lemmas ${(p.open || []).join(", ")}` };
+    case "attack.round": return { who: "director", text: `Attack round ${p.round}${p.extra ? " (budget remains)" : ""}: open lemmas ${(p.open || []).join(", ")}` };
+    case "model.repaired": return { who: p.role || who, text: `Malformed reply recovered (${p.level === "repair" ? "a cheap repair pass" : "asked again"}); the research continues`, tone: "info" };
+    case "model.degraded": return { who: p.role || who, text: `No usable reply for ${p.purpose}; continuing without it (${p.reason})`, tone: "warn" };
+    case "model.repair_failed": return null;
+    case "model.escalated": return { who: p.role || who, text: `Escalated to the next model on the ladder (rung ${p.rung})`, tone: "warn" };
+    case "model.adapted": return { who: "director", text: `Search adapted to the model: ${(p.why || []).join("; ")}`, tone: "info" };
+    case "bank.reused": return { who: "engineer", text: `${p.id} reused from the lemma bank (verified in ${p.project}); recompiled here without a model call`, tone: "good", open: "program" };
+    case "bank.added": return { who: "verifier", text: "Verified statement added to the lab's lemma bank", tone: "good" };
+    case "bank.recalled": return null;
+    case "plausible.counterexample": return { who: "engineer", text: `Random testing found a counterexample to the statement; a Lean refutation is attempted`, tone: "warn" };
+    case "tree.decision": return { who: "director", text: `Tree search: expanding ${p.selected} (score ${p.score}) with up to ${money(p.budgetUsd)}`, tone: "info" };
+    case "branch.stop_rejected": return { who: "director", text: `Stop overruled: untried directions remain (${(p.gaps || []).length}); a second model proposed one`, tone: "info" };
+    case "branch.stop_confirmed": return { who: "director", text: `Stop confirmed by a second opinion: ${p.reason || ""}`, tone: "warn" };
+    case "critique.confirmed": return { who: "critic", text: `Blocking objection confirmed by a second family (${p.second})`, tone: "warn" };
+    case "critique.unconfirmed": return { who: "critic", text: `A second family (${p.second}) did not confirm "blocking": the objection stays open as high severity`, tone: "info" };
+    case "branch.closed": return { who: "director", text: `No more branches from here: ${p.reason}` };
+    case "budget.raised": return { who: "human", text: `Budget cap raised from ${money(p.fromUsd)} to ${money(p.toUsd)}`, tone: "info" };
+    case "keep_trying.set": return { who: "human", text: `Keep trying ${p.on ? "switched on" : "switched off"}`, tone: "info" };
+    case "stats.error": case "bank.error": return null;
     case "attack.done": return { who: "director", text: `Attack finished: ${p.verified} verified, ${p.refuted} refuted, ${p.open} open${p.stopped ? ` (${p.stopped})` : ""}` };
     case "synthesis.done": return { who: "engineer", text: p.solved ? "Main theorem assembled from the verified lemmas in Lean" : "Synthesis of the main theorem did not succeed", tone: p.solved ? "good" : "warn" };
     case "synthesis.skipped": return { who: "director", text: `Synthesis skipped: ${p.reason}` };

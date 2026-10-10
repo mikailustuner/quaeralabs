@@ -3,7 +3,10 @@ import { DiffOp, ROLE_NAME, STAGE_NAME, TreeData, TreeNode, api, money } from ".
 import { StateBox, useLoad } from "../components";
 import { go } from "../router";
 
-const KIND_NAME: Record<string, string> = { hypothesis: "Hypothesis changed", approach: "Approach changed", note: "Note added" };
+const KIND_NAME: Record<string, string> = { hypothesis: "Hypothesis changed", approach: "Approach changed", note: "Note added",
+  continue: "Program continued" };
+const PART_NAME: Record<string, string> = { verifiedLemmas: "verified lemmas", liveStrategies: "live strategies", bestReview: "best review",
+  stages: "stages reached", openCritiques: "open objections", depth: "depth" };
 const OUTCOME: Record<string, [string, string]> = {
   supported: ["good", "supported"], refuted: ["bad", "refuted"], inconclusive: ["warn", "inconclusive"],
   stopped: ["warn", "stopped"], running: ["info", "running"],
@@ -112,7 +115,8 @@ export function TreeView({ pid, n }: { pid: string; n: number }) {
                   <text x="14" y="42" className={`outcome ${cls}`}>{tr}{x.proofVerified ? " · Lean ✓" : x.reproduced === "yes" ? " · reproduced ✓" : ""}</text>
                   <text x="14" y="62" className="sub">{x.metric ? `${x.metric.name.slice(0, 18)}: ${fmt(x.metric.mean)}` : (x.hypothesis?.statement || "").slice(0, 32) + ((x.hypothesis?.statement || "").length > 32 ? "…" : "")}
                     {x.metricDelta != null ? ` (${x.metricDelta >= 0 ? "+" : ""}${fmt(x.metricDelta)})` : ""}</text>
-                  <text x="14" y="80" className="sub">branch cost {money(x.costUsd)}</text>
+                  <text x="14" y="80" className="sub">branch cost {money(x.costUsd)}{x.progress && x.outcome !== "running" && !["supported", "refuted"].includes(x.outcome)
+                    ? ` · score ${x.progress.score.toFixed(2)}${x.closed ? " · closed" : ""}` : ""}</text>
                 </g>
               );
             })}
@@ -137,6 +141,11 @@ export function TreeView({ pid, n }: { pid: string; n: number }) {
               {node.metricDelta != null && <span className={node.metricDelta >= 0 ? "up" : "down"}> {node.metricDelta >= 0 ? "▲" : "▼"} {fmt(Math.abs(node.metricDelta))}</span>}</dd></>}
             {node.answer && <><dt>Answer</dt><dd>{({ yes: "yes", no: "no", unclear: "unclear" } as any)[node.answer] || node.answer}</dd></>}
             <dt>Branch cost</dt><dd>{money(node.costUsd)} <span className="faint">(only after branching)</span></dd>
+            {node.progress && !["supported", "refuted", "running"].includes(node.outcome) && <><dt>Search score</dt><dd>
+              <strong>{node.progress.score.toFixed(2)}</strong>{node.closed ? <span className="badge" style={{ marginLeft: 6 }}>closed: no new branches</span> : null}
+              <span className="faint" style={{ display: "block" }}>{Object.entries(node.progress.parts).map(([k, v]) => `${PART_NAME[k] || k} ${v}`).join(" · ")}</span>
+              <span className="faint" style={{ display: "block" }}>The most promising open branch is expanded next; a branch is expanded at most 3 times.
+                {node.stopRejected ? ` A stop was overruled ${node.stopRejected}× because untried directions remained.` : ""}</span></dd></>}
             {node.stopped && <><dt>Stop reason</dt><dd className="clamp">{node.stopped}</dd></>}
           </dl>
           <div className="row">

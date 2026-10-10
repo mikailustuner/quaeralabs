@@ -1,6 +1,6 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import type { Learning, MemoryHit } from "../api";
-import { STAGE_NAME, api, date, money } from "../api";
+import type { Learning, MemoryHit, Registry } from "../api";
+import { ROLES, ROLE_NAME, STAGE_NAME, api, date, money } from "../api";
 import { StateBox, statusBadge, useLoad } from "../components";
 import { BrandMark, EVAL_PREFIX } from "../ui";
 import { InlineMath } from "../rich";
@@ -74,7 +74,8 @@ const EXAMPLES = [
 
 /** Home page: a large centred composer as in the reference; domain, budget and autonomy below it. */
 export function NewResearch() {
-  const [f, setF] = useState({ question: "", domain: "math", mode: "verify", budget: 2, dataDir: "", scope: "", autonomy: "manual", autoLimit: 0.5, keepTrying: false });
+  const [f, setF] = useState({ question: "", domain: "math", mode: "verify", budget: 2, dataDir: "", scope: "", autonomy: "manual", autoLimit: 0.5,
+                               keepTrying: false, maxCalls: "", maxHours: "" });
   const settings = useLoad(api.settings, []);
   const models: any[] = (settings.data?.models || []).filter((m: any) => m.enabled);
   const [families, setFamilies] = useState<string[] | null>(null);       // null: all available ones
@@ -107,7 +108,9 @@ export function NewResearch() {
     }
     setBusy(true); setServerError(null);
     try {
-      const r = await api.create({ ...f, mode: discover ? "discover" : "verify", question: f.question.trim(), ...(families ? { families } : {}) });
+      const { maxCalls, maxHours, ...rest } = f;
+      const r = await api.create({ ...rest, mode: discover ? "discover" : "verify", question: f.question.trim(), ...(families ? { families } : {}),
+                                   ...(maxCalls ? { maxCalls: Number(maxCalls) } : {}), ...(maxHours ? { maxHours: Number(maxHours) } : {}) });
       go(`/p/${encodeURIComponent(r.id)}`);
     }
     catch (err: any) { setServerError(err.message); setBusy(false); }
@@ -198,9 +201,17 @@ export function NewResearch() {
               <input id="f-keepTrying" type="checkbox" checked={f.keepTrying} onChange={(e) => set("keepTrying", e.target.checked)} aria-describedby="h-keepTrying" />
               <span>Keep trying until the budget is spent
                 <span id="h-keepTrying" className="help">If the research ends without an answer, the Director studies every attempt so far and opens a new branch
-                  with a different hypothesis or strategy, again and again, until the budget above is used up (at most 10 branches). Each new branch follows the autonomy setting.</span>
+                  from the most promising one, with a different hypothesis, strategy or attack, until the budget is used up. It may stop only when every standard
+                  direction was tried and a second model agrees. Each new branch follows the autonomy setting.</span>
               </span>
             </label>
+            <div className="grid-2">
+              <label>Max model calls <span className="help">(optional)</span>
+                <input id="f-maxCalls" type="number" min={1} step={1} value={f.maxCalls} onChange={(e) => set("maxCalls", e.target.value)} aria-describedby="h-limits" /></label>
+              <label>Max hours <span className="help">(optional)</span>
+                <input id="f-maxHours" type="number" min={0.1} step={0.5} value={f.maxHours} onChange={(e) => set("maxHours", e.target.value)} aria-describedby="h-limits" /></label>
+            </div>
+            <span id="h-limits" className="help">Extra budget dimensions. Subscription CLIs and local models report no cost, so calls and time are what bound them.</span>
             {f.autonomy === "under" && (
               <label style={{ maxWidth: 240 }}>Auto-approve below (USD)
                 <input id="f-autoLimit" type="number" min={0} step={0.1} value={f.autoLimit} onChange={(e) => set("autoLimit", Number(e.target.value))} />
@@ -224,13 +235,14 @@ export function Settings() {
   const { data, error, loading, reload } = useLoad(api.settings, []);
   return (
     <div className="page">
-      <div className="page-head"><div><h1>Settings</h1><p>QuaeraLabs runs locally. Keys are read only from environment variables and are never shown here.</p></div></div>
+      <div className="page-head"><div><h1>Settings</h1><p>QuaeraLabs runs locally. API keys come from environment variables or the private ~/.quaera/secrets.env file and are never shown here.</p></div></div>
       {loading && !data ? <StateBox kind="loading" /> : error ? <StateBox kind="error" action={<button className="btn" onClick={reload}>Try again</button>}>{error}</StateBox> : (
         <div className="grid-3">
           <section className="card stack"><h2>Version and data</h2>
             <p>QuaeraLabs <span className="mono">{data.version}</span></p>
             <p className="faint clamp">Projects: <span className="mono">{data.home}</span></p></section>
           <ModelsCard data={data} />
+          <RegistryCard models={data.models || []} onChanged={reload} />
           <section className="card stack"><h2>Sandbox limits</h2>
             <p>Memory {data.sandbox.mem} · CPU {data.sandbox.cpu} · Lean memory {data.sandbox.leanMem}</p>
             <p>{data.sandbox.systemd ? <span className="badge good">systemd limits active</span> : <span className="badge warn">no systemd-run: limits cannot be enforced</span>}</p></section>
@@ -275,6 +287,118 @@ function ModelsCard({ data }: { data: any }) {
         </table>
       </div>
       <p className="faint">Project manager chat budget: ${data.managerCapUsd?.toFixed?.(2) ?? "0.50"} per project (<span className="mono">QUAERA_MANAGER_CAP_USD</span>). Subscription CLIs report no per-call charge; Discovery limits them by rounds (<span className="mono">QUAERA_DISCOVERY_ROUNDS</span>).</p>
+    </section>
+  );
+}
+
+const KIND_LABEL: Record<string, string> = { anthropic: "Anthropic API", openai: "OpenAI API", google: "Google Gemini API",
+  openrouter: "OpenRouter", "openai-compatible": "Local / OpenAI-compatible server" };
+const EMPTY_ENTRY = { id: "", kind: "openrouter", cheap: "", balanced: "", best: "", apiBase: "", family: "", key: "", free: false, concurrent: "" };
+
+/** API-key providers (capacity plan P1), role routing (P2) and escalation ladders (S1). Keys are write-only. */
+function RegistryCard({ models, onChanged }: { models: any[]; onChanged: () => void }) {
+  const reg = useLoad(api.registry, []);
+  const [f, setF] = useState(EMPTY_ENTRY);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const data = reg.data as Registry | undefined;
+  const routes = models.filter((m) => m.ready).map((m) => m.id as string);
+  const set = (k: string, v: any) => setF((x) => ({ ...x, [k]: v }));
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const mods = Object.fromEntries((["cheap", "balanced", "best"] as const).map((k) => [k, (f as any)[k].trim()]).filter(([, v]) => v));
+    if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(f.id)) { setError("Id: lowercase letters, digits and dashes, e.g. openrouter or local-qwen."); return; }
+    if (!Object.keys(mods).length) { setError("Give at least one model name (cheap, balanced or best)."); return; }
+    if (f.kind === "openai-compatible" && !/^https?:\/\//.test(f.apiBase)) { setError("A local server needs its URL, e.g. http://127.0.0.1:11434/v1"); return; }
+    const entry: Record<string, unknown> = { id: f.id, kind: f.kind, models: mods, enabled: true };
+    if (f.apiBase) entry.apiBase = f.apiBase;
+    if (f.family) entry.family = f.family;
+    if (f.free) entry.free = true;
+    if (f.concurrent) entry.limits = { concurrent: Number(f.concurrent) };
+    setBusy(true); setError(null);
+    try { await api.saveRegistry({ entry, ...(f.key ? { key: f.key } : {}) }); setF(EMPTY_ENTRY); setNote(`${f.id} saved.`); reg.reload(); onChanged(); }
+    catch (err: any) { setError(err.message); }
+    finally { setBusy(false); }
+  };
+  const remove = async (id: string) => {
+    if (!confirm(`Remove ${id}? Its key stored by QuaeraLabs is deleted too.`)) return;
+    try { await api.deleteProvider(id); reg.reload(); onChanged(); } catch (err: any) { setError(err.message); }
+  };
+  const route = async (role: string, value: string) => {
+    try { await api.saveRegistry({ routing: { ...(data?.routing || {}), [role]: value } }); reg.reload(); }
+    catch (err: any) { setError(err.message); }
+  };
+  const ladder = async (role: string, text: string) => {
+    const items = text.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
+    try { await api.saveRegistry({ ladders: { ...(data?.ladders || {}), [role]: items } }); reg.reload(); setNote(`Ladder for ${ROLE_NAME[role]} saved.`); }
+    catch (err: any) { setError(err.message); }
+  };
+  return (
+    <section className="card stack" style={{ gridColumn: "1 / -1", gap: 14 }} aria-labelledby="reg-h">
+      <div className="card-head" style={{ marginBottom: 0 }}><h2 id="reg-h">API-key providers and routing</h2>
+        <span className="faint">stored in ~/.quaera/providers.json · keys in ~/.quaera/secrets.env (private)</span></div>
+      <p className="faint">Add any API provider or a local model server. Every call is still budget-capped: a model without a known price is refused unless you give
+        its price or mark a local model as free. Keys are never shown again, logged or written into a project.</p>
+      {reg.loading && !data ? <StateBox kind="loading" /> : reg.error ? <StateBox kind="error">{reg.error}</StateBox> : (
+        <>
+          {data!.providers.length > 0 && (
+            <div className="table-wrap" tabIndex={0} role="region" aria-label="Registered providers (scrollable)">
+              <table className="data-table">
+                <thead><tr><th scope="col">Id</th><th scope="col">Kind</th><th scope="col">Family</th><th scope="col">Models</th><th scope="col">Key</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+                <tbody>{data!.providers.map((p) => (
+                  <tr key={p.id}><td className="mono">{p.id}</td><td>{KIND_LABEL[p.kind] || p.kind}</td><td className="mono">{p.family}</td>
+                    <td className="faint">{Object.entries(p.models).map(([k, v]) => `${k}: ${v}`).join(" · ")}</td>
+                    <td>{p.free ? <span className="badge">local</span> : p.keySet ? <span className="badge good">set</span> : <span className="badge warn">missing ({p.keyEnv})</span>}</td>
+                    <td><button className="btn sm danger" onClick={() => remove(p.id)} aria-label={`Remove ${p.id}`}>Remove</button></td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+          <details className="newbranch">
+            <summary>Add a provider</summary>
+            <form className="stack" onSubmit={save} noValidate style={{ gap: 10, marginTop: 10 }}>
+              <div className="grid-2">
+                <label>Id<input type="text" value={f.id} onChange={(e) => set("id", e.target.value.toLowerCase())} placeholder="openrouter" /></label>
+                <label>Kind<select value={f.kind} onChange={(e) => set("kind", e.target.value)}>
+                  {(data!.kinds || []).map((k) => <option key={k} value={k}>{KIND_LABEL[k] || k}</option>)}</select></label>
+                <label>Cheap model<input type="text" value={f.cheap} onChange={(e) => set("cheap", e.target.value)} placeholder="e.g. openai/gpt-4o-mini" /></label>
+                <label>Balanced model<input type="text" value={f.balanced} onChange={(e) => set("balanced", e.target.value)} /></label>
+                <label>Best model<input type="text" value={f.best} onChange={(e) => set("best", e.target.value)} /></label>
+                <label>API key <span className="help">(write-only)</span><input type="password" autoComplete="off" value={f.key} onChange={(e) => set("key", e.target.value)} /></label>
+                {f.kind === "openai-compatible" && <label>Server URL<input type="text" value={f.apiBase} onChange={(e) => set("apiBase", e.target.value)} placeholder="http://127.0.0.1:11434/v1" /></label>}
+                <label>Family <span className="help">(optional; for the cross-model rule)</span><input type="text" value={f.family} onChange={(e) => set("family", e.target.value)} placeholder="qwen" /></label>
+                <label>Max parallel calls <span className="help">(optional)</span><input type="number" min={1} max={64} value={f.concurrent} onChange={(e) => set("concurrent", e.target.value)} /></label>
+              </div>
+              <label className="check-row"><input type="checkbox" checked={f.free} onChange={(e) => set("free", e.target.checked)} />
+                <span>Local model without per-call charge<span className="help">Calls cost $0; bound them with a call or time budget on the project.</span></span></label>
+              <div className="row"><button className="btn primary" type="submit" disabled={busy}>{busy ? "Saving…" : "Save provider"}</button>
+                <span className="faint">Then press “Test” in the table above.</span></div>
+            </form>
+          </details>
+          <div className="stack" style={{ gap: 8 }}>
+            <h3>Role routing and escalation</h3>
+            <p className="faint">Pick which provider each role uses (the cross-model rule still applies). A ladder such as <span className="mono">local@cheap anthropic@best</span> starts
+              cheap and climbs one rung each time a step fails.</p>
+            <div className="table-wrap" tabIndex={0} role="region" aria-label="Role routing (scrollable)">
+              <table className="data-table">
+                <thead><tr><th scope="col">Role</th><th scope="col">Provider</th><th scope="col">Ladder (provider@profile …)</th></tr></thead>
+                <tbody>{[...ROLES, "manager"].map((r) => (
+                  <tr key={r}><td>{ROLE_NAME[r] || r}</td>
+                    <td><label className="sr-only" htmlFor={`rt-${r}`}>Provider for {ROLE_NAME[r] || r}</label>
+                      <select id={`rt-${r}`} value={data!.routing[r] || ""} onChange={(e) => route(r, e.target.value)} style={{ width: "auto" }}>
+                        <option value="">automatic</option>{routes.map((id) => <option key={id} value={id}>{id}</option>)}</select></td>
+                    <td><label className="sr-only" htmlFor={`ld-${r}`}>Ladder for {ROLE_NAME[r] || r}</label>
+                      <input id={`ld-${r}`} type="text" defaultValue={(data!.ladders[r] || []).join(" ")} placeholder="—"
+                        onBlur={(e) => e.target.value.trim() !== (data!.ladders[r] || []).join(" ") && ladder(r, e.target.value)} /></td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+      {error && <p className="err" role="alert">{error}</p>}
+      <div role="status" aria-live="polite">{note && <p className="faint">{note}</p>}</div>
     </section>
   );
 }

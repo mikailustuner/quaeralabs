@@ -11,6 +11,7 @@ import asyncio
 import io
 import json
 import os
+import shutil
 import threading
 import zipfile
 from dataclasses import dataclass, field
@@ -82,6 +83,7 @@ class Runner:
         self.threads: dict[str, threading.Thread] = {}
         self.approvers: dict[str, WebApprover] = {}
         self.errors: dict[str, str] = {}
+        self.gateways: dict = {}           # pid -> the running orchestrator's gateway (a budget top-up reaches it live, T4)
 
     def running(self, pid: str) -> bool:
         t = self.threads.get(pid)
@@ -95,6 +97,7 @@ class Runner:
         orch.approver = approver
         orch.log = lambda m: None
         self.approvers[pid] = approver
+        self.gateways[pid] = orch.gateway
         self.errors.pop(pid, None)
 
         def work():
@@ -106,10 +109,14 @@ class Runner:
                 return
             finally:
                 orch.tools.close()
-            if orch.store.meta("keepTrying"):    # inconclusive → new branches until the project's budget is spent
+            # inconclusive → new branches until the project's budget is spent; read after the run, so switching
+            # keep-trying on or off while the research runs takes effect (T4)
+            st = open_store(pid)
+            keep, cap = st.meta("keepTrying"), float(st.meta("budgetCapUsd") or 0)
+            st.close()
+            if keep:
                 from .tree import MAX_ITERATIONS
-                self.iterate_loop(pid, MAX_ITERATIONS, None, autonomy, limit_usd,
-                                  total_budget=float(orch.store.meta("budgetCapUsd") or 0))
+                self.iterate_loop(pid, MAX_ITERATIONS, None, autonomy, limit_usd, total_budget=cap)
 
         t = threading.Thread(target=work, daemon=True, name=f"quaera-{pid}")
         self.threads[pid] = t
@@ -133,22 +140,34 @@ class Runner:
         from .permissions import Permissions
         from .tree import iterate
 
+        parent_store = open_store(pid)
+        root = parent_store.meta("root") or pid
+        root_store = open_store(root) if root != pid else parent_store
+        lim = root_store.meta("budget") or {}            # P4: the line's call and time budget (set on the root project)
+        if root_store is not parent_store:
+            root_store.close()
+
         def build_child(path, budget):
+            child_store = Store(path / "quaera.db")
+            if lim:
+                child_store.set_meta("budget", lim)      # the deadline is shared; each branch also stays within it
+            child_store.close()
             orch = build(path, budget, None)
             ap = WebApprover(orch.store, autonomy, limit_usd, orch.gateway)
             orch.approver, orch.log = ap, (lambda m: None)
             self.approvers[path.name] = ap
+            self.gateways[path.name] = orch.gateway
             self.threads[path.name] = threading.current_thread()
             return orch
 
-        parent_store = open_store(pid)
         gate = WebApprover(parent_store, autonomy, limit_usd)
         self.approvers[pid] = gate
         try:
             iterate(HOME, pid, build=build_child, providers=make_providers(), agent_specs=Permissions.load().agents,
                     approve=lambda text, cost: gate.decide("extra_spend", text, cost).approved,
                     max_branches=max_branches, budget_per_branch=budget_per_branch, total_budget=total_budget,
-                    memory=LabMemory(HOME.parent / "memory.db"), log=lambda m: None)
+                    memory=LabMemory(HOME.parent / "memory.db"), log=lambda m: None,
+                    beam=max(1, int(os.environ.get("QUAERA_BEAM", "1"))), max_calls=lim.get("calls"), deadline=lim.get("deadline"))
         except Exception as exc:
             self.errors[pid] = str(exc)[:500]
             parent_store.append("run.crashed", {"kind": "agent", "role": "director", "model": "quaera/deterministic",
@@ -215,7 +234,8 @@ def summary(pid: str) -> dict:
            "running": RUNNER.running(pid),
            "error": RUNNER.errors.get(pid), "stopped": st.get("stopped"),
            "spentUsd": round(sum(c["costUsd"] for c in calls), 4), "capUsd": s.meta("budgetCapUsd"),
-           "calls": len(calls), "managerUsd": round(sum(e["payload"].get("costUsd", 0) for k in ("manager.call", "manager.error") for e in s.events(k)), 4),
+           "calls": sum(1 for c in calls if not c.get("cached")), "cachedCalls": sum(1 for c in calls if c.get("cached")),
+           "keepTrying": bool(s.meta("keepTrying")), "limits": s.meta("budget"), "managerUsd": round(sum(e["payload"].get("costUsd", 0) for k in ("manager.call", "manager.error") for e in s.events(k)), 4),
            "hypothesis": chosen and {k: chosen.get(k) for k in ("id", "status", "statement")},
            "branchOf": parent and Path(parent["project"]).parent.name, "branchAt": parent and parent["atSeq"], "createdAt": (s.events() or [{"at": None}])[0]["at"]}
     s.close()
@@ -295,6 +315,16 @@ async def api_create(request: Request):
         pre.set_meta("keepTrying", True)     # after an inconclusive run: new branches until the budget is spent
     if families:
         pre.set_meta("families", families)
+    from .cli import limits_meta
+    try:   # P4: optional budget dimensions besides USD
+        lim = limits_meta(int(body["maxCalls"]) if body.get("maxCalls") else None,
+                          float(body["maxHours"]) if body.get("maxHours") else None, None)
+    except (TypeError, ValueError):
+        pre.close()
+        shutil.rmtree(path, ignore_errors=True)
+        return JSONResponse({"error": "maxCalls must be an integer and maxHours a number"}, 400)
+    if lim:
+        pre.set_meta("budget", lim)
     pre.close()
     orch = build(path, budget, None, domain=domain)
     orch.store.set_meta("title", question)
@@ -533,6 +563,48 @@ async def api_iterate(request: Request):
     return JSONResponse({"started": True}, 202)
 
 
+async def api_budget(request: Request):
+    """T4: the human raises a project's budget cap (USD) while it runs; recorded as a human decision.
+    A running orchestrator gets the new cap at once; keep-trying uses the raised cap for the rest of the line."""
+    pid = request.path_params["pid"]
+    s = open_store(pid)
+    try:
+        body = await request.json()
+        add = float(body.get("addUsd", 0))
+        if not (0 < add <= 500):
+            return JSONResponse({"error": "addUsd must be between 0 and 500"}, 400)
+        old = float(s.meta("budgetCapUsd") or 0)
+        s.set_meta("budgetCapUsd", round(old + add, 4))
+        s.append("budget.raised", {"kind": "human", "userId": WebApprover.user}, {"fromUsd": old, "toUsd": round(old + add, 4)})
+    finally:
+        s.close()
+    gw = RUNNER.gateways.get(pid)
+    if gw is not None and RUNNER.running(pid):
+        with gw.lock:
+            gw.cap_usd = round(old + add, 4)
+    return JSONResponse({"budgetCapUsd": round(old + add, 4)})
+
+
+async def api_keep_trying(request: Request):
+    """Switches keep-trying on or off for a project (also while it runs)."""
+    pid = request.path_params["pid"]
+    on = bool((await request.json()).get("on"))
+    s = open_store(pid)
+    try:
+        s.set_meta("keepTrying", on)
+        s.append("keep_trying.set", {"kind": "human", "userId": WebApprover.user}, {"on": on})
+    finally:
+        s.close()
+    return JSONResponse({"keepTrying": on})
+
+
+async def api_jobs(request: Request):
+    """S4: parallel jobs running or queued in the lab's scheduler (optionally one project's)."""
+    from .scheduler import SCHEDULER
+    pid = request.query_params.get("project") or None
+    return JSONResponse({"maxJobs": SCHEDULER.max_jobs, "jobs": SCHEDULER.active(pid)})
+
+
 async def api_triage(request: Request):
     """"Report a problem" from the UI: the case is written locally under ~/.quaera/triage/; nothing is sent out."""
     from . import triage
@@ -596,11 +668,63 @@ async def api_settings(request: Request):
         d["enabled"] = d["ready"] and (allow is None or d["id"] in allow)
     return JSONResponse({
         "version": __version__, "home": str(HOME),
-        "providers": ["anthropic (claude CLI)"] + (["litellm"] if os.environ.get("QUAERA_LITELLM_MODELS") else []),
+        "providers": ["anthropic (claude CLI)"] + (["litellm"] if os.environ.get("QUAERA_LITELLM_MODELS") else [])
+                     + [d["id"] for d in found if d.get("registry")],
         "models": found, "managerCapUsd": float(os.environ.get("QUAERA_MANAGER_CAP_USD", "0.5")),
         "sandbox": {"mem": os.environ.get("QUAERA_SANDBOX_MEM", "2G"), "cpu": os.environ.get("QUAERA_SANDBOX_CPU", "200%"),
                     "leanMem": os.environ.get("QUAERA_LEAN_MEM", "7G"), "systemd": bool(shutil.which("systemd-run"))},
     })
+
+
+async def api_registry(request: Request):
+    """Provider registry (P1/P2): GET the API-key providers, routing and ladders; PUT one provider {entry, key?};
+    PUT {routing, ladders}. Keys are written to ~/.quaera/secrets.env and never returned."""
+    from . import registry
+    if request.method == "GET":
+        data = registry.load()
+        registry.load_secrets()
+        return JSONResponse({"providers": [registry.describe(e) for e in data["providers"]], "routing": data["routing"],
+                             "ladders": data["ladders"], "kinds": list(registry.KINDS)})
+    body = await request.json()
+    data = registry.load()
+    if "entry" in body:
+        entry = body["entry"]
+        if not isinstance(entry, dict):
+            return JSONResponse({"error": "entry must be an object"}, 400)
+        entry = {k: v for k, v in entry.items() if k in ("id", "name", "kind", "models", "apiBase", "family", "apiKeyEnv",
+                                                         "price", "free", "limits", "enabled", "needsKey")}
+        data["providers"] = [e for e in data["providers"] if e.get("id") != entry.get("id")] + [entry]
+    for k in ("routing", "ladders"):
+        if k in body:
+            if not isinstance(body[k], dict):
+                return JSONResponse({"error": f"{k} must be an object"}, 400)
+            data[k] = {r: v for r, v in body[k].items() if v}
+    try:
+        registry.save(data)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, 400)
+    if body.get("key") and "entry" in body:
+        env = registry.key_env(entry) or f"QUAERA_KEY_{entry['id'].upper().replace('-', '_')}"
+        registry.set_secret(env, str(body["key"]))
+    return JSONResponse({"ok": True})
+
+
+async def api_registry_delete(request: Request):
+    from . import registry
+    pid = request.path_params["id"]
+    data = registry.load()
+    entry = next((e for e in data["providers"] if e["id"] == pid), None)
+    if entry is None:
+        return JSONResponse({"error": "no such provider"}, 404)
+    data["providers"] = [e for e in data["providers"] if e["id"] != pid]
+    data["routing"] = {r: k for r, k in data["routing"].items() if k != pid}
+    data["ladders"] = {r: [x for x in l if x.partition("@")[0] != pid] for r, l in data["ladders"].items()}
+    data["ladders"] = {r: l for r, l in data["ladders"].items() if l}
+    registry.save(data)
+    env = registry.key_env(entry)
+    if env and env.startswith("QUAERA_KEY_"):
+        registry.set_secret(env, "")
+    return JSONResponse({"ok": True})
 
 
 PROVIDER_PROBES: dict = {}     # tests inject fake providers: {"codex": provider}
@@ -616,8 +740,16 @@ async def api_provider_test(request: Request):
         d = next((x for x in await asyncio.to_thread(detect) if x["id"] == pid), None)
         if not d or not d["ready"]:
             return JSONResponse({"ok": False, "error": (d or {}).get("note") or "unknown provider"}, 400)
-        prov = {"claude": lambda: ClaudeCLIProvider(), "codex": lambda: CodexCLIProvider(d["binary"]),
-                "opencode": lambda: OpenCodeCLIProvider(d["binary"]), "agy": lambda: AntigravityCLIProvider(d["binary"])}[pid]()
+        if d.get("registry"):
+            from . import registry
+            entry = next(e for e in registry.load()["providers"] if e["id"] == pid)
+            try:
+                prov = registry.build(entry)
+            except ImportError:
+                return JSONResponse({"ok": False, "error": "litellm is not installed: uv sync --extra providers"}, 400)
+        else:
+            prov = {"claude": lambda: ClaudeCLIProvider(), "codex": lambda: CodexCLIProvider(d["binary"]),
+                    "opencode": lambda: OpenCodeCLIProvider(d["binary"]), "agy": lambda: AntigravityCLIProvider(d["binary"])}[pid]()
     return JSONResponse(await asyncio.to_thread(probe, prov))
 
 
@@ -680,12 +812,17 @@ def create_app() -> Starlette:
         Route("/api/projects/{pid}/tree", api_tree),
         Route("/api/projects/{pid}/blob/{sha}", api_blob),
         Route("/api/projects/{pid}/iterate", api_iterate, methods=["POST"]),
+        Route("/api/projects/{pid}/budget", api_budget, methods=["POST"]),
+        Route("/api/projects/{pid}/keep-trying", api_keep_trying, methods=["POST"]),
         Route("/api/projects/{pid}/branch", api_branch, methods=["POST"]),
         Route("/api/projects/{pid}/report.md", api_report_md),
         Route("/api/projects/{pid}/export.zip", api_export),
         Route("/api/projects/{pid}/replay.json", api_replay),
         Route("/api/settings", api_settings),
         Route("/api/providers/{id}/test", api_provider_test, methods=["POST"]),
+        Route("/api/registry", api_registry, methods=["GET", "PUT"]),
+        Route("/api/jobs", api_jobs),
+        Route("/api/registry/{id}", api_registry_delete, methods=["DELETE"]),
         Route("/api/memory", api_memory),
         Route("/api/memory/learnings", api_learnings),
         Route("/api/projects/{pid}/manager", api_manager, methods=["GET", "POST"]),

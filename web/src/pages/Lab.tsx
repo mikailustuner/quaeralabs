@@ -1,5 +1,5 @@
-import { FormEvent, KeyboardEvent, useRef, useState } from "react";
-import { ACTION_NAME, Derived, Pending, QEvent, ROLES, ROLE_NAME, STAGE_NAME, Summary, api, describe, money, time } from "../api";
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { ACTION_NAME, Derived, Job, Pending, QEvent, ROLES, ROLE_NAME, STAGE_NAME, Summary, api, describe, money, time } from "../api";
 import { ActiveAgents, AgentDrawer, TeamList } from "../agents";
 import { Avatar, Clamp } from "../components";
 import { DiscoveryTab, DiscoveryView } from "../discovery";
@@ -9,7 +9,7 @@ import { ManagerDrawer, ManagerState, ManagerThread, useManager } from "../manag
 import { Code, InlineMath } from "../rich";
 
 type Props = {
-  summary: Pick<Summary, "id" | "title" | "domain" | "stages" | "running" | "error" | "stopped"> & { mode?: string };
+  summary: Pick<Summary, "id" | "title" | "domain" | "stages" | "running" | "error" | "stopped"> & Partial<Pick<Summary, "keepTrying" | "limits" | "calls" | "cachedCalls">> & { mode?: string };
   events: QEvent[];
   d: Derived;
   pending: Pending[];          // live: pending approvals on the server; empty in replay
@@ -118,7 +118,8 @@ export function LabView({ summary, events, d, pending, live, onChanged, onToast,
 
       <aside className="rail" aria-label="Manager, budget and team">
         {live && pid && <ManagerCard pid={pid} m={m} onExpand={() => setChatOpen(true)} onToast={onToast} />}
-        <Budget d={d} />
+        <Budget d={d} summary={summary} live={live} onChanged={onChanged} onToast={onToast} />
+        {live && summary.running && <Jobs pid={summary.id} />}
         <ActiveAgents d={d} running={!!summary.running} onOpen={setAgent} />
         <TeamList agents={d.agents} onOpen={setAgent} />
         <Limits items={[...(h?.scopeRelation?.relation === "restricted" ? [h.scopeRelation.note] : []), ...(result?.limitations || [])]} />
@@ -126,6 +127,33 @@ export function LabView({ summary, events, d, pending, live, onChanged, onToast,
       <AgentDrawer role={agent} d={d} pid={pid} onClose={() => setAgent(null)} />
       {live && pid && <ManagerDrawer open={chatOpen} pid={pid} m={m} onClose={() => setChatOpen(false)} onToast={onToast} />}
     </div>
+  );
+}
+
+/** S4: the lab scheduler's parallel jobs for this project (refreshed while the research runs). */
+function Jobs({ pid }: { pid: string }) {
+  const [data, setData] = useState<{ maxJobs: number; jobs: Job[] } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.jobs(pid).then((r) => alive && setData(r), () => undefined);
+    load();
+    const h = setInterval(() => { if (document.visibilityState === "visible") load(); }, 3000);
+    return () => { alive = false; clearInterval(h); };
+  }, [pid]);
+  const jobs = data?.jobs || [];
+  if (!jobs.length) return null;
+  const running = jobs.filter((j) => j.state === "running").length;
+  return (
+    <section className="card stack" aria-labelledby="jobs-h" style={{ gap: 6 }}>
+      <div className="row"><h2 id="jobs-h">Parallel work</h2><span className="spacer" /><span className="faint">{running} running · {jobs.length - running} queued</span></div>
+      <ul className="checklist" aria-live="polite">
+        {jobs.slice(0, 8).map((j) => (
+          <li key={j.id}><span className={`ck ${j.state === "running" ? "run" : ""}`} aria-hidden="true" />
+            <span>{j.label}</span><span className="faint">{j.state}</span></li>
+        ))}
+      </ul>
+      <p className="faint" style={{ fontSize: 12.5 }}>At most {data!.maxJobs} parallel jobs across all projects on this machine (QUAERA_MAX_JOBS).</p>
+    </section>
   );
 }
 
@@ -174,14 +202,52 @@ function StatusBadge({ s }: { s: string }) {
   return <span className={`badge ${c}`}>{t}</span>;
 }
 
-function Budget({ d }: { d: Derived }) {
+/** Budget card: USD spend; the other budget dimensions (calls, time) when set; raising the cap and keep-trying (T4). */
+function Budget({ d, summary, live, onChanged, onToast }: { d: Derived; summary: Props["summary"]; live: boolean; onChanged?: () => void; onToast?: (m: string) => void }) {
   const frac = d.capUsd ? Math.min(1, d.spentUsd / d.capUsd) : 0;
+  const [add, setAdd] = useState(5);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const lim = summary.limits;
+  const raise = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try { const r = await api.raiseBudget(summary.id, add); onToast?.(`Budget cap raised to ${money(r.budgetCapUsd)}`); setOpen(false); onChanged?.(); }
+    catch (err: any) { onToast?.(`Could not raise the cap: ${err.message}`); }
+    finally { setBusy(false); }
+  };
+  const toggle = async () => {
+    try { const r = await api.keepTrying(summary.id, !summary.keepTrying); onToast?.(r.keepTrying ? "Keep trying is on: inconclusive results open new branches" : "Keep trying is off"); onChanged?.(); }
+    catch (err: any) { onToast?.(`Could not change keep trying: ${err.message}`); }
+  };
   return (
     <section className="card stack" aria-labelledby="bud-h" style={{ gap: 8 }}>
       <div className="row"><h2 id="bud-h">Budget</h2><span className="spacer" /><strong>{money(d.spentUsd)}</strong><span className="faint">/ {money(d.capUsd)}</span></div>
       <div className={`meterbar ${frac > 0.9 ? "bad" : frac > 0.7 ? "warn" : ""}`} role="progressbar" aria-valuemin={0} aria-valuemax={100}
         aria-valuenow={Math.round(frac * 100)} aria-label="Budget used"><span style={{ width: `${frac * 100}%` }} /></div>
       <div className="row faint"><span>{Math.round(frac * 100)}% used</span><span className="spacer" /><span>{money(d.capUsd == null ? null : Math.max(0, d.capUsd - d.spentUsd))} left</span></div>
+      {(lim?.calls || lim?.hours || summary.cachedCalls) ? (
+        <p className="faint" style={{ fontSize: 12.5 }}>
+          {lim?.calls ? `${summary.calls}/${lim.calls} model calls` : `${summary.calls} model calls`}
+          {lim?.deadline ? ` · time budget until ${new Date(lim.deadline * 1000).toLocaleString()}` : ""}
+          {summary.cachedCalls ? ` · ${summary.cachedCalls} reused from cache` : ""}
+        </p>) : null}
+      {live && (
+        <>
+          <label className="check-row" style={{ fontWeight: 500, fontSize: 13.5 }}>
+            <input type="checkbox" checked={!!summary.keepTrying} onChange={toggle} />
+            <span>Keep trying until the budget is spent<span className="help">An inconclusive result opens a new branch from the most promising attempt.</span></span>
+          </label>
+          {open ? (
+            <form className="row" onSubmit={raise} style={{ gap: 6 }}>
+              <label className="row" style={{ fontWeight: 500, gap: 6 }}><span className="faint">Add $</span>
+                <input type="number" min={0.5} max={500} step={0.5} value={add} onChange={(e) => setAdd(Number(e.target.value))} style={{ width: 90 }} /></label>
+              <button className="btn sm primary" type="submit" disabled={busy || !(add > 0)}>Raise cap</button>
+              <button className="btn sm" type="button" onClick={() => setOpen(false)}>Cancel</button>
+            </form>
+          ) : <button className="btn plain sm" style={{ justifySelf: "start" }} onClick={() => setOpen(true)}>Raise the budget cap…</button>}
+        </>
+      )}
     </section>
   );
 }

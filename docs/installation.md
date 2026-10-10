@@ -41,12 +41,27 @@ If `bwrap --unshare-all --ro-bind / / true` fails, your system does not allow un
 - Inside a Docker container: the container must be allowed to create namespaces (e.g. `--security-opt seccomp=unconfined --cap-add SYS_ADMIN`). This setup is not recommended.
 
 ## Model provider
-The default provider is the [Claude Code](https://claude.com/claude-code) command line: install it and log in once with `claude`. Other providers (recommended for a cross-model Critic) are configured through LiteLLM:
+Any of these works on its own; several together give the cross-model checks (Critic, Verifier, parallel lanes, Discovery ideation).
+
+- **CLIs** (detected automatically): [Claude Code](https://claude.com/claude-code) (`claude`, log in once), Codex CLI, OpenCode CLI, Antigravity CLI.
+- **API keys** (Anthropic, OpenAI, Google Gemini, OpenRouter) and **local models** (any OpenAI-compatible server: Ollama, vLLM, LM Studio),
+  through the provider registry. Add them in the web UI (Settings → API-key providers) or on the command line:
 
 ```bash
-uv sync --extra providers
-export QUAERA_LITELLM_MODELS='{"cheap": "openai/gpt-…", "balanced": "…", "best": "…"}'   # keys are read from the provider's environment variables
+uv sync --extra providers                                  # LiteLLM, used for every API provider
+quaera providers add openrouter --kind openrouter --model cheap=openai/gpt-4o-mini --model best=anthropic/claude-…
+quaera providers key openrouter                            # asks for the key (hidden); stored in ~/.quaera/secrets.env, mode 600
+quaera providers add local --kind openai-compatible --api-base http://127.0.0.1:11434/v1 --family qwen --model cheap=qwen3:8b --free
+quaera providers test local
+quaera route critic openrouter                             # a role on a specific provider (the cross-model rule still applies)
+quaera route engineer --ladder local@cheap anthropic@balanced anthropic@best   # start cheap, climb on failure
 ```
+
+The registry lives in `~/.quaera/providers.json`; keys come from environment variables or `~/.quaera/secrets.env` and are never written
+into a project, an event, a report or an API response. Every call stays under the budget cap: a model with no known price is refused
+unless you give its price (`--price model=in,out` USD per million tokens) or mark a local model `--free`. Subscription CLIs and local
+models report no cost, so bound them with `--max-calls` / `--max-hours` on `quaera ask` (or the matching fields in the web UI).
+`QUAERA_LITELLM_MODELS='{"cheap": "openai/…", …}'` still works for a single API provider.
 
 ## Uninstall
 ```bash

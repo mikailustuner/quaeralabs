@@ -154,7 +154,10 @@ function ProofStep({ s, pid, all }: { s: any; pid: string | null; all: any[] }) 
       <div className="body"><p className="faint">{s.error}</p></div></details></li>
   );
   if (s.kind === "lemma" || s.kind === "lemma_automation") return null;   // shown under the sketch
-  const title = s.kind === "automation" ? "Automation tactics (no model)" : s.kind === "whole" ? `Whole-proof candidate${s.lane ? ` (lane ${s.lane}: ${s.lane === "A" ? "direct" : "split into steps"})` : ""}`
+  if (s.kind === "round") return <li><div className="faint" style={{ padding: "6px 12px" }}>Round {s.round}: the budget share remains, the search tries again with what failed</div></li>;
+  if (s.depth != null && s.parent) return null;   // a deeper level (K6) is shown under its parent lemma
+  const title = s.kind === "automation" ? "Automation tactics (no model)" : s.kind === "automation_heavy" ? "Library search and normalisation (no model)"
+    : s.kind === "interactive" ? `Step-by-step proof in the Lean REPL${s.steps ? ` (${s.steps} steps)` : ""}` : s.kind === "whole" ? `Whole-proof candidate${s.lane ? ` (lane ${s.lane}: ${s.lane === "A" ? "direct" : "split into steps"})` : ""}`
     : s.kind === "sketch" ? `Proof sketch: ${(s.lemmas || []).length} lemmas` : s.kind === "assembled" ? "Lemmas assembled: full proof" : s.kind;
   const lemmaStatus = (name: string) => {
     const tries = all.filter((x) => x.lemma === name);

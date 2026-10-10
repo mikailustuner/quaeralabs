@@ -174,7 +174,7 @@ try {
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: /All stages/ }).click();
   await page.getByRole("button", { name: "Branch after Hypotheses" }).click();
-  await page.waitForURL(/-dal-/);
+  await page.waitForURL(/-branch-/);
   step("branching from a stage opens the new project", true, decodeURIComponent(page.url().split("#/p/")[1]));
 
   // 12b) Research tree

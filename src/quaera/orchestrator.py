@@ -13,6 +13,7 @@ from __future__ import annotations
 import getpass
 import json
 import math
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -35,6 +36,9 @@ THEOREM = "quaera_main"
 
 
 PROVE_BUDGET_SHARE = 0.5
+# Capacity plan R2: the proof search repeats its ladder (with fresh hints) while its budget share remains, up to this
+# many rounds. Subscription CLIs report $0, so rounds are also bounded here and by the call/time budget (P4).
+SEARCH_ROUNDS = max(1, int(os.environ.get("QUAERA_SEARCH_ROUNDS", "3")))
 
 
 class SearchBudget(Exception):
@@ -116,6 +120,9 @@ class Orchestrator:
     reports_dir: Path | None = None
     actors: dict = field(default_factory=dict)
     memory: object | None = None          # memory.LabMemory; None means no memory is used (tests, evals)
+    bank: object | None = None            # bank.LemmaBank (capacity plan K1); None in tests and evals
+    stats: object | None = None           # capability.ModelStats (S2); None in tests and evals
+    rungs: dict = field(default_factory=dict)   # role -> current rung of its escalation ladder (S1)
 
     # helpers ------------------------------------------------------------
     def human(self) -> dict:
@@ -151,16 +158,24 @@ class Orchestrator:
                                                 "promptPreview": prompt[:600]})
 
     def llm(self, role: str, system: str, prompt: str, max_output_tokens: int = 8000, lane: str | None = None,
-            family: str | None = None) -> tuple[str, dict]:
+            family: str | None = None, profile: str | None = None, json_mode: bool = False) -> tuple[str, dict]:
         prompt = prompt + self.human_notes(role)
         purpose = purpose_of(system)
         self.activity(role, purpose, "start", lane=lane)
         family = family or self.lane_family(lane)
+        ladder = family is None and bool(self.gateway.ladders.get(role))
+        rung = self.rungs.get(role, 0) if ladder else None
         for attempt in (1, 2, 3):
             try:
-                completion, cross = self.gateway.call(role, system, prompt, max_output_tokens, family=family)
+                completion, cross = self.gateway.call(role, system, prompt, max_output_tokens, family=family, rung=rung,
+                                                      profile=profile, json_mode=json_mode)
                 break
             except ModelError as exc:
+                if ladder:        # S1: a failing rung escalates the role for the rest of the research
+                    rung = self.rungs[role] = (rung or 0) + 1
+                    self.store.append("model.escalated", self.det("director"), {"role": role, "rung": rung, "error": str(exc)[:200]})
+                    if attempt < 3:
+                        continue
                 if attempt == 1:
                     continue
                 # Third attempt on another model family, so one broken provider does not stop the research.
@@ -169,7 +184,7 @@ class Orchestrator:
                 if alt is None:
                     self.activity(role, purpose, "fail", str(exc)[:200], lane=lane)
                     raise StopResearch(f"{role} model failed to respond after {attempt} attempts: {str(exc)[:200]}") from exc
-                family = alt
+                family, ladder, rung = alt, False, None
         actor = {"kind": "agent", "role": role, "model": completion.model, "modelFamily": completion.family}
         self.actors[role] = actor
         self.said(actor, system, prompt, completion.text, lane=lane)
@@ -177,39 +192,160 @@ class Orchestrator:
         return completion.text, actor
 
     def lane_family(self, lane: str | None) -> str | None:
-        """The parallel second lane (B) runs on a different model family when there is more than one provider (cross-model diversity)."""
-        families = list(self.gateway.providers)
-        return families[1] if lane == "B" and len(families) > 1 else None
+        """Parallel lanes B, C, … run on other routes when there is more than one provider (cross-model diversity);
+        routes of a different family come first. Lane A (and no lane) uses the role's normal route."""
+        if not lane or len(lane) != 1 or not lane.isalpha() or lane.upper() == "A":
+            return None
+        keys = list(self.gateway.providers)
+        if len(keys) < 2:
+            return None
+        first = self.gateway.family_of(keys[0])
+        ordered = keys[:1] + [k for k in keys[1:] if self.gateway.family_of(k) != first] + \
+            [k for k in keys[1:] if self.gateway.family_of(k) == first]
+        return ordered[(ord(lane.upper()) - 65) % len(ordered)]
 
-    def parallel(self, *calls):
-        """Runs independent jobs concurrently (e.g. two Hypothesis agents). The budget cap stays strict in parallel too (Gateway reservation)."""
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=len(calls)) as pool:
-            futures = [pool.submit(fn) for fn in calls]
-            return [f.result() for f in futures]
+    def parallel(self, *calls, label: str = "parallel work"):
+        """Runs independent jobs concurrently (e.g. two Hypothesis agents) through the lab's scheduler (S4): a global
+        bound on parallel jobs across projects. The budget cap stays strict in parallel too (Gateway reservation)."""
+        from .scheduler import SCHEDULER
+        return SCHEDULER.run_all(list(calls), project=self.store.path.parent.name, label=label)
 
     def ask_json(self, role: str, system: str, prompt: str, max_output_tokens: int = 8000, lane: str | None = None,
-                 family: str | None = None) -> tuple[dict, dict]:
-        """A call that expects JSON: on invalid output a fix is requested; if that fails the research stops in a controlled way."""
-        text, actor = self.guarded(self.llm, role, system, prompt, max_output_tokens, lane=lane, family=family)
+                 family: str | None = None, default: dict | None = None) -> tuple[dict, dict]:
+        """A call that expects JSON (capacity plan R1). Levels: JSON mode on API providers → lenient parse with shape
+        coercion → a cheap repair pass → the question again on the same family, then on another family. Only then:
+        `default` (call sites that can continue without the answer) or a controlled stop."""
+        from .structured import REPAIR_JSON, repair_prompt, try_parse
+        purpose = purpose_of(system)
+        text, actor = self.guarded(self.llm, role, system, prompt, max_output_tokens, lane=lane, family=family, json_mode=True)
+        out, _ = try_parse(text, purpose)
+        self.stat(actor, purpose, "json_ok" if out is not None else "json_bad")
+        if out is not None:
+            return out, actor
+        self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300]})
+        # Repair: a cheap call converts the broken answer; it adds no reasoning, so a weak model's content is kept.
         try:
-            return as_object(parse_json(text)), actor
-        except (ModelError, ValueError):
-            self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300]})
+            fixed, fixer = self.llm(role, REPAIR_JSON, repair_prompt(text, purpose, system), min(4000, max_output_tokens),
+                                    lane=lane, family=family, profile="cheap", json_mode=True)
+            out, _ = try_parse(fixed, purpose)
+            if out is not None:
+                self.store.append("model.repaired", fixer, {"role": role, "purpose": purpose, "level": "repair"})
+                return out, actor
+        except BudgetExceeded as exc:
+            if default is not None:
+                return self._degrade(role, purpose, default, actor, str(exc))
+            raise StopResearch(f"budget cap: {exc}") from exc
+        except Exception as exc:   # the repair pass is optional: any failure falls through to asking again
+            self.store.append("model.repair_failed", actor, {"role": role, "error": f"{type(exc).__name__}: {str(exc)[:200]}"})
         retry = (prompt + "\n\nYour previous answer was not valid JSON (possibly cut off). "
                  "Return ONLY the JSON object, complete and shorter.")
         # Once more on the same family, then on another family (see Gateway.alternative).
         tried = [actor["modelFamily"]]
-        alt = self.gateway.alternative(role, actor["modelFamily"])
+        alt = self.gateway.alternative(role, family or actor["modelFamily"])
         for fam in [family] + ([alt] if alt else []):
-            text, actor = self.guarded(self.llm, role, system, retry, max_output_tokens, lane=lane, family=fam)
             try:
-                return as_object(parse_json(text)), actor
-            except (ModelError, ValueError):
-                self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300]})
-                tried.append(actor["modelFamily"])
+                text, actor = self.guarded(self.llm, role, system, retry, max_output_tokens, lane=lane, family=fam, json_mode=True)
+            except StopResearch:
+                if default is not None:
+                    return self._degrade(role, purpose, default, actor, "model unavailable")
+                raise
+            out, _ = try_parse(text, purpose)
+            if out is not None:
+                self.store.append("model.repaired", actor, {"role": role, "purpose": purpose, "level": "reask"})
+                return out, actor
+            self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300]})
+            tried.append(actor["modelFamily"])
+        if default is not None:
+            return self._degrade(role, purpose, default, actor, "no valid JSON")
         raise StopResearch(f"{role} did not return valid JSON ({len(tried)} attempts, model families: "
                            f"{', '.join(dict.fromkeys(tried))}); see the model.invalid_json events")
+
+    def stat(self, actor: dict, purpose: str, metric: str) -> None:
+        """Capability scoreboard (S2/M2): one observation for the model behind `actor`."""
+        if self.stats is not None and actor.get("model"):
+            try:
+                self.stats.bump(actor["model"], purpose, metric)
+            except Exception as exc:   # the scoreboard is auxiliary; a failed write is recorded, never fatal
+                self.store.append("stats.error", self.det("director"), {"error": str(exc)[:200]})
+
+    def mathlib_hints(self, text: str, k: int = 8) -> str:
+        """K4: ranked Mathlib declarations for a statement (the Engineer's own search; no model call)."""
+        try:
+            hits = self.tools.call_json("engineer", "mathlib.search", query=text[:400], limit=k)
+        except Exception as exc:   # no Lean/Mathlib on this machine: no hints, the research continues
+            self.store.append("tool.error", self.det("engineer"), {"tool": "mathlib.search", "error": str(exc)[:200]})
+            return ""
+        lines = [h.get("text") or h.get("name") for h in hits if isinstance(h, dict)][:k]
+        return ("\nMathlib declarations that may help (ranked search):\n" + "\n".join(f"- {l}" for l in lines if l)) if lines else ""
+
+    def bank_hints(self, text: str, k: int = 4) -> str:
+        """K1: verified lemmas from earlier projects and branches (copied with their proofs)."""
+        if self.bank is None:
+            return ""
+        from .bank import hint_block
+        from .lean import mathlib_rev
+        items = self.bank.search(text, k=k, rev=mathlib_rev())
+        if items:
+            self.store.append("bank.recalled", self.det("director"), {"items": [{"id": i["id"], "project": i["project"],
+                                                                                 "lean": i["lean"][:200]} for i in items]})
+        return hint_block(items)
+
+    def bank_add(self, name: str, lean: str, statement: str, source: str) -> None:
+        if self.bank is None or not lean:
+            return
+        from .lean import mathlib_rev
+        try:
+            if self.bank.add(name=name, lean=lean, statement=statement, source=source,
+                             project=self.store.path.parent.name, rev=mathlib_rev()):
+                self.store.append("bank.added", self.det("verifier"), {"name": name, "lean": lean[:300]})
+        except Exception as exc:   # the bank is auxiliary: recorded, never fatal
+            self.store.append("bank.error", self.det("director"), {"error": str(exc)[:200]})
+
+    def interactive(self, role: str = "engineer"):
+        """K2: REPL proof states through the Engineer's Lean tools (None in tests with fake tools that lack them)."""
+        from .prover import Interactive
+        return Interactive(goals=lambda src: self.tools.call_json(role, "lean.goals", source=src),
+                           tactic=lambda st, t: self.tools.call_json(role, "lean.tactic", proof_state=int(st), tactic=t))
+
+    def search_settings(self, role: str = "engineer") -> dict:
+        """S2: the proof search adapted to the model that will write the proofs."""
+        from .capability import adapt
+        key = self.gateway._family_for(role)[0]
+        prov = self.gateway.providers[key]
+        profile_name = self.gateway.profile_overrides.get(role) or self.gateway.agent_specs[role]["model"]["costProfile"]
+        model = prov.model_for(profile_name) if hasattr(prov, "model_for") else profile_name
+        prof = self.stats.profile(self._model_label(key, model)) if self.stats is not None else None
+        settings, why = adapt(prof)
+        if why:
+            self.store.append("model.adapted", self.det("director"), {"role": role, "model": model, "settings": settings, "why": why})
+        return settings
+
+    def _model_label(self, key: str, model: str) -> str:
+        """The model name as completions report it (scoreboard key), e.g. anthropic/opus."""
+        actor = self.actors.get("engineer")
+        return actor["model"] if actor and actor.get("model") else f"{self.gateway.family_of(key)}/{model}"
+
+    def confirm_blocking(self, system: str, prompt: str, critic: dict, still_blocking, max_tokens: int = 3000) -> tuple[str, str]:
+        """S3: a `blocking` objection from one family is put to a second family (one the Critic may use, i.e. not the
+        author's). Confirmed → stays blocking; not confirmed → `high`. Either way the objection stays OPEN, so the
+        honesty gate (no 'supported' with an open objection) is unchanged; only one model cannot escalate it alone.
+        Returns (severity, note for the critique body)."""
+        avoid = self.gateway._avoid("critic") | {critic.get("modelFamily")}
+        second = next((k for k in self.gateway.providers if self.gateway.family_of(k) not in avoid), None)
+        if second is None:
+            return "blocking", ""
+        out, other = self.ask_json("critic", system, prompt, max_tokens, family=second, default={})
+        if not out:
+            return "blocking", ""
+        if still_blocking(out):
+            self.store.append("critique.confirmed", other, {"severity": "blocking", "first": critic["modelFamily"], "second": other["modelFamily"]})
+            return "blocking", f" (blocking: confirmed by {other['modelFamily']})"
+        self.store.append("critique.unconfirmed", other, {"severity": "high", "first": critic["modelFamily"], "second": other["modelFamily"]})
+        return "high", f" (rated blocking by {critic['modelFamily']}; {other['modelFamily']} did not confirm that severity)"
+
+    def _degrade(self, role: str, purpose: str, default: dict, actor: dict, why: str) -> tuple[dict, dict]:
+        self.store.append("model.degraded", actor, {"role": role, "purpose": purpose, "reason": why[:200]})
+        return dict(default), actor
 
     def done_stages(self) -> list[str]:
         return [e["payload"]["stage"] for e in self.store.events("stage.done")]
@@ -323,7 +459,7 @@ class Orchestrator:
         cands, actor = [], None
         # Two Hypothesis agents run concurrently from two different perspectives (lanes A and B).
         outs = self.parallel(*[(lambda lens=lens, lane=lane: self.ask_json("hypothesis", system, base + lens, 4000, lane=lane))
-                               for lens, lane in zip(prompts.HYPOTHESIS_LENSES, "AB")])
+                               for lens, lane in zip(prompts.HYPOTHESIS_LENSES, "AB")], label="hypothesis lanes")
         for out, actor in outs:
             for h in out.get("hypotheses", []):
                 if h.get("statement") and not any(similar(h["statement"], c["statement"]) for c in cands):
@@ -609,7 +745,28 @@ class Orchestrator:
                                     "its proof says nothing about the hypothesis."})
             raise StopResearch("the formal statement is vacuously true (contradictory assumptions); it must be re-formalized")
         ref = refutation_file(formal["source"], THEOREM)
-        return bool(ref and self._fidelity_check("refutation", ref[0], "quaera_refute", ref[1], auto))
+        if ref and self._fidelity_check("refutation", ref[0], "quaera_refute", ref[1], auto):
+            return True
+        # K3: random testing (Mathlib `plausible`); a counterexample is evidence, not proof → a Lean refutation is attempted.
+        found = self._plausible(formal["source"], THEOREM)
+        if found:
+            self.store.append("plausible.counterexample", auto, {"theorem": THEOREM, "detail": found[:400]})
+            return self._try_refute(f"Random testing (plausible) found a counterexample: {found[:400]}")
+        return False
+
+    def _plausible(self, source: str, theorem: str) -> str | None:
+        """Runs `plausible` on the statement; returns the counterexample text, or None (none found, or not testable)."""
+        from .prover import with_proof
+        test = with_proof(source, theorem, "plausible")
+        if not test:
+            return None
+        try:
+            rep = self.tools.call_json("engineer", "lean.compile", source=test, theorem=theorem)
+        except Exception as exc:
+            self.store.append("tool.error", self.det("engineer"), {"tool": "lean.compile", "error": str(exc)[:200]})
+            return None
+        text = "\n".join(rep.get("errors", []))
+        return text if re.search(r"Found (?:a )?counter-?example|Found problems", text, re.I) else None
 
     def _try_refute(self, hint: str = "") -> bool:
         """Searches once for a counterexample (model): when no proof was found or exploration found a candidate counterexample.
@@ -635,20 +792,26 @@ class Orchestrator:
         if ex.get("counterexample") and self._try_refute(f"Numerical exploration found a candidate counterexample: {json.dumps(ex['counterexample'], ensure_ascii=False)}"):
             self.set_state("proof", None)
             return
-        # #2 proof search: automation → error-tolerant whole-proof attempts → sketch + lemmas (src/quaera/prover.py)
+        # #2 proof search: automation → error-tolerant whole-proof attempts → REPL steps → sketch + lemmas (src/quaera/prover.py)
         from .prover import prove_search
         limit = self.permissions.spec("engineer")["limits"].get("maxFixAttempts", 3)
         verified_main: dict = {}
         # On hard problems the proof search can eat the whole budget (in the Putnam measurement a single problem spent $2.52).
-        # To leave room for review, verification and the report, the search is capped at half the budget left at stage start.
-        search_cap = self.gateway.spent_usd + PROVE_BUDGET_SHARE * self.gateway.remaining()
+        # To leave room for review, verification and the report, the search gets half of what is left at stage start;
+        # within that share it keeps going round after round (capacity plan R2).
+        share = self.gateway.share_cap(PROVE_BUDGET_SHARE)
+        settings = self.search_settings("engineer")
+        failures = {"n": 0}
 
         def ask(system: str, prompt: str, n: int, lane: str | None = None) -> str:
-            if self.gateway.spent_usd >= search_cap:
+            if not share():
                 raise SearchBudget(f"proof search used its budget share ({PROVE_BUDGET_SHARE:.0%})")
             prompt = prompt + self.human_notes("engineer")
+            fam = self.lane_family(lane)
+            rung = failures["n"] // 2 if fam is None and self.gateway.ladders.get("engineer") else None   # S1
             try:
-                completion, _cross = self.gateway.call("engineer", system, prompt, n, family=self.lane_family(lane))
+                completion, _cross = self.gateway.call("engineer", system, prompt, min(n, settings["max_tokens"]), family=fam,
+                                                       rung=rung, sample=(ord(lane) - 64) if lane and lane != "A" else None)
             except BudgetExceeded as exc:
                 raise StopResearch(f"budget cap: {exc}") from exc
             actor = {"kind": "agent", "role": "engineer", "model": completion.model, "modelFamily": completion.family}
@@ -663,17 +826,25 @@ class Orchestrator:
                                           approved_statement=formal["statement"] if name == THEOREM else approved)
             report["_ok"] = report["verified"]
             art = self._lean_artifact(actor, source, report)
+            if actor.get("model") and actor["model"] != DETERMINISTIC["model"]:
+                self.stat(actor, "PROVE", "compile_ok" if report.get("compiled") else "compile_bad")
+            if not report["verified"]:
+                failures["n"] += 1
             if name == THEOREM:
                 run = self._run(actor, "full", len(self.store.latest("run")), report, art, started)
                 if report["verified"]:
                     verified_main.update(run=run["id"], artifact=art["id"])
             return report
 
-        hints = (f"Useful Mathlib declarations: {', '.join(lit['mathlib']) or '—'}" + self._exploration_text())
+        h = self.selected_hypothesis()
+        hints = (f"Useful Mathlib declarations: {', '.join(lit['mathlib']) or '—'}" + self._exploration_text()
+                 + self.mathlib_hints(formal["statement"] or h["statement"]) + self.bank_hints(f"{h['statement']} {formal['statement']}"))
         progress = lambda step, status, detail="", lane=None: self.activity("engineer", step, status, detail, lane)  # noqa: E731
         try:
             res = prove_search(formal["source"], THEOREM, ask, check, attempts=limit + 1, hints=hints,
-                               progress=progress, parallel=2)
+                               progress=progress, samples=settings["samples"], rounds=SEARCH_ROUNDS, more=share, heavy=True,
+                               depth=settings["depth"], interactive=self.interactive("engineer"),
+                               interactive_first=settings["interactive_first"])
         except SearchBudget as exc:
             self.store.append("proof.search", self.det("engineer"), {"solved": False, "stopped": str(exc)})
             self.set_state("proof", None)
@@ -730,12 +901,19 @@ class Orchestrator:
             return
         h = self.selected_hypothesis()
         what = "Proof file" if self.state("proof") else "REFUTATION file (proves the NEGATION of the approved statement)"
-        out, critic = self.ask_json("critic", prompts.CRITIC_RESULT,
-                                    f"Hypothesis: {h['statement']}\nApproved statement: {self.state('formal')['statement']}\n\n{what}:\n```lean\n{proof['source']}\n```", 3000)
+        ask = f"Hypothesis: {h['statement']}\nApproved statement: {self.state('formal')['statement']}\n\n{what}:\n```lean\n{proof['source']}\n```"
+        out, critic = self.ask_json("critic", prompts.CRITIC_RESULT, ask, 3000)
+        verdicts: dict[str, tuple[str, str]] = {}
         for concern in out.get("concerns", []):
             if concern.get("severity") in ("high", "blocking"):
+                severity, note = concern["severity"], ""
+                if severity == "blocking":
+                    if "blocking" not in verdicts:   # one second opinion for the whole review
+                        verdicts["blocking"] = self.confirm_blocking(prompts.CRITIC_RESULT, ask, critic,
+                            lambda o: any(c.get("severity") == "blocking" for c in o.get("concerns", []) if isinstance(c, dict)))
+                    severity, note = verdicts["blocking"]
                 cr = self.store.put({"type": "critique", "createdBy": critic, "targetId": self.state("result_id"),
-                                     "category": "overclaim", "severity": concern["severity"], "body": concern["body"],
+                                     "category": "overclaim", "severity": severity, "body": concern["body"] + note,
                                      "blindReview": False, "status": "open"})
                 self.message(critic, "objection", "human", cr["id"], concern["body"], round_=1)
 
@@ -757,6 +935,9 @@ class Orchestrator:
         self.store.put({"type": "verification", "createdBy": verifier, "resultId": self.state("result_id"),
                         "verificationRunIds": [run["id"]], "reproduced": "yes" if report["verified"] else "no",
                         "crossModel": False, "tolerance": "exact: compilation and axiom list"})
+        if report["verified"]:   # K1: recompiled twice (search + clean Verifier run) → reusable by later projects
+            name = THEOREM if self.state("proof") else "quaera_refute"
+            self.bank_add(name, statement_of(proof["source"], name) or "", self.selected_hypothesis()["statement"], proof["source"])
 
     def stage_conclude(self) -> None:
         h = self.state("hypothesis_id") and self.selected_hypothesis()
@@ -811,7 +992,9 @@ PROMPT_PATTERNS = [(k, re.compile(re.escape(v).replace(re.escape("`quaera_main`"
 
 
 def purpose_of(system: str) -> str:
-    """The purpose of a call, from its system prompt (e.g. PROVE, CRITIC_EXPERIMENT)."""
+    """The purpose of a call, from its system prompt (e.g. PROVE, CRITIC_EXPERIMENT). Deeper sketch levels use another
+    helper prefix (`quaera_d1_step_…`, capacity plan K6); they count as the same purpose."""
+    system = re.sub(r"quaera_d\d+_step_", "quaera_step_", system)
     return PROMPT_NAMES.get(system) or next((k for k, rx in PROMPT_PATTERNS if rx.fullmatch(system)), "OTHER")
 
 

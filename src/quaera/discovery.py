@@ -37,6 +37,10 @@ DISCOVERY_STAGES = [
     "verification", "conclude", "report",
 ]
 ROUNDS = int(os.environ.get("QUAERA_DISCOVERY_ROUNDS", "3"))
+# Capacity plan R2: after the minimum rounds the attack continues while its budget share remains, up to this cap
+# (subscription CLIs report $0, so the cap and the call/time budget bound them).
+MAX_ROUNDS = max(ROUNDS, int(os.environ.get("QUAERA_DISCOVERY_MAX_ROUNDS", str(ROUNDS * 2))))
+ATTACK_PARALLEL = max(1, int(os.environ.get("QUAERA_ATTACK_PARALLEL", "2")))   # open lemmas attacked at once (S4)
 LANES = int(os.environ.get("QUAERA_IDEATION_LANES", "4"))
 ATTACK_SHARE = 0.7          # attack rounds use at most 70% of the measured budget left at stage start
 SORRY = "Proof contains `sorry`."
@@ -70,11 +74,19 @@ class DiscoveryOrchestrator(Orchestrator):
 
     # --- helpers ---------------------------------------------------------------------
     def families(self) -> list[str]:
-        return list(self.gateway.providers)
+        """Route ids, one per distinct family first (lanes and rounds rotate over them)."""
+        keys = list(self.gateway.providers)
+        seen, first, rest = set(), [], []
+        for k in keys:
+            (rest if self.gateway.family_of(k) in seen else first).append(k)
+            seen.add(self.gateway.family_of(k))
+        return first + rest
 
     def other_family(self, fam: str | None) -> str:
-        fams = self.families()
-        return next((f for f in fams if f != fam), fams[0])
+        """A route whose family differs from `fam` (a family name or a route id)."""
+        keys = self.families()
+        own = self.gateway.family_of(fam) if fam in self.gateway.providers else fam
+        return next((k for k in keys if self.gateway.family_of(k) != own), keys[0])
 
     def _compile(self, role: str, source: str, approved: str | None = None, name: str = THEOREM) -> dict:
         return self.tools.call_json(role, "lean.compile", source=source, theorem=name, approved_statement=approved)
@@ -100,7 +112,8 @@ class DiscoveryOrchestrator(Orchestrator):
         q, lit = self.question(), self.state("literature")
         out, _ = self.ask_json("literature", prompts.LANDSCAPE,
                                f"Question: {q['title']}\nScope: {q['scope']}\nLiterature summary: {lit['summary']}\n"
-                               f"Mathlib declarations found: {', '.join(lit['mathlib']) or '—'}" + self.recall_memory(q), 6000)
+                               f"Mathlib declarations found: {', '.join(lit['mathlib']) or '—'}" + self.recall_memory(q), 6000,
+                               default={"approaches": [], "barriers": [], "partialResults": [], "openAngles": []})
         self.set_state("landscape", {k: out.get(k) or [] for k in ("approaches", "barriers", "partialResults", "openAngles")})
 
     def stage_target(self) -> None:
@@ -154,7 +167,7 @@ class DiscoveryOrchestrator(Orchestrator):
                     return []
             return run
 
-        found = [x for res in self.parallel(*[lane_job(*l) for l in lanes]) for x in res]
+        found = [x for res in self.parallel(*[lane_job(*l) for l in lanes], label="ideation lanes") for x in res]
         strategies = []
         for s, lane, lens, actor in found:
             if any(similar(s["title"] + " " + s["idea"], o["title"] + " " + o["idea"], 0.8) for o in strategies):
@@ -196,35 +209,53 @@ class DiscoveryOrchestrator(Orchestrator):
                 + (f"\nDirector's instructions for this attempt (what was learned, what to try instead): {br['note']}" if br.get("note") else ""))
 
     def stage_cross_review(self) -> None:
+        """Each strategy is reviewed by a family other than its author's. With three or more families a committee of two
+        independent reviewers scores it (capacity plan S3): one reviewer's judgment alone does not rank a strategy."""
         strategies = self.state("strategies")
+        committee = len(set(self.gateway.families())) >= 3
 
-        def review(s):
+        def reviewers(s) -> list[str]:
+            own = s["family"]
+            others = [k for k in self.families() if self.gateway.family_of(k) != own]
+            return (others[:2] if committee else others[:1]) or [self.other_family(own)]
+
+        def review(s, fam, tag):
             def run():
-                fam = self.other_family(s["family"])
                 try:
                     out, actor = self.ask_json("critic", prompts.CROSS_REVIEW,
                                                f"{self._target_text()}\n\n{self._landscape_text()}\n\nStrategy {s['id']}:\n"
                                                + json.dumps({k: s[k] for k in ('title', 'idea', 'keySteps', 'barrierCheck', 'killTest', 'novelty', 'direction')},
-                                                            ensure_ascii=False), 2500, lane=s["id"], family=fam)
+                                                            ensure_ascii=False), 2500, lane=tag, family=fam)
                 except StopResearch as exc:
                     return s, None, str(exc)
                 return s, (out, actor), None
             return run
 
+        jobs = [review(s, fam, s["id"] + ("" if i == 0 else f"·{i + 1}")) for s in strategies for i, fam in enumerate(reviewers(s))]
+        by_id: dict[str, list] = {}
+        for s, res, err in self.parallel(*jobs, label="cross-reviews"):
+            by_id.setdefault(s["id"], []).append((res, err))
         reviewed = []
-        for s, res, err in self.parallel(*[review(s) for s in strategies]):
-            if res is None:
-                s = {**s, "score": 0.0, "review": {"summary": f"review failed: {err[:200]}"}}
-            else:
-                out, actor = res
+        for s in strategies:
+            done = [r for r, _ in by_id.get(s["id"], []) if r is not None]
+            if not done:
+                err = next((e for _, e in by_id.get(s["id"], []) if e), "no reviewer answered")
+                reviewed.append({**s, "score": 0.0, "review": {"summary": f"review failed: {err[:200]}"}})
+                continue
+            scored = []
+            for out, actor in done:
                 vals = {k: score_of(out.get(k)) for k in WEIGHTS}
-                score = sum(vals[k] * w for k, w in WEIGHTS.items())
-                if out.get("fatalFlaw"):
-                    score *= 0.5
-                s = {**s, "score": round(score, 2), "review": {**vals, **{k: out.get(k) for k in ("fatalFlaw", "strongestPoint", "suggestedKillTest", "summary")},
-                                                               "reviewerFamily": actor["modelFamily"], "reviewerModel": actor["model"]}}
-                self.store.append("strategy.reviewed", actor, {"id": s["id"], "score": s["score"], "crossFamily": actor["modelFamily"] != s["family"],
-                                                               **s["review"]})
+                sc = sum(vals[k] * w for k, w in WEIGHTS.items()) * (0.5 if out.get("fatalFlaw") else 1.0)
+                scored.append((sc, vals, out, actor))
+            sc, vals, out, actor = scored[0]
+            score = round(sum(x[0] for x in scored) / len(scored), 2)
+            members = [{"family": a["modelFamily"], "model": a["model"], "score": round(x, 2), "fatalFlaw": o.get("fatalFlaw")}
+                       for x, _v, o, a in scored]
+            s = {**s, "score": score, "review": {**vals, **{k: out.get(k) for k in ("fatalFlaw", "strongestPoint", "suggestedKillTest", "summary")},
+                                                 "reviewerFamily": actor["modelFamily"], "reviewerModel": actor["model"],
+                                                 **({"committee": members} if len(members) > 1 else {})}}
+            self.store.append("strategy.reviewed", actor, {"id": s["id"], "score": s["score"], "crossFamily": actor["modelFamily"] != s["family"],
+                                                           **s["review"]})
             reviewed.append(s)
         reviewed.sort(key=lambda x: -x["score"])
         self.set_state("strategies", reviewed)
@@ -257,7 +288,8 @@ class DiscoveryOrchestrator(Orchestrator):
         out, actor = self.ask_json("engineer", prompts.PROGRAM,
                                    f"Approved main theorem file:\n```lean\n{formal['source']}\n```\n\nStrategy {sid}:\n"
                                    + json.dumps({k: s.get(k) for k in ("title", "idea", "keySteps", "barrierCheck", "direction")}, ensure_ascii=False)
-                                   + f"\n\n{self._landscape_text()}\n{note}", 6000)
+                                   + f"\n\n{self._landscape_text()}\n{note}"
+                                   + self.bank_hints(f"{s.get('title')} {s.get('idea')} {formal['statement']}", k=6), 6000)
         lemmas = []
         items = [x for x in (out.get("lemmas") if isinstance(out.get("lemmas"), list) else []) if isinstance(x, dict)]
         for i, item in enumerate(items[:6], 1):
@@ -291,14 +323,20 @@ class DiscoveryOrchestrator(Orchestrator):
         raise StopResearch("no strategy could be turned into Lean lemmas")
 
     # --- attack ------------------------------------------------------------------------------
-    def _ask(self, fam: str, cap: float, role: str = "engineer"):
+    def _ask(self, fam: str, share, role: str = "engineer"):
+        """`share`: the stage's budget predicate (Gateway.share_cap). Lane A uses `fam`; other lanes rotate over the other
+        families (best-of-N candidates on different models, K5)."""
         def ask(system: str, prompt: str, n: int, lane: str | None = None) -> str:
-            if self.gateway.spent_usd >= cap:
+            if not share():
                 raise SearchBudget("the attack used its budget share")
             prompt = prompt + self.human_notes(role)
-            family = self.other_family(fam) if lane == "B" else fam
+            family = fam
+            if lane and lane != "A":
+                others = [k for k in self.families() if self.gateway.family_of(k) != self.gateway.family_of(fam)] or [fam]
+                family = others[(ord(lane) - 66) % len(others)]
             try:
-                completion, _ = self.gateway.call(role, system, prompt, n, family=family)
+                completion, _ = self.gateway.call(role, system, prompt, n, family=family,
+                                                  sample=(ord(lane) - 64) if lane and lane != "A" else None)
             except BudgetExceeded as exc:
                 raise SearchBudget(f"budget cap: {exc}") from exc
             actor = {"kind": "agent", "role": role, "model": completion.model, "modelFamily": completion.family}
@@ -352,9 +390,39 @@ class DiscoveryOrchestrator(Orchestrator):
         rep = self.tools.call_json("engineer", "lean.compile", source=source, theorem="quaera_refute", approved_statement=ref[1])
         return source if rep["verified"] else None
 
-    def _attack_lemma(self, lem: dict, fam: str, rnd: int, cap: float) -> str:
+    def _reuse_from_bank(self, lem: dict, rnd: int) -> bool:
+        """K1: a lemma with the same statement already verified in this lab is recompiled here under its own name;
+        verified without a model call, recorded with its origin."""
+        if self.bank is None:
+            return False
+        from .bank import rename
+        from .lean import mathlib_rev
+        hit = self.bank.exact(lem["lean"], mathlib_rev())
+        if not hit:
+            return False
+        source = rename(hit["source"], hit["name"], lem["name"])
+        rep = self.tools.call_json("engineer", "lean.compile", source=source, theorem=lem["name"], approved_statement=lem["lean"])
+        if not rep.get("verified"):
+            return False
+        self.bank.mark_reused(hit["id"])
+        self._record(lem, "verified", rnd, "bank", f"reused from the lemma bank (verified in {hit['project']}); recompiled here", source)
+        self.store.append("bank.reused", self.det("engineer"), {"id": lem["id"], "bankId": hit["id"], "project": hit["project"]})
+        return True
+
+    def _attack_lemma(self, lem: dict, fam: str, rnd: int, share) -> str:
         from .prover import prove_search
-        ask = self._ask(fam, cap)
+        if rnd == 1 and self._reuse_from_bank(lem, rnd):
+            return "verified"
+        ask = self._ask(fam, share)
+        if rnd == 1 and not lem.get("plausibleTried"):
+            lem["plausibleTried"] = True
+            found = self._plausible(lem["file"], lem["name"])        # K3: random testing before any model call
+            if found:
+                self._record(lem, "numeric", rnd, fam, f"plausible found a counterexample: {found[:200]}")
+                src = self._refute_lemma(lem, fam, ask, f"Random testing (plausible) found: {found[:400]}")
+                if src:
+                    self._record(lem, "refuted", rnd, fam, "negation proved in Lean after a plausible counterexample", src)
+                    return "refuted"
         if rnd == 1 and lem.get("numericCheck"):
             ex = self._numeric(lem, fam)
             if ex is not None:
@@ -373,8 +441,12 @@ class DiscoveryOrchestrator(Orchestrator):
             return rep
 
         progress = lambda step, status, detail="", lane=None: self.activity("engineer", f"{lem['id']}: {step}", status, detail, lane)  # noqa: E731
-        res = prove_search(lem["file"], lem["name"], ask, check, attempts=2, progress=progress, parallel=2,
-                           hints=f"Research program step {lem['id']} ({lem['kind']}): {lem['statement']}")
+        settings = self.attack_settings
+        res = prove_search(lem["file"], lem["name"], ask, check, attempts=2, progress=progress, samples=settings["samples"],
+                           heavy=rnd == 1, depth=settings["depth"], interactive=self.interactive("engineer"),
+                           interactive_first=settings["interactive_first"],
+                           hints=f"Research program step {lem['id']} ({lem['kind']}): {lem['statement']}"
+                           + self.mathlib_hints(lem["lean"] or lem["statement"], 6) + self.bank_hints(lem["statement"], 3))
         if res.solved:
             self._record(lem, "verified", rnd, fam, f"proved after {res.attempts} model call(s)", res.source)
             return "verified"
@@ -412,32 +484,50 @@ class DiscoveryOrchestrator(Orchestrator):
 
     def stage_attack(self) -> None:
         fams = self.families()
-        cap = self.gateway.spent_usd + ATTACK_SHARE * self.gateway.remaining()
+        share = self.gateway.share_cap(ATTACK_SHARE)
+        self.attack_settings = self.search_settings("engineer")
         queue = self.state("strategy_queue")
         prog = self.state("program")
         stop = None
-        for rnd in range(1, ROUNDS + 1):
+        for rnd in range(1, MAX_ROUNDS + 1):
             open_ = [l for l in prog["lemmas"] if l["status"] == "open"]
             if not open_:
                 break
-            self.store.append("attack.round", self.det("director"), {"round": rnd, "open": [l["id"] for l in open_], "strategy": prog["strategy"]})
-            for i, lem in enumerate(open_):
-                fam = fams[(rnd - 1 + i) % len(fams)]          # each round the lemma goes to another model family
-                try:
-                    status = self._attack_lemma(lem, fam, rnd, cap)
-                except SearchBudget as exc:
-                    stop = str(exc)
-                    break
-                self.set_state("program", prog)
-                if status == "refuted" and not self._repair(prog, lem, fam):
+            if rnd > ROUNDS and not share():            # R2: extra rounds only while the budget share remains
+                break
+            self.store.append("attack.round", self.det("director"), {"round": rnd, "open": [l["id"] for l in open_], "strategy": prog["strategy"],
+                                                                     **({"extra": True} if rnd > ROUNDS else {})})
+            for start in range(0, len(open_), ATTACK_PARALLEL):
+                batch = open_[start:start + ATTACK_PARALLEL]
+
+                def job(lem, i):
+                    def run():
+                        try:
+                            return lem, self._attack_lemma(lem, fams[(rnd - 1 + i) % len(fams)], rnd, share), None
+                        except SearchBudget as exc:
+                            return lem, None, str(exc)
+                    return run
+                # S4: independent lemmas are attacked concurrently (each on its own family this round); Lean checks queue
+                # at the REPL, the budget reservation keeps the cap.
+                results = self.parallel(*[job(lem, start + j) for j, lem in enumerate(batch)], label=f"lemma attacks (round {rnd})")
+                stop = next((err for _, _, err in results if err), None)
+                replaced = False
+                for lem, status, _ in results:
+                    if status != "refuted" or stop:
+                        continue
+                    fam = fams[(rnd - 1 + open_.index(lem)) % len(fams)]
+                    if self._repair(prog, lem, fam):
+                        continue                    # the repaired lemma joins the open ones in the next round
                     nxt = [sid for sid in queue if sid != prog["strategy"] and sid not in {e["payload"]["id"] for e in self.store.events("strategy.dead")}]
                     new = next((p for p in (self._program(sid, "The previous strategy died: " + lem["statement"]) for sid in nxt[:1]) if p), None)
                     if not new:
                         stop = "every strategy in the queue died"
-                        break
-                    prog = new
+                    else:
+                        prog, replaced = new, True
                     break
                 self.set_state("program", prog)
+                if stop or replaced:
+                    break           # stopped, or a new strategy's program: the next round plans afresh
             if stop:
                 break
         self.set_state("program", prog)
@@ -456,8 +546,7 @@ class DiscoveryOrchestrator(Orchestrator):
             return
         lemma_text = "\n\n".join(strip_header(self.store.blob(l["sha256"]).decode()) for l in live)
         direction = self._strategy(prog["strategy"]).get("direction", "prove")
-        cap = self.gateway.spent_usd + 0.5 * self.gateway.remaining()
-        ask = self._ask(self.families()[0], cap)
+        ask = self._ask(self.families()[0], self.gateway.share_cap(0.5))
         if direction == "disprove":
             ok = self._try_refute(f"These lemmas are already verified; copy them (with proofs) above `quaera_refute`:\n```lean\n{lemma_text}\n```")
             self.store.append("synthesis.done", self.det("engineer"), {"direction": direction, "solved": ok})
@@ -481,7 +570,8 @@ class DiscoveryOrchestrator(Orchestrator):
             return rep
 
         try:
-            res = prove_search(file, THEOREM, ask, check, attempts=2, parallel=2,
+            res = prove_search(file, THEOREM, ask, check, attempts=2, parallel=2, heavy=True,
+                               interactive=self.interactive("engineer"),
                                hints="The lemmas quaera_L* above are already proved; combine them. " + prog.get("assembly", ""),
                                progress=lambda step, status, detail="", lane=None: self.activity("engineer", f"synthesis: {step}", status, detail, lane))
         except SearchBudget:
@@ -518,3 +608,5 @@ class DiscoveryOrchestrator(Orchestrator):
                 rep = self.tools.call_json("verifier", "lean.compile", source=self.store.blob(lem["sha256"]).decode(),
                                            theorem=lem["name"], approved_statement=lem["lean"])
                 self.store.append("lemma.reverified", self.det("verifier"), {"id": lem["id"], "name": lem["name"], "verified": rep["verified"]})
+                if rep["verified"]:
+                    self.bank_add(lem["name"], lem["lean"], lem["statement"], self.store.blob(lem["sha256"]).decode())

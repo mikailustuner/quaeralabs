@@ -7,6 +7,15 @@ tools:
 - name: lean.compile
   protocol: mcp
   server: lean
+- name: lean.goals
+  protocol: mcp
+  server: lean
+- name: lean.tactic
+  protocol: mcp
+  server: lean
+- name: mathlib.search
+  protocol: mcp
+  server: lean
 - name: sandbox.write
   protocol: mcp
   server: sandbox

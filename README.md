@@ -27,7 +27,19 @@ uv run quaera serve                        # web UI: http://127.0.0.1:8765
 uv run quaera memory search "linear classifier"  # research memory (past projects on this machine)
 uv run quaera audit [--lean]               # integrity audit: fabricated citations, fake verification
 uv run quaera triage scan                  # failure signals; triage add/export: failure cases
+uv run quaera providers add|list|key|test  # API-key and local model providers (Anthropic, OpenAI, Gemini, OpenRouter, Ollama…)
+uv run quaera route engineer --ladder local@cheap anthropic@best   # role routing and escalation ladders
+uv run quaera iterate <project> --total-budget 10 --beam 2         # tree search: expand the most promising attempts until the budget is spent
+uv run quaera bank search "sum of odd numbers"                     # lemma bank: Lean-verified statements reused across projects
+uv run quaera models                       # capability scoreboard: JSON reliability and Lean compile rate per model
 ```
+
+**Capacity (any model):** the team is built to turn weaker or cheaper models into verified progress as well: malformed answers are
+repaired instead of ending the research, the proof search keeps going while its budget share lasts (whole proofs, step-by-step proving
+in the Lean REPL, random testing with `plausible`, library search, recursive decomposition, best-of-N candidates), verified lemmas are
+reused across projects, a failed question is explored as a tree (the most promising attempt is expanded next; a stop needs the
+logical frame covered and a second model's agreement), and the search adapts to each model's measured reliability. Budgets have four
+dimensions: USD, calls, tokens and wall-clock. Plan and status: [docs/capacity-plan.md](docs/capacity-plan.md).
 
 **Web UI (Phase 3):** first, once: `cd web && npm install && npm run build`. The UI is in English; warm neutral tones, light theme by default, with a dark theme too. The left panel shows short project names and what was learned across projects (contextual memory). The Project manager watches the research and answers your questions without interrupting the team; a note reaches the team only if you send it ([ADR 0016](docs/adr/0016-ui-v3-manager-contextual-memory.md)). The language of model output is chosen with `QUAERA_LANGUAGE` (default English). Codex CLI and OpenCode CLI installed on this machine are detected automatically and used as a different model family for cross-checks (Critic, Verifier, parallel lanes). Mathematics has two modes: **Verify** (test a claim) and **Discover** (attack an open problem with multi-model idea generation, cross-review and a Lean lemma program; only results Lean verifies count) ([ADR 0017](docs/adr/0017-discovery-mode-multi-model.md)). The lab screen shows the team live: you see the code an agent is compiling right now, and clicking an agent opens the full text of what it said. Math and ML experiments are visualized step by step, hypothesis rankings are shown with their criteria, and parallel agents are followed in lanes ([ADR 0015](docs/adr/0015-ui-v2-parallel-agents.md)). You can also answer approval cards, message an agent with `@agent`, and branch from a completed stage; the evidence graph, Lean proof, report (Markdown, PDF printing, signed RO-Crate evidence package) and keyless replay all live in the same UI. The server listens only on 127.0.0.1 and rejects requests from other sites ([ADR 0011](docs/adr/0011-local-web-ui.md)).
 

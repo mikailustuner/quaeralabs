@@ -11,6 +11,16 @@ metric and its delta from the parent, cost and the branches' success rates.
 Iterative research (#5): when a branch ends without a conclusive result (no proof found, experiment inconclusive,
 research stopped), the Director proposes what to change and — within the approval rules — a new branch is opened.
 A refuted hypothesis is a result, not a failure; only inconclusive branches are iterated.
+
+Tree search (capacity plan T1–T4, S3):
+- every inconclusive node gets a progress score (verified lemmas, live strategies, review score, stages reached,
+  open objections); the best `beam` nodes are expanded next, not simply the last branch (T1),
+  each node at most MAX_CHILDREN times, so a dead end is left and an earlier, better node is tried again;
+- `continue` branches keep a discovery program's lemmas and attack the open ones differently (T2);
+- the Director may stop a line only when the logical frame is covered (every creative lens tried in discovery, both
+  hypothesis and approach changes tried in verification) or a second model family agrees (T3, S3);
+- the remaining budget is split across the selected nodes by their scores (T4); the line stops when any budget
+  dimension (USD, calls, wall-clock) is spent.
 """
 
 from __future__ import annotations
@@ -27,8 +37,10 @@ from pathlib import Path
 from .prompts import LANGUAGE
 from .store import Store
 
-CHANGE_STAGE = {"hypothesis": "literature", "approach": "hypothesis_approval"}
-NOTE_ROLES = {"hypothesis": ["hypothesis"], "approach": ["experiment_designer", "engineer"], "note": ["all"]}
+CHANGE_STAGE = {"hypothesis": "literature", "approach": "hypothesis_approval", "continue": "program"}
+NOTE_ROLES = {"hypothesis": ["hypothesis"], "approach": ["experiment_designer", "engineer"], "note": ["all"],
+              "continue": ["engineer", "hypothesis"]}
+KINDS = ("hypothesis", "approach", "note", "continue")
 
 
 def _now() -> str:
@@ -46,19 +58,22 @@ def branch_project(home: Path, pid: str, kind: str, reason: str, *, hypothesis: 
                    note: str | None = None, at_stage: str | None = None, by: dict | None = None,
                    budget: float | None = None) -> str:
     """Opens a new branch with a change and returns the child project's name. Does not run it."""
-    if kind not in ("hypothesis", "approach", "note"):
-        raise ValueError("change kind must be hypothesis, approach or note")
+    if kind not in KINDS:
+        raise ValueError("change kind must be hypothesis, approach, note or continue")
     if len(reason.strip()) < 5:
         raise ValueError("a reason for the branch is required (what changed, and why?)")
     if kind == "hypothesis" and not (hypothesis and len(hypothesis.strip()) >= 8):
         raise ValueError("new hypothesis text is required")
-    if kind in ("approach", "note") and not (note and note.strip()):
-        raise ValueError("approach or note text is required")
+    if kind in ("approach", "note", "continue") and not (note and note.strip()):
+        raise ValueError("approach, note or continue instructions are required")
     src = Store(home / pid / "quaera.db")
     try:
         stage = CHANGE_STAGE.get(kind) or at_stage
         if kind == "approach" and src.meta("mode") == "discover":
             stage = "design"          # discovery keeps the target and reruns ideation with the history (see stage_ideation)
+        if kind == "continue":        # T2: keep the lemma program (verified lemmas stay), re-attack the open ones
+            if src.meta("mode") != "discover" or "program" not in [e["payload"]["stage"] for e in src.events("stage.done")]:
+                raise ValueError("a continue branch needs a discovery project whose lemma program exists")
         if not stage:
             raise ValueError("a note branch requires the stage to branch from")
         at = stage_seq(src, stage)
@@ -193,6 +208,16 @@ def family(home: Path, pid: str) -> dict:
             n["metricDelta"] = round(cm["mean"] - pm["mean"], 6) if pm and cm and pm["name"] == cm["name"] else None
         else:
             n["diff"], n["metricDelta"] = None, None
+    for n in nodes.values():       # tree search view (T1): how promising each node is and whether it is exhausted
+        n["progress"] = progress_score(home, n["id"])
+        st = Store(home / n["id"] / "quaera.db")
+        try:
+            n["closed"] = bool(st.events("branch.closed"))
+            dec = st.events("tree.decision")
+            n["selections"] = len(dec)
+            n["stopRejected"] = len(st.events("branch.stop_rejected"))
+        finally:
+            st.close()
     done = [n for n in nodes.values() if n["outcome"] != "running"]
     count = lambda o: sum(1 for n in done if n["outcome"] == o)  # noqa: E731
     successes = count("supported")
@@ -219,9 +244,12 @@ Options:
 - "hypothesis": propose a revised hypothesis (e.g. a weaker/special case that is provable, a corrected formulation, a sharper claim)
 - "approach": keep the hypothesis, change the experiment or proof approach (give concrete instructions to the designer/engineer).
   In discovery mode the target statement is fixed: use "approach" and describe the new strategy directions to explore and what to avoid.
-- "stop": no promising change (explain why)
-Return only JSON: {"decision": "hypothesis"|"approach"|"stop", "newHypothesis": "Turkish, only for hypothesis",
-"instructions": "Turkish, concrete, only for approach", "reason": "Turkish, one or two sentences: what failed and why this change should help"}""".replace("Turkish", LANGUAGE)
+- "continue": discovery only — keep the chosen strategy's lemma program (verified lemmas stay) and attack its OPEN lemmas
+  differently (say how: other tactics, a reformulation, which lemma to split). Best when the program made progress.
+- "stop": no promising change is left (explain why). You may stop only when the directions listed as untried below are
+  genuinely hopeless; otherwise propose one of them.
+Return only JSON: {"decision": "hypothesis"|"approach"|"continue"|"stop", "newHypothesis": "Turkish, only for hypothesis",
+"instructions": "Turkish, concrete, for approach and continue", "reason": "Turkish, one or two sentences: what failed and why this change should help"}""".replace("Turkish", LANGUAGE)
 
 
 def needs_iteration(summary: dict) -> bool:
@@ -295,48 +323,134 @@ def tried_hypotheses(home: Path, pid: str) -> list[str]:
     return [h for p in lineage(home, pid) if (h := ((node_summary(home, p)["hypothesis"] or {}).get("statement")))]
 
 
-def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, approve, max_branches: int,
-            budget_per_branch: float | None = None, total_budget: float | None = None, memory=None, log=print) -> list[str]:
-    """Iterates inconclusive branches. `build(path, budget) -> Orchestrator`, `approve(text, cost) -> bool`.
-    Human approval (or an autonomy rule) is required before each new branch; the Director's decision is recorded.
+# --- tree search (T1–T4, S3) ------------------------------------------------------------------------------
 
-    `total_budget`: keep trying until the whole research line (root and all branches) has spent this much; each
-    branch then gets the remaining budget (capped by `budget_per_branch` if given)."""
+MAX_CHILDREN = int(os.environ.get("QUAERA_MAX_CHILDREN", "3"))     # expansions per node before it counts as exhausted
+WEIGHTS = {"verifiedLemmas": 1.0, "liveStrategies": 0.3, "bestReview": 0.1, "stages": 0.5, "openCritiques": -0.3, "depth": -0.15}
+
+
+def _after(s: Store, kind: str) -> list[dict]:
+    at = (s.meta("branch") or {}).get("atSeq") or 0
+    return [e for e in s.events(kind) if e["seq"] > at]
+
+
+def progress_score(home: Path, pid: str) -> dict:
+    """How promising an inconclusive node is (T1). Inherited progress counts: a `continue` branch starts where its
+    parent stood, so its verified lemmas are part of what it stands on."""
+    from .cli import stages_for
+    s = Store(home / pid / "quaera.db")
+    try:
+        verified = {e["payload"]["id"] for e in s.events("lemma.status") if e["payload"]["status"] == "verified"}
+        proposed = {e["payload"]["id"] for e in _after(s, "strategy.proposed")} or {e["payload"]["id"] for e in s.events("strategy.proposed")}
+        dead = {e["payload"]["id"] for e in s.events("strategy.dead")}
+        reviews = [float(e["payload"].get("score") or 0) for e in s.events("strategy.reviewed")]
+        stages = len({e["payload"]["stage"] for e in s.events("stage.done")}) / max(1, len(stages_for(s)))
+        crit = sum(1 for c in s.latest("critique") if c["status"] == "open")
+    finally:
+        s.close()
+    parts = {"verifiedLemmas": len(verified), "liveStrategies": len(proposed - dead), "bestReview": max(reviews, default=0.0),
+             "stages": round(stages, 3), "openCritiques": crit, "depth": len(lineage(home, pid)) - 1}
+    return {"score": round(sum(WEIGHTS[k] * v for k, v in parts.items()), 3), "parts": parts}
+
+
+def children(home: Path, pid: str) -> list[str]:
+    s = Store(home / pid / "quaera.db")
+    try:
+        return [e["payload"]["child"] for e in s.events("branch.spawned")]
+    finally:
+        s.close()
+
+
+def closed(home: Path, pid: str) -> bool:
+    s = Store(home / pid / "quaera.db")
+    try:
+        return bool(s.events("branch.closed"))
+    finally:
+        s.close()
+
+
+def line_usage(home: Path, root: str) -> dict:
+    """Spend of the whole research tree under `root`: USD and paid model calls after each branch point."""
+    usd, calls = 0.0, 0
+    for n in family(home, root)["nodes"]:
+        s = Store(home / n["id"] / "quaera.db")
+        try:
+            paid = [e for e in _after(s, "model.call") if not e["payload"].get("cached")]
+            usd += sum(e["payload"]["costUsd"] for e in paid)
+            calls += len(paid)
+        finally:
+            s.close()
+    return {"usd": round(usd, 6), "calls": calls}
+
+
+def sibling_attempts(home: Path, pid: str) -> list[dict]:
+    """The branches already opened from `pid`: what changed and how they ended (the Director must not repeat them)."""
+    out = []
+    for c in children(home, pid):
+        if not (home / c / "quaera.db").exists():
+            continue
+        n = node_summary(home, c)
+        br = n["branch"] or {}
+        out.append({"branch": c, "kind": br.get("kind"), "reason": br.get("reason"), "instructions": br.get("note"),
+                    "hypothesis": br.get("hypothesis"), "outcome": n["outcome"],
+                    "progress": progress_score(home, c)["parts"] if n["outcome"] != "running" else None})
+    return out
+
+
+def coverage_gaps(home: Path, pid: str) -> list[str]:
+    """Directions of the logical frame not tried yet in this line (T3): unused creative lenses in discovery; the change
+    kinds never tried; `continue` when the program has verified lemmas but was never continued."""
+    from .prompts import DISCOVERY_LENSES
+    kinds, lenses, mode, verified = set(), set(), None, 0
+    for p in list(dict.fromkeys(lineage(home, pid) + [c for c in children(home, pid) if (home / c / "quaera.db").exists()])):
+        s = Store(home / p / "quaera.db")
+        try:
+            mode = mode or s.meta("mode") or "verify"
+            kinds.add((s.meta("branch") or {}).get("kind"))
+            lenses |= {e["payload"].get("lens") for e in s.events("strategy.proposed")}
+            verified = max(verified, sum(1 for e in s.events("lemma.status") if e["payload"]["status"] == "verified"))
+        finally:
+            s.close()
+    gaps = []
+    if mode == "discover":
+        gaps += [f"lens «{l['name']}» ({l['text'][:90]}…)" for l in DISCOVERY_LENSES if l["id"] not in lenses]
+        if verified and "continue" not in kinds:
+            gaps.append("continue the lemma program (it has verified lemmas) with a different attack on the open lemmas")
+    else:
+        gaps += [f"a {k} change" for k in ("hypothesis", "approach") if k not in kinds]
+    return gaps
+
+
+def _director(home: Path, pid: str, providers: dict, agent_specs: dict, memory, family_key: str | None = None,
+              extra: str = "") -> tuple[dict | None, dict | None, str | None]:
+    """One revision decision for node `pid` (with the repeat check). Returns (decision, actor, error)."""
     from .gateway import BudgetExceeded, Gateway, ModelError, parse_json
     from .orchestrator import similar
-    created: list[str] = []
-    current = pid
-    for _ in range(max_branches):
-        summ = node_summary(home, current)
-        if not needs_iteration(summ):
-            log(f"{current}: outcome {summ['outcome']} — no iteration needed")
-            break
-        branch_budget = budget_per_branch
-        if total_budget is not None:
-            remaining = total_budget - sum(node_summary(home, p)["costUsd"] for p in lineage(home, current)) - REVISE_CAP_USD
-            if remaining < MIN_BRANCH_USD:
-                log(f"budget reached: ${remaining + REVISE_CAP_USD:.2f} of ${total_budget:.2f} left")
-                break
-            branch_budget = min(budget_per_branch or remaining, remaining)
-        cost = branch_budget + REVISE_CAP_USD
-        if not approve(f"{current} ended without a conclusive result ({summ['outcome']}). The Director will propose a change and the new branch "
-                       f"will run with a budget of at most ${branch_budget:.2f}.", cost):
-            log("new branch not approved")
-            break
-        parent = Store(home / current / "quaera.db")
+    summ = node_summary(home, pid)
+    parent = Store(home / pid / "quaera.db")
+    try:
         record = lambda kind, payload, _s=parent: _s.append(  # noqa: E731
             kind, {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"}, payload)
         gw = Gateway(providers, REVISE_CAP_USD, agent_specs, record)
         hyp = (summ["hypothesis"] or {}).get("statement", "—")
+        gaps = coverage_gaps(home, pid)
         ask = (f"Question: {summ['title']}\nMode: {parent.meta('mode') or 'verify'}\nTested hypothesis: {hyp}\nOutcome: {summ['outcome']}\n"
-               f"What happened in the last attempt (JSON): {failure_context(home, current)}\n\n"
-               f"History of all attempts in this research line (JSON): {attempt_history(home, current, memory)}")
-        tried = tried_hypotheses(home, current)
+               f"What happened in the last attempt (JSON): {failure_context(home, pid)}\n\n"
+               f"History of all attempts in this research line (JSON): {attempt_history(home, pid, memory)}\n\n"
+               + (f"Directions NOT tried yet in this line: {'; '.join(gaps)}\n" if gaps else "All standard directions were tried.\n")
+               + extra)
+        siblings = sibling_attempts(home, pid)
+        if siblings:
+            ask += ("\nBranches ALREADY opened from this attempt (do not repeat them; build on what they found) (JSON): "
+                    + json.dumps(siblings, ensure_ascii=False)[:4000] + "\n")
+        tried = tried_hypotheses(home, pid) + [x["hypothesis"] for x in siblings if x.get("hypothesis")]
         decision, completion = None, None
         try:
             for _try in (1, 2):
-                completion, _ = gw.call("director", REVISE, ask, 2000)
+                completion, _ = gw.call("director", REVISE, ask, 2000, family=family_key)
                 decision = parse_json(completion.text)
+                if not isinstance(decision, dict):
+                    raise ValueError("decision is not an object")
                 new = decision.get("newHypothesis") or ""
                 if decision.get("decision") != "hypothesis" or not any(similar(new, t, 0.85) for t in tried):
                     break
@@ -348,24 +462,152 @@ def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, 
         except (BudgetExceeded, ModelError, ValueError) as exc:
             parent.append("branch.revision_failed", {"kind": "agent", "role": "director", "model": "quaera/deterministic",
                                                      "modelFamily": "quaera"}, {"error": str(exc)[:300]})
-            parent.close()
-            break
-        director = {"kind": "agent", "role": "director", "model": completion.model, "modelFamily": completion.family}
-        parent.append("branch.proposed", director, decision)
+            return None, None, str(exc)
+        if decision.get("decision") == "continue" and (parent.meta("mode") != "discover" or
+                                                       "program" not in [e["payload"]["stage"] for e in parent.events("stage.done")]):
+            decision = {**decision, "decision": "approach"}        # continue needs a lemma program; otherwise an approach change
+        actor = {"kind": "agent", "role": "director", "model": completion.model, "modelFamily": completion.family}
+        return decision, actor, None
+    finally:
         parent.close()
-        kind = decision.get("decision")
-        if kind not in ("hypothesis", "approach"):
-            log(f"the Director proposed no new branch: {decision.get('reason', '')}")
+
+
+def decide(home: Path, pid: str, providers: dict, agent_specs: dict, memory=None) -> tuple[dict | None, dict | None]:
+    """The Director's decision with the stop rule (T3) and a second family's opinion (S3)."""
+    decision, actor, err = _director(home, pid, providers, agent_specs, memory)
+    if decision is None:
+        return None, None
+    if decision.get("decision") == "stop":
+        gaps = coverage_gaps(home, pid)
+        if gaps:
+            # The frame is not covered: a second opinion, from another family when one exists, sees the untried directions.
+            fams = {k: getattr(p, "family", k) for k, p in providers.items()}
+            other = next((k for k, f in fams.items() if f != actor["modelFamily"]), None)
+            second, actor2, _ = _director(home, pid, providers, agent_specs, memory, family_key=other,
+                                          extra=f"\nAnother reviewer wanted to stop: «{decision.get('reason', '')}». Untried directions "
+                                                f"remain: {'; '.join(gaps)}. Propose the most promising of them unless all are hopeless.")
+            s = Store(home / pid / "quaera.db")
+            try:
+                if second and second.get("decision") in ("hypothesis", "approach", "continue"):
+                    s.append("branch.stop_rejected", actor2, {"firstReason": decision.get("reason"), "gaps": gaps,
+                                                              "secondFamily": actor2["modelFamily"]})
+                    return second, actor2
+                s.append("branch.stop_confirmed", actor2 or actor, {"reason": decision.get("reason"), "gaps": gaps,
+                                                                    "secondReason": (second or {}).get("reason")})
+            finally:
+                s.close()
+    return decision, actor
+
+
+def iterate(home: Path, pid: str, *, build, providers: dict, agent_specs: dict, approve, max_branches: int,
+            budget_per_branch: float | None = None, total_budget: float | None = None, memory=None, log=print,
+            beam: int = 1, max_calls: int | None = None, deadline: float | None = None) -> list[str]:
+    """Tree search over the research line of `pid` (T1). `build(path, budget) -> Orchestrator`, `approve(text, cost) -> bool`.
+    Human approval (or an autonomy rule) is required before each new branch; every decision is recorded.
+
+    `total_budget`: keep trying until the whole tree has spent this much (USD); `max_calls` / `deadline`: the same for
+    paid model calls and wall-clock (P4). The selected nodes share the remaining budget by their scores (T4);
+    `budget_per_branch` caps a single branch. `beam` > 1 runs that many branches concurrently."""
+    import math
+    import time
+    s = Store(home / pid / "quaera.db")
+    root = s.meta("root") or pid
+    s.close()
+    created: list[str] = []
+    while len(created) < max_branches:
+        tree = family(home, root)
+        outcome = {n["id"]: n["outcome"] for n in tree["nodes"]}
+        # a branch opened by this search (any of them, with beam > 1) reached a conclusive result: the search stops
+        if any(outcome.get(c) in ("supported", "refuted") for c in created):
+            log("a conclusive result was reached — the search stops")
             break
-        child = branch_project(home, current, kind, decision.get("reason") or "Director revision",
-                               hypothesis=decision.get("newHypothesis"), note=decision.get("instructions"),
-                               by=director, budget=branch_budget)
-        log(f"new branch: {child} ({kind}) — {decision.get('reason', '')}")
-        orch = build(home / child, branch_budget)
-        try:
-            orch.run()
-        finally:
-            orch.tools.close()
-        created.append(child)
-        current = child
+        frontier = [n for n in tree["nodes"] if needs_iteration(n) and not closed(home, n["id"])
+                    and len(children(home, n["id"])) < MAX_CHILDREN and not any(c in [m["id"] for m in tree["nodes"] if m["outcome"] == "running"] for c in children(home, n["id"]))]
+        if not frontier:
+            if not created:
+                summ = node_summary(home, pid)
+                log(f"{pid}: outcome {summ['outcome']} — no iteration needed")
+            else:
+                log("no node left to expand")
+            break
+        usage = line_usage(home, root)
+        if max_calls is not None and usage["calls"] >= max_calls:
+            log(f"call budget reached: {usage['calls']} of {max_calls} model calls")
+            break
+        if deadline is not None and time.time() >= deadline:
+            log("time budget reached")
+            break
+        remaining = None
+        if total_budget is not None:
+            remaining = total_budget - usage["usd"] - REVISE_CAP_USD
+            if remaining < MIN_BRANCH_USD:
+                log(f"budget reached: ${remaining + REVISE_CAP_USD:.2f} of ${total_budget:.2f} left")
+                break
+        scored = sorted(((progress_score(home, n["id"]), n) for n in frontier), key=lambda x: -x[0]["score"])
+        picked = scored[:max(1, min(beam, max_branches - len(created)))]
+        weights = [math.exp(sc["score"]) for sc, _ in picked]
+        plans = []
+        for (sc, n), w in zip(picked, weights):
+            branch_budget = budget_per_branch
+            if remaining is not None:
+                share = max(MIN_BRANCH_USD, remaining * w / sum(weights))        # T4: budget follows promise
+                branch_budget = min(budget_per_branch or share, share, remaining)
+            if branch_budget is None:
+                raise ValueError("budget_per_branch or total_budget is required")
+            st = Store(home / n["id"] / "quaera.db")
+            st.append("tree.decision", {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"},
+                      {"selected": n["id"], "score": sc["score"], "parts": sc["parts"], "budgetUsd": round(branch_budget, 4),
+                       "frontier": [{"id": m["id"], "score": x["score"]} for x, m in scored[:6]]})
+            st.close()
+            if not approve(f"{n['id']} ended without a conclusive result ({n['outcome']}). The Director will propose a change and the new branch "
+                           f"will run with a budget of at most ${branch_budget:.2f}.", branch_budget + REVISE_CAP_USD):
+                log("new branch not approved")
+                return created
+            decision, director = decide(home, n["id"], providers, agent_specs, memory)
+            if decision is None:
+                _close(home, n["id"], "the Director's revision failed")
+                continue
+            st = Store(home / n["id"] / "quaera.db")
+            st.append("branch.proposed", director, decision)
+            st.close()
+            kind = decision.get("decision")
+            if kind not in ("hypothesis", "approach", "continue"):
+                log(f"the Director proposed no new branch for {n['id']}: {decision.get('reason', '')}")
+                _close(home, n["id"], decision.get("reason") or "stop")
+                continue
+            try:
+                child = branch_project(home, n["id"], kind, decision.get("reason") or "Director revision",
+                                       hypothesis=decision.get("newHypothesis"), note=decision.get("instructions"),
+                                       by=director, budget=branch_budget)
+            except ValueError as exc:
+                log(f"branch not opened for {n['id']}: {exc}")
+                _close(home, n["id"], str(exc))
+                continue
+            log(f"new branch: {child} ({kind}) — {decision.get('reason', '')}")
+            plans.append((child, branch_budget))
+        if not plans:
+            continue
+
+        def run(item):
+            child, budget = item
+            orch = build(home / child, budget)
+            try:
+                orch.run()
+            finally:
+                orch.tools.close()
+            return child
+        if len(plans) == 1:
+            created.append(run(plans[0]))
+        else:   # S4: parallel branches are scheduler jobs (the global bound applies across projects)
+            from .scheduler import SCHEDULER
+            created += SCHEDULER.run_all([lambda item=item: run(item) for item in plans], project=root, label="tree branches")
     return created
+
+
+def _close(home: Path, pid: str, reason: str) -> None:
+    s = Store(home / pid / "quaera.db")
+    try:
+        s.append("branch.closed", {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"},
+                 {"reason": str(reason)[:300]})
+    finally:
+        s.close()

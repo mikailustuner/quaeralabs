@@ -258,7 +258,7 @@ class MLOrchestrator(Orchestrator):
         width = 1 if self.store.meta("gpu") else PARALLEL_RUNS
         ids = []
         for i in range(0, seeds, width):
-            ids += self.parallel(*[(lambda seed=seed: one(seed)) for seed in range(i, min(seeds, i + width))])
+            ids += self.parallel(*[(lambda seed=seed: one(seed)) for seed in range(i, min(seeds, i + width))], label="seed runs")
         self.set_state("full_runs", ids)
 
     def _analysis_input(self) -> tuple[dict, dict, list[dict]]:
@@ -310,10 +310,15 @@ class MLOrchestrator(Orchestrator):
                 self.store.append("result.reviewed", critic, {"round": round_, "summary": review.get("summary", ""),
                                                              "flawed": bool(review.get("flawed")), "severity": review.get("severity")})
                 return
+            severity = review.get("severity") if review.get("severity") in ("low", "medium", "high", "blocking") else "medium"
+            note = ""
+            if severity == "blocking":   # S3: one family alone cannot make an objection blocking; it stays open either way
+                severity, note = self.confirm_blocking(prompts.CRITIC_EXPERIMENT, f"Experiment report:\n{report}", critic,
+                                                       lambda o: bool(o.get("flawed")) and o.get("severity") == "blocking")
             cr = self.store.put({"type": "critique", "createdBy": critic, "targetId": res["id"],
                                  "category": (review.get("categories") or ["methodology"])[0],
-                                 "severity": review.get("severity") if review.get("severity") in ("low", "medium", "high", "blocking") else "medium",
-                                 "body": f"{review.get('summary', '')} Evidence: {review.get('evidence', '')}".strip(),
+                                 "severity": severity,
+                                 "body": f"{review.get('summary', '')} Evidence: {review.get('evidence', '')}{note}".strip(),
                                  "blindReview": True, "status": "open"})
             obj = self.message(critic, "objection", "analyst", cr["id"], cr["body"], round_=round_)
             answer, analyst = self.ask_json("analyst", prompts.ANALYST_RESPONSE,
