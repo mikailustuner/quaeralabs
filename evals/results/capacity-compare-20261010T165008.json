@@ -1,0 +1,223 @@
+{
+  "createdAt": "2026-10-10T17:17:41+00:00",
+  "complete": true,
+  "data": "minif2f-deepseek-v15.jsonl (miniF2F valid, seed 23)",
+  "profile": "balanced",
+  "models": [
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "tasks": 8,
+  "perTaskUsd": 0.575,
+  "budgetUsd": 10.0,
+  "spentUsd": 4.0132,
+  "arms": {
+    "before": {
+      "solved": 6,
+      "attempted": 8,
+      "modelCalls": 23,
+      "spentUsd": 1.7886,
+      "secondsTotal": 672.1
+    },
+    "after": {
+      "solved": 6,
+      "attempted": 8,
+      "modelCalls": 48,
+      "spentUsd": 2.2244,
+      "secondsTotal": 980.9
+    }
+  },
+  "rows": {
+    "before": [
+      {
+        "name": "aimeII_2001_p3",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0671,
+        "seconds": 36.3
+      },
+      {
+        "name": "imo_1979_p1",
+        "solved": false,
+        "stopped": "task budget $0.575 used",
+        "calls": 2,
+        "usd": 1.3177,
+        "seconds": 422.3
+      },
+      {
+        "name": "amc12a_2003_p1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0242,
+        "seconds": 13.4
+      },
+      {
+        "name": "algebra_amgm_prod1toneq1_sum1tongeqn",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0575,
+        "seconds": 25.1
+      },
+      {
+        "name": "amc12a_2020_p13",
+        "solved": false,
+        "kinds": [
+          "automation",
+          "whole",
+          "whole",
+          "whole",
+          "whole",
+          "whole",
+          "sketch",
+          "lemma_automation",
+          "lemma_automation",
+          "lemma",
+          "assembled",
+          "sketch",
+          "lemma_automation",
+          "lemma_automation",
+          "lemma",
+          "assembled"
+        ],
+        "calls": 9,
+        "usd": 0.21,
+        "seconds": 119.7
+      },
+      {
+        "name": "induction_seq_mul2pnp1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0289,
+        "seconds": 16.6
+      },
+      {
+        "name": "amc12a_2017_p7",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0358,
+        "seconds": 17.5
+      },
+      {
+        "name": "amc12a_2003_p24",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0474,
+        "seconds": 21.2
+      }
+    ],
+    "after": [
+      {
+        "name": "aimeII_2001_p3",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0675,
+        "seconds": 80.6
+      },
+      {
+        "name": "imo_1979_p1",
+        "solved": false,
+        "stopped": "task budget $0.575 used",
+        "calls": 2,
+        "usd": 1.3555,
+        "seconds": 429.1
+      },
+      {
+        "name": "amc12a_2003_p1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0316,
+        "seconds": 15.1
+      },
+      {
+        "name": "algebra_amgm_prod1toneq1_sum1tongeqn",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0687,
+        "seconds": 36.5
+      },
+      {
+        "name": "amc12a_2020_p13",
+        "solved": false,
+        "stopped": "task budget $0.575 used",
+        "calls": 34,
+        "usd": 0.575,
+        "seconds": 359.3
+      },
+      {
+        "name": "induction_seq_mul2pnp1",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.0401,
+        "seconds": 21.0
+      },
+      {
+        "name": "amc12a_2017_p7",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.039,
+        "seconds": 18.3
+      },
+      {
+        "name": "amc12a_2003_p24",
+        "solved": true,
+        "kinds": [
+          "automation",
+          "automation_heavy",
+          "whole"
+        ],
+        "calls": 2,
+        "usd": 0.047,
+        "seconds": 21.0
+      }
+    ]
+  }
+}
