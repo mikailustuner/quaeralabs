@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Derived, QEvent, QObject, time } from "./api";
 import { Histogram, SeedChart, thresholdOf } from "./charts";
+import { Clamp } from "./components";
 import { Code, InlineMath, Markdown } from "./rich";
 
 export function statesOf(events: QEvent[]): Record<string, any> {
@@ -90,7 +91,7 @@ export function MathExperiment({ d, events, pid }: { d: Derived; events: QEvent[
       <section className="card stack" aria-labelledby="stmt-h" style={{ gap: 12 }}>
         <div className="card-head" style={{ marginBottom: 0 }}><h2 id="stmt-h">Statement</h2>
           {approved && <span className="badge good">Approved by the Critic</span>}</div>
-        {h ? <div className="math-statement" style={{ fontSize: 17 }}><InlineMath text={h.statement} /></div> : <p className="muted">No hypothesis selected yet.</p>}
+        {h ? <Clamp lines={4} className="math-statement"><InlineMath text={h.statement} /></Clamp> : <p className="muted">No hypothesis selected yet.</p>}
         {st.formal?.statement && (<>
           <h4>Lean 4 statement</h4>
           <Code code={st.formal.statement} lang="lean" />

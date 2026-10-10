@@ -1,7 +1,8 @@
 // Discovery mode view: approach map, strategy board (who proposed / who reviewed), lemma programme and rounds.
 // Only a statement Lean has checked becomes "verified"; numerical testing is not proof and is labelled as such.
-import { useState } from "react";
+import { KeyboardEvent, useRef, useState } from "react";
 import { QEvent } from "./api";
+import { Clamp } from "./components";
 import { BlobCode, Verdict, statesOf } from "./experiment";
 import { InlineMath } from "./rich";
 
@@ -44,68 +45,95 @@ export function useDiscovery(events: QEvent[]) {
 }
 
 function Landscape({ land }: { land: any }) {
-  const [open, setOpen] = useState(false);
-  if (!land) return null;
   return (
     <section className="card stack" aria-labelledby="land-h">
       <div className="card-head" style={{ marginBottom: 0 }}><h2 id="land-h">Research landscape</h2>
-        <button className="btn plain sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? "Hide" : `Show ${land.approaches?.length || 0} approaches · ${land.barriers?.length || 0} barriers`}</button></div>
-      {open && (
-        <div className="grid-2">
-          <div className="stack"><h4>Known approaches</h4>
-            {(land.approaches || []).map((a: any, i: number) => (
-              <div key={i} className="inset stack" style={{ gap: 4 }}><strong>{a.name}</strong><InlineMath text={a.idea || ""} />
-                {a.bestResult && <span className="faint">Best: <InlineMath text={a.bestResult} /></span>}
-                {a.obstruction && <span className="faint">Stuck: <InlineMath text={a.obstruction} /></span>}</div>))}
-          </div>
-          <div className="stack"><h4>Barriers any proof must avoid</h4>
-            {(land.barriers || []).map((b: any, i: number) => <div key={i} className="inset stack" style={{ gap: 4 }}><strong>{b.name}</strong><InlineMath text={b.body || ""} /></div>)}
-            {(land.openAngles || []).length > 0 && <><h4>Open angles</h4><ul style={{ margin: 0, paddingLeft: 18 }}>{land.openAngles.map((x: string, i: number) => <li key={i}><InlineMath text={x} /></li>)}</ul></>}
-          </div>
+        <span className="faint">{land.approaches?.length || 0} approaches · {land.barriers?.length || 0} barriers</span></div>
+      <div className="grid-2">
+        <div className="stack"><h4>Known approaches</h4>
+          {(land.approaches || []).map((a: any, i: number) => (
+            <div key={i} className="inset stack" style={{ gap: 4 }}><strong>{a.name}</strong><Clamp lines={4}><InlineMath text={a.idea || ""} /></Clamp>
+              {a.bestResult && <span className="faint">Best: <InlineMath text={a.bestResult} /></span>}
+              {a.obstruction && <span className="faint">Stuck: <InlineMath text={a.obstruction} /></span>}</div>))}
         </div>
-      )}
+        <div className="stack"><h4>Barriers any proof must avoid</h4>
+          {(land.barriers || []).map((b: any, i: number) => <div key={i} className="inset stack" style={{ gap: 4 }}><strong>{b.name}</strong><Clamp lines={4}><InlineMath text={b.body || ""} /></Clamp></div>)}
+          {(land.openAngles || []).length > 0 && <><h4>Open angles</h4><ul style={{ margin: 0, paddingLeft: 18 }}>{land.openAngles.map((x: string, i: number) => <li key={i}><InlineMath text={x} /></li>)}</ul></>}
+        </div>
+      </div>
     </section>
   );
 }
 
+const stateOf = (ds: ReturnType<typeof useDiscovery>, id: string) =>
+  ds.chosen === id ? (ds.dead[id] ? "abandoned" : "pursued") : ds.dead[id] ? "abandoned" : ds.chosen ? "fallback" : "candidate";
+const stateBadge = (state: string) => <span className={`badge ${state === "pursued" ? "accent" : state === "abandoned" ? "bad" : ""}`}>{state}</span>;
+
+/** Strategy board as list + detail: the list stays compact, only the selected strategy is shown in full. */
 function Strategies({ ds }: { ds: ReturnType<typeof useDiscovery> }) {
-  if (!ds.proposed.length) return null;
+  const [sel, setSel] = useState<string | null>(null);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const order = [...ds.proposed].sort((a, b) => (ds.reviews[b.id]?.score ?? -1) - (ds.reviews[a.id]?.score ?? -1));
+  const s = order.find((x) => x.id === sel) || order.find((x) => x.id === ds.chosen) || order[0];
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = order.findIndex((x) => x.id === s.id);
+    const j = e.key === "ArrowDown" || e.key === "ArrowRight" ? i + 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? order.length - 1 : null;
+    if (j == null) return;
+    e.preventDefault();
+    const k = (j + order.length) % order.length;
+    setSel(order[k].id); tabs.current[k]?.focus();
+  };
+  const r = ds.reviews[s.id];
+  const state = stateOf(ds, s.id);
   return (
     <section className="card stack" aria-labelledby="str-h">
       <div className="card-head" style={{ marginBottom: 0 }}><h2 id="str-h">Strategy board</h2>
         <span className="faint">{ds.proposed.length} strategies · {new Set(ds.proposed.map((p) => p.family)).size} model families</span></div>
       <p className="faint">Each strategy was proposed by one model family with a creative lens (lane A is always free) and reviewed by a different family.</p>
       {ds.failedLanes.length > 0 && <p className="faint">{ds.failedLanes.length} lane(s) failed: {ds.failedLanes.map((l: any) => `${l.lane} (${familyName(l.family)})`).join(", ")}</p>}
-      <div className="strategy-grid">
-        {order.map((s) => {
-          const r = ds.reviews[s.id];
-          const state = ds.chosen === s.id ? (ds.dead[s.id] ? "abandoned" : "pursued") : ds.dead[s.id] ? "abandoned" : ds.chosen ? "fallback" : "candidate";
-          return (
-            <article key={s.id} className={`strategy ${state}`} aria-label={`Strategy ${s.id}: ${s.title}`}>
-              <div className="row" style={{ gap: 6 }}>
-                <span className="mono faint">{s.id}</span><span className={`badge ${state === "pursued" ? "accent" : state === "abandoned" ? "bad" : ""}`}>{state}</span>
-                <span className="badge">{s.direction === "disprove" ? "aims to disprove" : "aims to prove"}</span>
-                <span className="spacer" />{r && <span className="score-chip" title="Cross-review score">{r.score}<span className="faint">/10</span></span>}
+      <div className="board">
+        <div className="board-list" role="tablist" aria-orientation="vertical" aria-label="Strategies, best reviewed first" onKeyDown={onKey}>
+          {order.map((x, i) => {
+            const st = stateOf(ds, x.id);
+            const on = x.id === s.id;
+            return (
+              <button key={x.id} ref={(el) => { tabs.current[i] = el; }} role="tab" id={`st-${x.id}`} aria-selected={on} aria-controls="str-detail" tabIndex={on ? 0 : -1}
+                className={`board-item ${st}`} onClick={() => setSel(x.id)}>
+                <span className="row" style={{ gap: 6 }}><span className="mono faint">{x.id}</span>{stateBadge(st)}<span className="spacer" />
+                  {ds.reviews[x.id] && <span className="score-chip sm">{ds.reviews[x.id].score}<span className="faint">/10</span></span>}</span>
+                <span className="bi-title"><InlineMath text={x.title} /></span>
+                <span className="faint">{familyName(x.family)} · {x.direction === "disprove" ? "disprove" : "prove"}</span>
+              </button>
+            );
+          })}
+        </div>
+        <article key={s.id} id="str-detail" role="tabpanel" aria-labelledby={`st-${s.id}`} className={`strategy ${state}`}>
+          <div className="row" style={{ gap: 6 }}>
+            <span className="mono faint">{s.id}</span>{stateBadge(state)}
+            <span className="badge">{s.direction === "disprove" ? "aims to disprove" : "aims to prove"}</span>
+            <span className="spacer" />{r && <span className="score-chip" title="Cross-review score">{r.score}<span className="faint">/10</span></span>}
+          </div>
+          <h3><InlineMath text={s.title} /></h3>
+          <p className="faint">By <strong>{familyName(s.family)}</strong> · lens: {s.lensName}{s.novelty ? ` · ${s.novelty}` : ""}</p>
+          {ds.dead[s.id] && <p className="dead">Abandoned: <InlineMath text={ds.dead[s.id]} /></p>}
+          <div className="strategy-cols">
+            <div className="stack" style={{ gap: 8 }}>
+              <h4>Idea</h4>
+              <Clamp lines={8}><InlineMath text={s.idea || ""} /></Clamp>
+              {(s.keySteps || []).length > 0 && <><h4>Key steps</h4><ol className="steps">{s.keySteps.map((k: string, i: number) => <li key={i}><InlineMath text={k} /></li>)}</ol></>}
+            </div>
+            {r && (
+              <div className="review inset">
+                <h4>Reviewed by {familyName(r.reviewerFamily)}</h4>
+                <div className="meters">{(["plausibility", "novelty", "barrierAwareness", "testability"] as const).map((k) => (
+                  <span key={k} className="m"><span className="faint">{({ plausibility: "plausible", novelty: "novel", barrierAwareness: "barriers", testability: "testable" })[k]}</span>
+                    <span className="meter" aria-hidden="true"><span style={{ width: `${(r[k] ?? 0) * 10}%` }} /></span><span className="mono">{r[k] ?? "—"}</span></span>))}</div>
+                {r.summary && <Clamp lines={6}><InlineMath text={r.summary} /></Clamp>}
+                {r.fatalFlaw && <div className="flaw"><strong>Fatal flaw:</strong> <Clamp lines={5}><InlineMath text={r.fatalFlaw} /></Clamp></div>}
               </div>
-              <h3>{s.title}</h3>
-              <InlineMath text={s.idea || ""} />
-              <p className="faint">By <strong>{familyName(s.family)}</strong> · lens: {s.lensName}{s.novelty ? ` · ${s.novelty}` : ""}</p>
-              {(s.keySteps || []).length > 0 && <ol className="steps">{s.keySteps.map((k: string, i: number) => <li key={i}><InlineMath text={k} /></li>)}</ol>}
-              {r && (
-                <div className="review">
-                  <span className="faint">Reviewed by {familyName(r.reviewerFamily)}</span>
-                  {r.summary && <p><InlineMath text={r.summary} /></p>}
-                  {r.fatalFlaw && <p className="flaw"><strong>Fatal flaw:</strong> <InlineMath text={r.fatalFlaw} /></p>}
-                  <div className="meters">{(["plausibility", "novelty", "barrierAwareness", "testability"] as const).map((k) => (
-                    <span key={k} className="m"><span className="faint">{({ plausibility: "plausible", novelty: "novel", barrierAwareness: "barriers", testability: "testable" })[k]}</span>
-                      <span className="meter" aria-hidden="true"><span style={{ width: `${(r[k] ?? 0) * 10}%` }} /></span><span className="mono">{r[k] ?? "—"}</span></span>))}</div>
-                </div>
-              )}
-              {ds.dead[s.id] && <p className="faint">Abandoned: <InlineMath text={ds.dead[s.id]} /></p>}
-            </article>
-          );
-        })}
+            )}
+          </div>
+        </article>
       </div>
     </section>
   );
@@ -134,7 +162,7 @@ function Program({ ds, pid }: { ds: ReturnType<typeof useDiscovery>; pid: string
                 <span className="spacer" />
                 <button className="btn plain sm" onClick={() => setOpenId(isOpen ? null : l.id)} aria-expanded={isOpen}>{isOpen ? "Hide" : "Details"}</button>
               </div>
-              <InlineMath text={l.statement} />
+              <Clamp lines={3}><InlineMath text={l.statement} /></Clamp>
               {l.lean && <code className="ic lean-stmt">{l.lean}</code>}
               <ol className="tries" aria-label={`Attempts on ${l.id}`}>
                 {l.history.map((h, i) => <li key={i}><span className="faint">r{h.round}</span> <span className="fam">{familyName(h.family)}</span> <Pill s={h.status} /></li>)}
@@ -154,11 +182,18 @@ function Program({ ds, pid }: { ds: ReturnType<typeof useDiscovery>; pid: string
   );
 }
 
-export function DiscoveryView({ events, pid }: { events: QEvent[]; pid: string | null }) {
+export type DiscoveryTab = "strategies" | "program" | "landscape";
+
+/** The three parts of discovery mode as tabs, so only one long list is on the page at a time. */
+export function DiscoveryView({ events, pid, tab, onTab }: { events: QEvent[]; pid: string | null; tab: DiscoveryTab | null; onTab: (t: DiscoveryTab) => void }) {
   const ds = useDiscovery(events);
   const st = statesOf(events);
   const finished = events.some((e) => e.kind === "report.written");
   const verified = ds.lemmas.filter((l) => l.status === "verified").length;
+  const tabs = ([["strategies", "Strategies", ds.proposed.length], ["program", "Lemma program", ds.lemmas.length],
+    ["landscape", "Landscape", st.landscape ? (st.landscape.approaches?.length || 0) : 0]] as [DiscoveryTab, string, number][])
+    .filter(([k, , n]) => n > 0 || (k === "landscape" && st.landscape));
+  const active = tabs.find(([k]) => k === tab)?.[0] || (ds.lemmas.length ? "program" : tabs[0]?.[0]);
   return (
     <div className="stack-lg">
       {finished && !st.proof && !st.refutation && (
@@ -167,9 +202,20 @@ export function DiscoveryView({ events, pid }: { events: QEvent[]; pid: string |
           {" "}{Object.keys(ds.dead).length} abandoned strategy(ies). These are steps, not evidence for the main claim.
         </Verdict>
       )}
-      <Landscape land={st.landscape} />
-      <Strategies ds={ds} />
-      <Program ds={ds} pid={pid} />
+      {tabs.length > 0 && (
+        <div className="stack" id="discovery-panel">
+          <div className="segmented" role="tablist" aria-label="Discovery views">
+            {tabs.map(([k, t, n]) => (
+              <button key={k} role="tab" id={`dt-${k}`} aria-selected={active === k} aria-controls={`dp-${k}`} onClick={() => onTab(k)}>{t}<span className="n">{n}</span></button>
+            ))}
+          </div>
+          <div role="tabpanel" id={`dp-${active}`} aria-labelledby={`dt-${active}`}>
+            {active === "strategies" && <Strategies ds={ds} />}
+            {active === "program" && <Program ds={ds} pid={pid} />}
+            {active === "landscape" && <Landscape land={st.landscape} />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

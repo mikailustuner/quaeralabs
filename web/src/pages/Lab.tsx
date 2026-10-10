@@ -1,8 +1,8 @@
 import { FormEvent, KeyboardEvent, useRef, useState } from "react";
 import { ACTION_NAME, Derived, Pending, QEvent, ROLES, ROLE_NAME, STAGE_NAME, Summary, api, describe, money, time } from "../api";
 import { ActiveAgents, AgentDrawer, TeamList } from "../agents";
-import { Avatar } from "../components";
-import { DiscoveryView } from "../discovery";
+import { Avatar, Clamp } from "../components";
+import { DiscoveryTab, DiscoveryView } from "../discovery";
 import { MLExperiment, MathExperiment, statesOf } from "../experiment";
 import { HypothesisRanking } from "../ranking";
 import { ManagerDrawer, ManagerState, ManagerThread, useManager } from "../manager";
@@ -65,6 +65,14 @@ export function LabView({ summary, events, d, pending, live, onChanged, onToast,
   const pid = live ? summary.id : null;
   const m = useManager(pid);
   const [chatOpen, setChatOpen] = useState(false);
+  const [discTab, setDiscTab] = useState<DiscoveryTab | null>(null);
+  // Links in the activity feed: in-page anchors would change the hash route, so they switch the tab and scroll instead.
+  const jump = (to: string) => {
+    if (to === "strategies" || to === "program") setDiscTab(to);
+    const id = to === "proof" ? "proof-h" : to === "ranking" ? "sum-h" : "discovery-panel";
+    if (to === "ranking") setShowRanking(true);
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   return (
     <div className="workspace">
@@ -80,7 +88,7 @@ export function LabView({ summary, events, d, pending, live, onChanged, onToast,
           <div className="summary-grid">
             <div className="card stack" style={{ gap: 8, gridColumn: (h?.statement || "").length > 240 ? "1 / -1" : undefined }}>
               <div className="row"><h3>Hypothesis</h3><span className="spacer" />{h && <StatusBadge s={h.status} />}</div>
-              {h ? <InlineMath text={h.statement} /> : <p className="muted">Not chosen yet.</p>}
+              {h ? <Clamp lines={5}><InlineMath text={h.statement} /></Clamp> : <p className="muted">Not chosen yet.</p>}
               {h?.scopeRelation?.relation === "restricted" && <p className="faint">Restricted scope: {h.scopeRelation.note}</p>}
               {ranked && <button className="btn plain sm" style={{ justifySelf: "start" }} onClick={() => setShowRanking((x) => !x)} aria-expanded={showRanking}>
                 {showRanking ? "Hide scoring" : `How was it chosen? (${ranked.payload.candidates.length} candidates scored)`}</button>}
@@ -97,13 +105,13 @@ export function LabView({ summary, events, d, pending, live, onChanged, onToast,
 
         <section aria-labelledby="exp-title" className="stack">
           <h2 id="exp-title" className="section-title">{summary.domain === "ml" ? "Experiment" : summary.mode === "discover" ? "Discovery" : "Proof"}</h2>
-          {summary.mode === "discover" && <DiscoveryView events={events} pid={pid} />}
+          {summary.mode === "discover" && <DiscoveryView events={events} pid={pid} tab={discTab} onTab={setDiscTab} />}
           {summary.domain === "ml" ? <MLExperiment d={d} events={events} pid={pid} /> : <MathExperiment d={d} events={events} pid={pid} />}
         </section>
 
         <section className="card" aria-labelledby="feed-h">
           <div className="card-head"><h2 id="feed-h">Recent activity</h2><span className="faint">{live ? "live" : "replay"}</span></div>
-          <Feed events={events} onAgent={setAgent} onRanking={() => setShowRanking(true)} />
+          <Feed events={events} onAgent={setAgent} onJump={jump} />
         </section>
         {live && <Composer pid={summary.id} m={m} onToast={onToast} finished={d.finished} onManager={() => { if (window.matchMedia("(max-width: 1100px)").matches) setChatOpen(true); }} />}
       </div>
@@ -187,7 +195,7 @@ function BranchButton({ pid, seq, stage, onToast, onBranched }: { pid: string; s
   return <button className="icon-btn" onClick={go} aria-label={`Branch after ${STAGE_NAME[stage]}`} title="Branch from here">⑂</button>;
 }
 
-function Feed({ events, onAgent, onRanking }: { events: QEvent[]; onAgent: (r: string) => void; onRanking: () => void }) {
+function Feed({ events, onAgent, onJump }: { events: QEvent[]; onAgent: (r: string) => void; onJump: (to: string) => void }) {
   const [all, setAll] = useState(false);
   const items = events.map((e) => ({ e, d: describe(e) })).filter((x) => x.d).reverse();
   const shown = all ? items : items.slice(0, 12);
@@ -203,10 +211,8 @@ function Feed({ events, onAgent, onRanking }: { events: QEvent[]; onAgent: (r: s
                 ? <button className="who" style={{ all: "unset", cursor: "pointer", fontWeight: 600, marginRight: 6 }} onClick={() => onAgent(d!.who)}>{ROLE_NAME[d!.who]}</button>
                 : <span className="who">{ROLE_NAME[d!.who] || d!.who}</span>}
               <InlineMath text={d!.text} />
-              {d!.open === "ranking" && <button className="open" onClick={onRanking}>See scoring</button>}
-              {d!.open === "proof" && <a className="open" href="#proof-h" style={{ marginLeft: 6 }}>See the proof process</a>}
-              {d!.open === "strategies" && <a className="open" href="#str-h" style={{ marginLeft: 6 }}>See strategies</a>}
-              {d!.open === "program" && <a className="open" href="#prog-h" style={{ marginLeft: 6 }}>See the program</a>}
+              {d!.open && <button className="open" onClick={() => onJump(d!.open!)}>
+                {({ ranking: "See scoring", proof: "See the proof process", strategies: "See strategies", program: "See the program" } as Record<string, string>)[d!.open] || "Open"}</button>}
             </p>
             <time className="when" dateTime={e.at}>{time(e.at)}</time>
           </li>
@@ -366,26 +372,24 @@ function Composer({ pid, m, onToast, finished, onManager }: { pid: string; m: Ma
   return (
     <form className="composer" onSubmit={send} aria-label="Message the manager or the team">
       <label className="sr-only" htmlFor="msg-text">Message</label>
-      <textarea id="msg-text" ref={ta} rows={1} value={text} onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKey} aria-invalid={!!error} maxLength={4000}
-        placeholder={toTeam ? (finished ? "Research finished; your note is recorded" : `Note for ${to === "all" ? "the whole team" : ROLE_NAME[to]} (added to their next call)…`)
-          : "Ask the project manager about progress, decisions or results…"} />
-      <div className="composer-bar">
-        <div className="composer-controls">
+      <div className="composer-row">
+        <textarea id="msg-text" ref={ta} rows={1} value={text} onChange={(e) => setText(e.target.value)}
+          onKeyDown={onKey} aria-invalid={!!error} maxLength={4000}
+          placeholder={toTeam ? (finished ? "Research finished; your note is recorded" : `Note for ${to === "all" ? "the whole team" : ROLE_NAME[to]} (added to their next call)…`)
+            : "Ask the project manager about progress, decisions or results…"} />
         <label className="chip-field"><span>To</span>
           <select id="msg-to" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Recipient">
-            <option value="manager">Project manager (doesn't interrupt the team)</option>
+            <option value="manager">Project manager</option>
             <option value="director">@Director (note to the team)</option>
             <option value="all">@everyone</option>
             {ROLES.filter((r) => r !== "director").map((r) => <option key={r} value={r}>@{ROLE_NAME[r]}</option>)}
           </select>
         </label>
-        <span className="faint composer-hint">{toTeam ? "Interrupts: the agent reads it on its next call." : "Answers from the project record; the team keeps working."}</span>
-        </div>
         <button className="send" type="submit" disabled={m.waiting && !toTeam} aria-label={toTeam ? "Send note to the team" : "Ask the project manager"}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
         </button>
       </div>
+      <span className="faint composer-hint">{toTeam ? "Interrupts: the agent reads it on its next call." : "Answers from the project record; the team keeps working (it does not interrupt the team)."}</span>
       {error && <p className="err" role="alert">{error}</p>}
     </form>
   );

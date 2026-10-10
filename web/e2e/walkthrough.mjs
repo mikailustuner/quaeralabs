@@ -244,9 +244,14 @@ try {
   await page.getByRole("radio").first().check();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
   await page.getByText("Research finished", { exact: true }).first().waitFor({ timeout: 120000 });
-  const board = await page.locator(".strategy").count();
-  const fams = await page.locator("#str-h ~ .faint, .card-head:has(#str-h) .faint").first().innerText();
+  await page.getByRole("tab", { name: /^Strategies/ }).click();
+  const board = await page.locator(".board-item").count();
+  const fams = await page.locator(".card-head:has(#str-h) .faint").first().innerText();
   step("discovery: strategy board shows several model families", board >= 2 && /2 model families/.test(fams), `${board} strategies · ${fams}`);
+  await page.locator(".board-item").nth(1).press("ArrowUp");
+  await page.locator(".board-item").last().click();
+  step("discovery: strategy list selects one detail panel", (await page.locator(".board-item[aria-selected=true]").count()) === 1 && (await page.locator("#str-detail").count()) === 1);
+  await page.getByRole("tab", { name: /^Lemma program/ }).click();
   const lemmaText = await page.locator(".lemmas").innerText();
   step("discovery: refuted lemma repaired, lemmas verified in Lean", /refuted in Lean/.test(lemmaText) && /repair of L2/.test(lemmaText) && /clean recompile ✓/.test(lemmaText));
   await page.getByText(/Synthesis of the main theorem: succeeded/).waitFor();

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AVATARS } from "./avatars";
 
 export function Avatar({ role, size = "md" }: { role: string; size?: "sm" | "md" | "lg" }) {
@@ -54,4 +54,26 @@ export function statusBadge(status: string | null | undefined) {
   };
   const [cls, tr] = map[status || ""] || ["", status || "—"];
   return <span className={`badge ${cls}`}>{tr}</span>;
+}
+
+/** Long text is clamped to a few lines; "Show more" appears only when the text is actually cut off. */
+export function Clamp({ lines, children, className = "" }: { lines: number; children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [cut, setCut] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || open) return;
+    const check = () => setCut(el.scrollHeight > el.clientHeight + 2);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, children]);
+  return (
+    <div className={`clamp-wrap ${className}`}>
+      <div ref={ref} className={open ? "" : "clamp-lines"} style={open ? undefined : { WebkitLineClamp: lines }}>{children}</div>
+      {(cut || open) && <button className="more" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? "Show less" : "Show more"}</button>}
+    </div>
+  );
 }

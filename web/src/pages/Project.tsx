@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Detail, api, derive, useEventLog } from "../api";
-import { StateBox, Toast, statusBadge, useLoad } from "../components";
+import { Clamp, StateBox, Toast, statusBadge, useLoad } from "../components";
 import { go } from "../router";
 import { InlineMath } from "../rich";
 import { GraphView, buildGraph } from "./Graph";
@@ -56,7 +56,7 @@ export function Project({ pid, tab }: { pid: string; tab: string }) {
           <span className="badge accent">{data.domain === "ml" ? "AI / ML" : "Mathematics"}</span>
           {data.mode === "discover" && <span className="badge info" title="Open-problem mode: multi-model ideation, cross-review, Lean lemma program">Discovery</span>}
         </div>
-        <p className="question"><InlineMath text={data.title} /></p>
+        <Clamp lines={3} className="question"><InlineMath text={data.title} /></Clamp>
         {question?.scope && <p className="subtitle">Scope: <InlineMath text={question.scope} /></p>}
         <div className="row" style={{ marginTop: 6 }}>
           <span className={`badge ${outcome[0]}`}>{outcome[1]}</span>
