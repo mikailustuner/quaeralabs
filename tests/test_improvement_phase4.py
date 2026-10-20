@@ -98,3 +98,19 @@ def test_discovery_expectations_and_repeated_failures(tmp_path):
     import yaml
     targets = yaml.safe_load((ROOT / "evals/sets/capacity-discovery.yaml").read_text())["targets"]
     assert {t["id"]: t["expect"] for t in targets}["sum-of-squares-primes"] == "mathlib"
+
+
+def test_a_repl_that_dies_is_not_reported_as_a_slow_load(monkeypatch, tmp_path):
+    """Found on the server: without a user session bus systemd-run fails at once, and the error claimed a 30-minute load."""
+    monkeypatch.setenv("QUAERA_HOME", str(tmp_path))
+    with pytest.raises(lean.LeanUnavailable, match="exited with code 3 before loading.*no session bus"):
+        lean._Repl(["sh", "-c", "echo 'no session bus' >&2; exit 3"], load_timeout_s=60)
+
+
+def test_systemd_limits_are_used_only_when_a_scope_can_start(monkeypatch):
+    from quaera import sandbox
+    monkeypatch.delenv("QUAERA_NO_SYSTEMD", raising=False)
+    monkeypatch.setattr(sandbox, "systemd_scope_works", lambda: False)
+    assert sandbox.resource_prefix() == []
+    monkeypatch.setattr(sandbox, "systemd_scope_works", lambda: True)
+    assert sandbox.resource_prefix()[:2] == ["systemd-run", "--user"]

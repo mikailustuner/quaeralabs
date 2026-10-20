@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+import collections
 import functools
 import re
 import queue
@@ -166,10 +167,12 @@ class _Repl:
 
     def __init__(self, argv: list[str], load_timeout_s: int, stop: list[str] | None = None, header: str = "import Mathlib"):
         self.stop = stop          # container backend: removes the container (killing its client would leave it running)
-        self.proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        self.proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                      text=True, bufsize=1)
         self.lines: queue.Queue[str | None] = queue.Queue()
+        self.stderr: collections.deque[str] = collections.deque(maxlen=20)
         threading.Thread(target=self._pump, daemon=True).start()
+        threading.Thread(target=lambda: self.stderr.extend(self.proc.stderr), daemon=True).start()
         started = time.monotonic()
         resp = self.send({"cmd": header}, load_timeout_s)
         errors = [m.get("data", "") for m in (resp or {}).get("messages", []) if m.get("severity") == "error"]
@@ -177,7 +180,13 @@ class _Repl:
         if header == "import Mathlib":
             record_load(time.monotonic() - started, ok)
         if not ok:
+            exited = self.proc.poll()
             self.close()
+            if resp is None and exited is not None:
+                # the process died (a sandbox or environment problem, not a slow load): say so, with its own words
+                time.sleep(0.2)
+                raise LeanUnavailable(f"the Lean REPL exited with code {exited} before loading `{header}`: "
+                                      + ("".join(self.stderr).strip()[-500:] or "no error output"))
             if resp is None:
                 raise LeanUnavailable(f"Lean could not load `{header}` within {load_timeout_s} s. On a slow (rotating) "
                                       "disk Mathlib may not load at all; see docs/installation.md#lean-on-a-slow-disk")

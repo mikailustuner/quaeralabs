@@ -34,14 +34,26 @@ def resource_prefix(mem: str | None = None, cpu: str | None = None) -> list[str]
     """A memory/CPU-limited systemd scope for every command run in the bwrap sandbox (if available).
 
     The defaults can be changed with QUAERA_SANDBOX_MEM (2G) and QUAERA_SANDBOX_CPU (200%).
-    If a limit is exceeded, only that command is killed. Without a systemd user session it runs unlimited.
+    If a limit is exceeded, only that command is killed. Without a working systemd user session (no systemd-run, or
+    no session bus, e.g. `sudo -iu user` without XDG_RUNTIME_DIR) it runs without these limits: systemd-run would fail
+    at once and take the sandboxed command with it.
     """
-    if not shutil.which("systemd-run") or os.environ.get("QUAERA_NO_SYSTEMD"):
+    if os.environ.get("QUAERA_NO_SYSTEMD") or not systemd_scope_works():
         return []
     mem = mem or os.environ.get("QUAERA_SANDBOX_MEM", "2G")
     cpu = cpu or os.environ.get("QUAERA_SANDBOX_CPU", "200%")
     return ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={mem}", "-p", "MemorySwapMax=0",
             "-p", f"CPUQuota={cpu}", "--"]
+
+
+@functools.lru_cache(maxsize=1)
+def systemd_scope_works() -> bool:
+    if not shutil.which("systemd-run"):
+        return False
+    try:
+        return subprocess.run(["systemd-run", "--user", "--scope", "--quiet", "true"], capture_output=True, timeout=20).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 SYSTEM_RO = ["/usr", "/lib", "/lib64", "/bin", "/sbin", "/etc/alternatives", "/etc/ssl", "/etc/ld.so.cache"]
