@@ -275,12 +275,14 @@ class LeanChecker:
         self.lean_bin = self.toolchain_dir / "bin" / "lean"
         if not self.lean_bin.exists():
             raise LeanUnavailable(f"Lean toolchain not found: {self.toolchain_dir}")
-        libs = sorted((workspace / ".lake" / "packages").glob("*/.lake/build/lib/lean"))
+        # Resolved: packages may live outside the project (a symlinked or relocated packages directory), and the sandbox
+        # only sees what is bound, so every library directory outside the workspace is bound as well.
+        libs = sorted(p.resolve() for p in (workspace / ".lake" / "packages").glob("*/.lake/build/lib/lean"))
         if require_mathlib and not any((p / "Mathlib.olean").exists() for p in libs):
             raise LeanUnavailable("Mathlib build files are missing; run `lake exe cache get`")
         own = workspace / ".lake" / "build" / "lib" / "lean"      # a project's own compiled modules
         self.lean_path = [str(p) for p in libs] + ([str(own)] if own.is_dir() else []) + [str(self.toolchain_dir / "lib" / "lean")]
-        self.binds = [self.toolchain_dir, workspace]
+        self.binds = [self.toolchain_dir, workspace] + [p for p in libs if workspace not in p.parents]
 
     def has_repl(self) -> bool:
         return self.repl_bin is not None and (self.image is not None or self.repl_bin.exists())

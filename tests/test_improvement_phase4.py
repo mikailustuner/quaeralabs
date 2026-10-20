@@ -114,3 +114,20 @@ def test_systemd_limits_are_used_only_when_a_scope_can_start(monkeypatch):
     assert sandbox.resource_prefix() == []
     monkeypatch.setattr(sandbox, "systemd_scope_works", lambda: True)
     assert sandbox.resource_prefix()[:2] == ["systemd-run", "--user"]
+
+
+def test_packages_outside_the_project_are_visible_in_the_sandbox(tmp_path, monkeypatch):
+    """Found with `quaera prove` on the server: a symlinked .lake/packages pointed outside the bound project directory."""
+    proj, store = tmp_path / "proj", tmp_path / "elsewhere" / "packages"
+    (store / "mathlib" / ".lake" / "build" / "lib" / "lean").mkdir(parents=True)
+    (store / "mathlib" / ".lake" / "build" / "lib" / "lean" / "Mathlib.olean").write_bytes(b"")
+    (proj / ".lake").mkdir(parents=True)
+    (proj / ".lake" / "packages").symlink_to(store)
+    (proj / "lean-toolchain").write_text("leanprover/lean4:v0.0.0\n")
+    tc = tmp_path / "elan" / "toolchains" / "leanprover--lean4---v0.0.0" / "bin"
+    tc.mkdir(parents=True)
+    (tc / "lean").write_text("")
+    monkeypatch.setattr(lean, "ELAN_HOME", tmp_path / "elan")
+    c = lean.LeanChecker(proj, repl_bin=None)
+    real = str((store / "mathlib" / ".lake" / "build" / "lib" / "lean").resolve())
+    assert real in c.lean_path and Path(real) in c.binds
