@@ -104,7 +104,7 @@ host directory except a fresh working directory (and the data directory for ML).
 `host` and `image` force one. Other image names: `QUAERA_LEAN_IMAGE`, `QUAERA_ML_IMAGE`. GPU experiments need the host
 environment or a remote runner; the ML image is CPU only. `quaera prove` (your own Lean project) needs Lean on the host.
 
-The images are built and published by `.github/workflows/images.yml` for linux/amd64 and linux/arm64. To build one yourself:
+The images are built and published by `.github/workflows/images.yml` (run by hand) for linux/amd64 and linux/arm64. To build one yourself:
 `docker build -f docker/lean.Dockerfile -t quaera-lean lean` and `QUAERA_LEAN_IMAGE=quaera-lean`.
 
 ## bubblewrap

@@ -2,11 +2,9 @@ name: Pages
 
 # Publishes the evidence package verifier (web/verify, improvement plan E3) to GitHub Pages.
 # One-time setup: Settings → Pages → Source: GitHub Actions.
+# Run by hand (Actions → Pages → Run workflow): a failing Pages job must not mark main red before Pages is enabled.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [web/verify/**, .github/workflows/pages.yml]
 
 permissions:
   contents: read

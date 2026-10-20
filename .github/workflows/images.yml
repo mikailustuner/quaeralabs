@@ -5,16 +5,10 @@ name: Images
 #   ghcr.io/<owner>/quaera-ml:0.1                    Python 3.12, numpy, scipy, scikit-learn, CPU torch   (docker/ml.Dockerfile)
 # Both for linux/amd64 and linux/arm64 (Apple Silicon). The names must match src/quaera/images.py.
 # After the first publish, make the two packages public in the repository's package settings.
+# Run by hand (Actions → Images → Run workflow) when lean/ or docker/ changes: the build takes hours under emulation and
+# must not hold back the checks of an ordinary commit.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - lean/lean-toolchain
-      - lean/lakefile.toml
-      - lean/lake-manifest.json
-      - docker/**
-      - .github/workflows/images.yml
 
 permissions:
   contents: read
