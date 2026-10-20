@@ -24,6 +24,13 @@ put fixed phrases in SINGLE quotes inside the JSON string, e.g. "'learning rate 
 Return only JSON: {"arxiv_queries": [<=3 keyword queries], "openalex_queries": [<=2 keyword queries],
 "mathlib_queries": [<=3 queries, each 1-3 identifier-like words such as "sum_range_id" or "Nat.Prime two"; empty list for non-math questions]}"""
 
+LITERATURE_REPLAN = COMMON + """
+Role: Literature agent. The first literature search found nothing relevant to the research question. You are given the
+queries that were used and the titles they returned. Write NEW keyword queries that approach the question differently:
+the standard name of the result or phenomenon, its usual synonyms, the terms of the broader field it belongs to.
+Do not repeat a query that was used. Same rules: 2-4 distinctive English technical terms per query, fixed phrases in SINGLE quotes.
+Return only JSON: {"arxiv_queries": [<=2 keyword queries], "openalex_queries": [<=1 keyword query]}"""
+
 LITERATURE_SUMMARY = COMMON + """
 Role: Literature agent. You are given the research question and raw search results (arXiv entries and Mathlib declaration lines).
 First judge each search result: is it actually about this question? Ignore irrelevant results completely.
@@ -220,7 +227,11 @@ Return only JSON: {"approaches": [{"name": "...", "idea": "Turkish", "bestResult
 "obstruction": "Turkish: why it has not settled the problem"}],
 "barriers": [{"name": "...", "body": "Turkish: a known obstruction any successful proof must get around (e.g. a counterexample to a too-general version)"}],
 "partialResults": [{"statement": "Turkish", "inMathlib": true|false|null}],
-"openAngles": ["Turkish: underexplored directions worth trying"]}  (at most 8 approaches, 6 barriers, 8 partial results, 6 angles)"""
+"openAngles": ["Turkish: underexplored directions worth trying"],
+"difficulty": "tractable" | "hard" | "famous_open"}  (at most 8 approaches, 6 barriers, 8 partial results, 6 angles)
+difficulty: "tractable" = a known result or one a careful lemma program can likely settle; "hard" = open or research-level but not
+famous; "famous_open" = a well-known open problem (e.g. a Millennium problem, Goldbach, twin primes, Collatz) that decades of work
+have not settled. Be honest: the human uses this to set expectations and budget."""
 
 TARGET = COMMON + DISCOVERY_ETHOS + """
 Role: Hypothesis. Restate the research question as ONE precise mathematical claim to be proved or disproved.

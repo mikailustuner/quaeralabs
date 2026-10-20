@@ -1,22 +1,59 @@
 # QuaeraLabs
 
-An open-source, non-profit AI research team. The user enters a research question; a team of nine agents carries it from literature to report, while the human steers and approves costly or critical steps. First domains: **Mathematics** (proofs verified with Lean 4) and **AI/ML research**.
+Verified, auditable AI research, open source and non-profit. Models write; code decides: a proof counts only if Lean
+accepts it, a source only if arXiv, Crossref or DataCite confirms it, a result only if it reproduces. Every run leaves a
+signed evidence package that anyone can check. Domains: **mathematics** (Lean 4 + Mathlib) and **AI/ML research**.
 
-> **Status:** Phase 4 · Preparing the closed alpha. The software side is ready: research memory, "Report a problem" → failure case set, integrity audit (zero fabricated citations and zero fake verifications across all projects so far) and one-command install (Linux, WSL2; no macOS yet). The part run with participants is pending: [alpha program](docs/alpha/README.md). Details: [Phase 4](docs/status-phase4.md) · [Phase 3](docs/status-phase3.md) · [Phase 2](docs/status-phase2.md) · [Phase 1](docs/status-phase1.md) · [Phase 0](docs/status-phase0.md).
+Three commands give value on their own, in minutes, without the full pipeline:
+
+```bash
+quaera prove Foo.lean --decl my_lemma --budget 1    # close a `sorry` in your own Lean project; Lean-checked diff
+quaera critique experiments/run-12 --budget 0.5     # the measured Critic on an experiment you ran (nothing is executed)
+quaera verify-package results.zip                   # check someone's evidence package: signature, hashes, citations
+```
+
+And the whole research loop: `quaera ask "…"` takes a question from literature to report through nine research roles
+(literature, hypothesis, experiment design, engineering, critique, analysis, verification, writing, direction), while you
+approve the costly or critical steps. The package check also runs [in the browser](web/verify/index.html), with nothing uploaded.
+
+| | QuaeraLabs | Claude Code + a Lean MCP server | DeepSeek-Prover, Kimina-Prover | AI Scientist, Agent Laboratory |
+| --- | --- | --- | --- | --- |
+| A proof counts only if Lean accepts it | yes, enforced in code | up to the user | yes | no (not a formal prover) |
+| Every cited source checked against the official registry, audited for fabrication | yes | not built in | — (no citations) | literature search; no fabrication audit documented |
+| Signed evidence package, replay without an API key | yes | no | no | no |
+| Pre-registration, and a Critic measured on planted flaws (`evals/`) | yes | no | — | an automated reviewer |
+| Any model, including local ones | yes | Claude | their own models | several API models |
+
+_Based on the projects' public documentation as of October 2026; corrections are welcome. A proof success rate row will be
+added once the PutnamBench baseline (improvement plan C1) is measured._
+
+> **Status:** Phase 4 · Preparing the closed alpha. The software side is ready: research memory, "Report a problem" → failure case set, integrity audit (zero fabricated citations and zero fake verifications across all projects so far) and one-command install (Linux, WSL2; macOS through containers, not yet tested on a Mac). The part run with participants is pending: [alpha program](docs/alpha/README.md). Details: [Phase 4](docs/status-phase4.md) · [Phase 3](docs/status-phase3.md) · [Phase 2](docs/status-phase2.md) · [Phase 1](docs/status-phase1.md) · [Phase 0](docs/status-phase0.md).
+
+## Use it on your own Lean project
+
+```bash
+quaera prove MyProject/Foo.lean --decl my_lemma --budget 1            # prints a Lean-checked diff
+quaera prove MyProject/Foo.lean --decl my_lemma --budget 1 --write    # writes it after you confirm
+```
+The model may add helper lemmas above your declaration and write its proof; everything else in your file stays as it is,
+and the result counts only if Lean accepts it. Details: [docs/lean-project-mode.md](docs/lean-project-mode.md).
 
 ## Installation
 
 ```bash
-./install.sh            # Linux or Windows + WSL2; --with-ml, --with-lean, --all
-quaera doctor
+./install.sh            # Linux, Windows + WSL2, macOS (containers); --with-ml, --with-lean, --all, --lean-image, --ml-image
+quaera doctor           # what works, in tiers: core, AI/ML, mathematics, extras
 ```
-Details and platform status: [docs/installation.md](docs/installation.md). macOS is not supported yet.
+Without the repo: install the package, then `quaera setup ml`, or pull the Lean and ML images. The sandbox is bubblewrap,
+or Docker/Podman where bubblewrap cannot run. On macOS everything runs in containers, with Lean and the ML environment as
+prebuilt images; this path is tested on Linux, not yet on a Mac. Details: [docs/installation.md](docs/installation.md).
 
 ## Usage
 
 ```bash
 uv sync
-uv run quaera doctor                       # bwrap, claude CLI, Lean + Mathlib, REPL
+uv run quaera doctor                       # sandbox, model provider, ML environment, Lean + Mathlib, REPL
+uv run quaera prove Foo.lean --decl my_lemma --budget 1   # close one `sorry` in your own Lean project
 uv run quaera ask "For every natural number n, is n³ - n divisible by 6?" --budget 3 --auto-approve-under 3
 uv run quaera ask "Does a linear model exceed 75%?" --domain ml --data-dir ./data --scope "X: (n,2), y: 0/1" --budget 2 --autonomy cap
 uv run quaera status <project>             # stages, hypotheses, cost
@@ -56,7 +93,7 @@ Projects are kept under `~/.quaera/projects/` (override with `QUAERA_HOME`). Eac
 | Path | Contents |
 | --- | --- |
 | `schemas/v1/` | JSON Schemas for research objects, messages, agent/skill definitions and the evidence package ([guide](docs/schemas.md)) |
-| `agents/` | Role card, workflow, skill list and permissions for each of the nine agents |
+| `agents/` | Role card, workflow, skill list and permissions for each role (nine research roles and the project manager) |
 | `skills/` | 24 skills: tools (MCP) and the permissions they need |
 | `examples/` | End-to-end examples of the schemas: a Lean proof, a contested ML experiment, a negative result; a sample evidence package manifest |
 | `src/quaera/` | Engine: data store, permissions, model gateway, sandbox, Lean, MCP tools, orchestrator, report, evidence package, web server, CLI |

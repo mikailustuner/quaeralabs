@@ -71,11 +71,13 @@ class MLScript:
         self.analyst_accepts, self.broken_first = analyst_accepts, broken_first
 
     def __call__(self, system, prompt):
-        key = next(k for k in ("LITERATURE_PLAN", "LITERATURE_SUMMARY", "HYPOTHESIS_ML", "RANK_HYPOTHESES", "DESIGN_ML", "CRITIC_EXPERIMENT",
+        key = next(k for k in ("LITERATURE_PLAN", "LITERATURE_REPLAN", "LITERATURE_SUMMARY", "HYPOTHESIS_ML", "RANK_HYPOTHESES", "DESIGN_ML", "CRITIC_EXPERIMENT",
                                "ENGINEER_ML", "ANALYST_RESPONSE", "ANALYST", "WRITER") if getattr(prompts, k) == system)
         self.n[key] = i = self.n.get(key, 0) + 1
         if key == "LITERATURE_PLAN":
             return '{"arxiv_queries": [], "openalex_queries": [], "mathlib_queries": []}'
+        if key == "LITERATURE_REPLAN":
+            return '{"arxiv_queries": [], "openalex_queries": []}'
         if key == "LITERATURE_SUMMARY":
             return '{"summary": "No relevant results.", "verdict": "unknown", "basis": "search", "cited": []}'
         if key == "RANK_HYPOTHESES":

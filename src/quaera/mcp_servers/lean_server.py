@@ -5,14 +5,16 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import threading
 from dataclasses import asdict
 
 from mcp.server.mcpserver import MCPServer
 
-from quaera.lean import DEFAULT_WORKSPACE, LeanChecker
+from quaera.lean import LeanChecker, mathlib_sources
 
 mcp = MCPServer("lean")
 _checker: LeanChecker | None = None
+_lock = threading.Lock()      # one REPL serves every research branch of the process (tools.shared_pool): one check at a time
 
 
 def checker() -> LeanChecker:
@@ -25,19 +27,22 @@ def checker() -> LeanChecker:
 @mcp.tool()
 def lean_compile(source: str, theorem: str | None = None, approved_statement: str | None = None, clean: bool = False) -> str:
     """Checks Lean 4 source inside the sandbox (clean=True: one-shot compilation from scratch); returns a report on compilation, axioms and the statement."""
-    return json.dumps(asdict(checker().check(source, theorem, approved_statement, clean)), ensure_ascii=False)
+    with _lock:
+        return json.dumps(asdict(checker().check(source, theorem, approved_statement, clean)), ensure_ascii=False)
 
 
 @mcp.tool()
 def lean_goals(source: str) -> str:
     """Goal states at every `sorry` of the file (interactive proving): [{"proofState", "goal", "line"}]."""
-    return json.dumps(checker().goals(source), ensure_ascii=False)
+    with _lock:
+        return json.dumps(checker().goals(source), ensure_ascii=False)
 
 
 @mcp.tool()
 def lean_tactic(proof_state: int, tactic: str) -> str:
     """Applies one tactic to a REPL proof state: {"proofState", "goals", "error"} (not a verdict)."""
-    return json.dumps(checker().tactic(proof_state, tactic), ensure_ascii=False)
+    with _lock:
+        return json.dumps(checker().tactic(proof_state, tactic), ensure_ascii=False)
 
 
 @mcp.tool()
@@ -51,7 +56,10 @@ def mathlib_search(query: str, limit: int = 20) -> str:
             return json.dumps(hits, ensure_ascii=False)
     except Exception:   # index unavailable (no Mathlib sources, read-only home): the grep below still works
         pass
-    root = DEFAULT_WORKSPACE / ".lake" / "packages" / "mathlib" / "Mathlib"
+    try:
+        root = mathlib_sources()
+    except Exception:   # the image cannot be read: no sources to search
+        return json.dumps([])
     words = [w for w in re.split(r"\s+", query.strip()) if w][:6]
     if not words or not root.exists():
         return json.dumps([])

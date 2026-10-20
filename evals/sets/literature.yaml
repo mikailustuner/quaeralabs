@@ -4,6 +4,7 @@ version: 0.1.0
 thresholds:            # set BEFORE the run
   accuracy_min: 0.75   # rate of verdicts in the acceptable set
   open_marked_done_max: 0
+  classical_marked_novel_max: 0   # added 2026-10-20 (improvement plan B1): a textbook fact is never "novel"
 cases:
   - { id: lit-01, domain: math, kind: classical, question: "Is n³ - n divisible by 6 for every natural number n?", accept: [already_done] }
   - { id: lit-02, domain: math, kind: classical, question: "Are there infinitely many primes?", accept: [already_done] }
@@ -17,3 +18,8 @@ cases:
   - { id: lit-10, domain: ml, kind: classical, question: "Does the Adam optimizer always generalize better than well-tuned SGD?", accept: [already_done, partially_done] }
   - { id: lit-11, domain: ml, kind: open, question: "In 20-million-parameter transformer models, does learning-rate warmup change the validation loss at a learning rate of 3e-4?", accept: [novel, partially_done, unknown] }
   - { id: lit-12, domain: ml, kind: open, question: "On the modular addition task, does reducing weight decay to zero completely prevent grokking?", accept: [novel, partially_done, unknown, already_done] }
+  # Added 2026-10-20 from real projects and the discovery set (improvement plan B1)
+  - { id: lit-13, domain: math, kind: classical, question: "Is the sum of the first n odd numbers equal to n² for every natural number n?", accept: [already_done] }
+  - { id: lit-14, domain: math, kind: classical, question: "Is every prime p with p % 4 = 1 a sum of two squares of natural numbers?", accept: [already_done] }
+  - { id: lit-15, domain: math, kind: open, question: "Is the Riemann Hypothesis true?", accept: [novel, partially_done, unknown] }
+  - { id: lit-16, domain: math, kind: open, question: "For every natural number n ≥ 2, does 4/n = 1/x + 1/y + 1/z have a solution in positive integers?", accept: [novel, partially_done, unknown] }

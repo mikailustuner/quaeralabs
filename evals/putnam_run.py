@@ -40,6 +40,25 @@ def prepare(src: Path, n: int, seed: int) -> Path:
     return out
 
 
+ANSWER_COMMENT = re.compile(r"(abbrev\s+putnam_\w+_solution\b[^\n]*\n)((?:\s*--[^\n]*\n)+)")
+
+
+def pin(src: Path, commit: str) -> Path:
+    """The whole of PutnamBench as one file, pinned to a commit (improvement plan C1): evals/data/putnambench-<commit>.jsonl.
+    In problems that ask for an answer (`putnam_..._solution := sorry`), PutnamBench writes the answer in a comment right
+    below; those comment lines are removed here, so the answer never reaches a prompt."""
+    rows = []
+    for p in sorted(src.glob("putnam_*.lean")):
+        text = p.read_text(encoding="utf-8").strip() + "\n"
+        name = re.search(r"theorem\s+(putnam_\w+)", text).group(1)
+        solution = f"{name}_solution" in text
+        text = ANSWER_COMMENT.sub(r"\1", text)
+        rows.append({"name": name, "year": int(name.split("_")[1]), "hasSolution": solution, "statement_file": text})
+    out = DATA / f"putnambench-{commit[:8]}.jsonl"
+    out.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
+    return out
+
+
 class ProblemBudget(Exception):
     """The budget for this problem ran out; move on to the next problem."""
 
@@ -139,6 +158,9 @@ def main() -> int:
     p.add_argument("--src", type=Path, required=True)
     p.add_argument("--n", type=int, default=20)
     p.add_argument("--seed", type=int, required=True)
+    q = sub.add_parser("pin", help="the whole of PutnamBench, answers removed (improvement plan C1)")
+    q.add_argument("--src", type=Path, required=True, help="<PutnamBench checkout>/lean4/src")
+    q.add_argument("--commit", required=True, help="the PutnamBench commit the checkout is at")
     r = sub.add_parser("run")
     r.add_argument("--seed", type=int, required=True)
     r.add_argument("--strategy", default="baseline")
@@ -150,6 +172,9 @@ def main() -> int:
     r.add_argument("--effort", choices=["default", "low", "medium", "high", "xhigh", "max"],
                    help="Engineer effort; if omitted, the value in agents/engineer.yaml. Phase 4 baseline: default")
     a = ap.parse_args()
+    if a.cmd == "pin":
+        print(pin(a.src, a.commit))
+        return 0
     if a.cmd == "prepare":
         print(prepare(a.src, a.n, a.seed))
         return 0

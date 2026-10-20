@@ -73,6 +73,26 @@ def run_proofs(a) -> dict:
             "models": sorted({e["model"] for e in events if e["kind"] == "model.call"})}
 
 
+def expectation_met(expect: str | None, score: dict, basis: str | None) -> bool | None:
+    """Improvement plan D4: what a discovery target should reach (sets/capacity-discovery.yaml)."""
+    if expect == "synthesis":
+        return score["mainSolved"]
+    if expect == "mathlib":
+        return basis == "mathlib" or score["mainSolved"]
+    if expect == "lemmas":
+        return score["verifiedLemmas"] >= 1
+    return None
+
+
+def repeated_failures(rows: list[dict], results: Path) -> list[str]:
+    """Targets that missed their expectation in this run and in the previous discovery result."""
+    previous = sorted(results.glob("capacity-discovery-*.json"))
+    if not previous:
+        return []
+    before = {r["id"]: r.get("met") for r in json.loads(previous[-1].read_text(encoding="utf-8"))["rows"]["discovery"]}
+    return [r["id"] for r in rows if r.get("met") is False and before.get(r["id"]) is False]
+
+
 def run_discovery(a) -> dict:
     import yaml
     import quaera.cli as cli
@@ -96,10 +116,18 @@ def run_discovery(a) -> dict:
         finally:
             orch.tools.close()
         score = score_discovery(orch.store)
-        rows.append({"id": t["id"], "project": pid, **score, "spentUsd": round(orch.gateway.spent_usd, 4)})
+        basis = (orch.state("literature") or {}).get("basis")
+        rows.append({"id": t["id"], "project": pid, **score, "expect": t.get("expect"),
+                     "met": expectation_met(t.get("expect"), score, basis), "spentUsd": round(orch.gateway.spent_usd, 4)})
         print(f"{t['id']}: {json.dumps(score)}", flush=True)
         orch.store.close()
-    return {"rows": {"discovery": rows}, "arms": {"discovery": {"targets": len(rows), "verifiedLemmas": sum(r["verifiedLemmas"] for r in rows),
+    repeated = repeated_failures(rows, ROOT / "evals" / "results")
+    if repeated:
+        print(f"failed their expectation in two runs in a row: {', '.join(repeated)} → after review, add to evals/sets/failures.yaml",
+              flush=True)
+    return {"repeatedFailures": repeated,
+            "rows": {"discovery": rows}, "arms": {"discovery": {"targets": len(rows), "verifiedLemmas": sum(r["verifiedLemmas"] for r in rows),
+                                                                "expectationsMet": sum(bool(r["met"]) for r in rows),
                                                                 "refutedLemmas": sum(r["refutedLemmas"] for r in rows),
                                                                 "mainSolved": sum(r["mainSolved"] for r in rows),
                                                                 "spentUsd": round(sum(r["spentUsd"] for r in rows), 4)}}}
@@ -119,12 +147,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=11)
     ap.add_argument("--no-hints", action="store_true", help="after-arm without Mathlib index hints")
     ap.add_argument("--out", help="result file (default under evals/results/)")
+    ap.add_argument("--tag", help="release tag; required for --split hidden, whose result is evals/results/hidden-<tag>.json")
     a = ap.parse_args(argv)
+    if a.split != "dev" and a.set == "capacity-synth" and not a.tag:
+        ap.error("the hidden split runs only on release tags: pass --tag vX.Y.Z (improvement plan C1)")
     os.environ["QUAERA_CACHE"] = "off"
     res = run_discovery(a) if a.set == "discovery" else run_proofs(a)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    path = Path(a.out) if a.out else ROOT / "evals" / "results" / f"capacity-{a.set}-{a.profile}-{stamp}.json"
+    default = (f"hidden-{a.tag}.json" if a.set == "capacity-synth" and a.split != "dev"
+               else f"capacity-{a.set}-{a.profile}-{stamp}.json")
+    path = Path(a.out) if a.out else ROOT / "evals" / "results" / default
+    from _harness import CONTAMINATION
     summary = {"createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"), "set": a.set, "split": a.split, "profile": a.profile,
+               "contamination": CONTAMINATION.get(a.set, "—"), "tag": a.tag,
                "provider": a.provider, "budgetUsd": a.budget, "seed": a.seed, **res}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

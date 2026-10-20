@@ -12,6 +12,9 @@ tools:
 - name: openalex.search
   protocol: mcp
   server: literature
+- name: s2.search
+  protocol: mcp
+  server: literature
 requiredPermissions:
   literatureRead: true
 eval: pending

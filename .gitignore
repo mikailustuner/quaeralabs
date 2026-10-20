@@ -12,3 +12,6 @@ ml-env/
 lean/.lake/
 web/node_modules/
 web/dist/
+
+# Python build output (uv build)
+/dist/

@@ -22,5 +22,6 @@ An accepted record is never changed; if a decision changes, a new record states 
 | [0015](0015-ui-v2-parallel-agents.md) | UI v2, parallel agents and live visibility | Proposed |
 | [0016](0016-ui-v3-manager-contextual-memory.md) | UI v3: English UI, Project manager, contextual memory, math parser | Proposed |
 | [0017](0017-discovery-mode-multi-model.md) | Discovery mode and multiple models (Codex CLI, OpenCode CLI, cross-check) | Proposed |
+| [0018](0018-container-sandbox.md) | A container sandbox backend next to bubblewrap, behind one contract | Proposed |
 
 All records were accepted at the Phase 0 gate on 2026-10-03.

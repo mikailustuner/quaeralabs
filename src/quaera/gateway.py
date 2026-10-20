@@ -71,6 +71,7 @@ class Completion:
     input_tokens: int = 0
     output_tokens: int = 0
     cached: bool = False
+    blocks: int = 1             # text blocks the answer came in (Claude CLI: thinking can split an answer)
 
 
 class Provider(Protocol):
@@ -103,6 +104,12 @@ class ClaudeCLIProvider:
 
     Tools are off, the session is not saved, user settings and MCP servers are not loaded.
     Output tokens are capped with CLAUDE_CODE_MAX_OUTPUT_TOKENS, spending with --max-budget-usd.
+
+    The answer is read from the stream, not from the final `result` field: with thinking, one answer can arrive as
+    several text blocks with thinking between them, and `result` holds only the last block. In the 2026-10-05 Discover
+    run the three invalid JSON answers (two cross-reviews, one ideation) began in the middle of a string, with several
+    times more output tokens than the text they returned; this is the likely cause. It did not recur in the measurement
+    of 2026-10-20 (evals/results/discovery-json-*.json), so it is guarded against, not reproduced (improvement plan D3).
     """
 
     family = "anthropic"
@@ -116,7 +123,7 @@ class ClaudeCLIProvider:
         limit = max_output_tokens + THINKING_HEADROOM.get(effort or "", 0)
         env = dict(os.environ, CLAUDE_CODE_MAX_OUTPUT_TOKENS=str(limit))
         cmd = [
-            self.binary, "-p", "--output-format", "json", "--model", model,
+            self.binary, "-p", "--output-format", "stream-json", "--verbose", "--model", model,
             "--tools", "", "--system-prompt", system, "--no-session-persistence",
             "--setting-sources", "", "--strict-mcp-config", "--max-budget-usd", f"{budget_usd:.4f}",
         ] + (["--effort", effort] if effort else [])
@@ -124,10 +131,18 @@ class ClaudeCLIProvider:
             proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=self.timeout_s, env=env)
         except subprocess.TimeoutExpired as exc:
             raise ModelError(f"model call did not finish within {self.timeout_s} s") from exc
-        try:
-            data = json.loads(proc.stdout)
-        except json.JSONDecodeError as exc:
-            raise ModelError(f"claude CLI returned invalid output: {proc.stdout[:300]} {proc.stderr[:300]}") from exc
+        data, texts = None, []
+        for line in proc.stdout.splitlines():
+            try:
+                ev = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if ev.get("type") == "assistant":
+                texts += [b.get("text", "") for b in (ev.get("message") or {}).get("content", []) if b.get("type") == "text"]
+            elif ev.get("type") == "result":
+                data = ev
+        if data is None:
+            raise ModelError(f"claude CLI returned invalid output: {proc.stdout[:300]} {proc.stderr[:300]}")
         if data.get("is_error") or data.get("subtype", "success") != "success":
             raise ModelError(f"claude CLI error: {data.get('result') or data.get('subtype')}",
                              float(data.get("total_cost_usd", 0.0)))
@@ -136,8 +151,10 @@ class ClaudeCLIProvider:
                              float(data.get("total_cost_usd", 0.0)))
         usage = data.get("usage", {})
         resolved = next(iter(data.get("modelUsage", {})), model)
+        texts = [t for t in texts if t]
         return Completion(
-            text=data.get("result", ""),
+            text="".join(texts) if texts else data.get("result", ""),
+            blocks=max(1, len(texts)),
             model=f"anthropic/{resolved}",
             family=self.family,
             cost_usd=float(data.get("total_cost_usd", 0.0)),
@@ -520,6 +537,7 @@ class Gateway:
             "inputTokens": completion.input_tokens, "outputTokens": completion.output_tokens, "effort": effort,
             "billing": getattr(provider, "billing", "metered"),
             **({"rung": rung} if step else {}), **({"sample": sample} if sample else {}),
+            **({"textBlocks": completion.blocks} if completion.blocks > 1 else {}),
         })
         if not self.warned and self.spent_usd >= 0.8 * self.cap_usd:
             self.warned = True

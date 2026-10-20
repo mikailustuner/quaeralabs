@@ -73,11 +73,22 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
         verdict = "**The research did not get past the hypothesis stage.**"
     if stopped:
         verdict += f" Research stopped: {stopped}" + ("" if stopped.endswith("…") else ".")
+    if reviewed:                                    # discovery: the tally comes first, the main claim is rarely settled
+        verdict = discovery_tally(store, chosen) + "\n\n" + verdict
 
     lines = [f"# {q['title']}", "", f"_{now()[:10]} · {q['id']} · QuaeraLabs research report_", "",
              "> " + LABEL.format(models="; ".join(models), cross=cross, version=__version__), "", "## Summary", "", verdict, ""]
     if lit:
-        lines += ["## Literature", "", lit["summary"] or "—", "", f"Novelty assessment: `{lit['verdict']}`."]
+        basis = {"model_knowledge": " (the model's own knowledge, not verified by a source)",
+                 "mathlib": " (the statement is already in Mathlib)"}.get(lit.get("basis"), "")
+        lines += ["## Literature", "", lit["summary"] or "—", "", f"Novelty assessment: `{lit['verdict']}`{basis}."]
+        if lit.get("mathlibKnown"):
+            lines += ["", f"Known in Mathlib: `{lit['mathlibKnown']['decl']}` (Lean closed the statement with `exact {lit['mathlibKnown']['term']}`)."]
+        if "searched" in lit:
+            lines += ["", f"Search: {lit['searched']} results found · {lit.get('relevant', 0)} judged relevant · {len(papers)} verified."
+                      + (" The first queries found nothing relevant; they were rewritten once." if lit.get("replanned") else "")]
+        if lit.get("reason"):
+            lines += ["", f"The verdict was set to `{lit['verdict']}` by the code rule: {lit['reason']}."]
         if papers:
             lines += ["", "Verified sources: " + ", ".join(f"{p['uri']} ({p['id']})" for p in papers)]
         lines.append("")
@@ -152,6 +163,7 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
               "- Model families: " + ", ".join(f"{k} {v}" for k, v in fams.items())
               + (f" · {subs} call(s) via subscription CLIs (no per-call charge reported)" if subs else ""),
               *reuse_lines(store),
+              *timing_lines(store),
               f"- Events: {len(store.events())} · objects: " + ", ".join(f"{k} {v}" for k, v in Counter(o['type'] for o in objs).items()),
               "", "## Reproduce", "", "```bash", f"quaera verify {store.path.parent}", "```", ""]
 
@@ -168,6 +180,24 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     return path
 
 
+def timing_lines(store: Store) -> list[str]:
+    """Improvement plan C4: time from the question to the report, and the fast path when it was taken."""
+    from datetime import datetime, timezone
+    evs = store.events()
+    if not evs:
+        return []
+    try:
+        start = datetime.fromisoformat(evs[0]["at"].replace("Z", "+00:00"))
+    except (KeyError, ValueError):
+        return []
+    secs = (datetime.now(timezone.utc) - start).total_seconds()
+    out = [f"- Time to result: {secs:.0f} s from the question (waiting for approvals included)"]
+    fast = store.events("fastpath")
+    if fast:
+        out.append(f"- Fast path: {fast[-1]['payload']['reason']}; skipped: {', '.join(fast[-1]['payload']['skipped'])}")
+    return out
+
+
 def reuse_lines(store: Store) -> list[str]:
     """Lemma bank (K1): lemmas reused from earlier projects are listed with their origin; each was recompiled here."""
     reused = [e["payload"] for e in store.events("bank.reused")]
@@ -175,6 +205,19 @@ def reuse_lines(store: Store) -> list[str]:
         return []
     return ["- Reused from the lab's lemma bank (each recompiled in this project before counting): "
             + ", ".join(f"{r['id']} (verified in {r['project']})" for r in reused)]
+
+
+def discovery_tally(store: Store, chosen: dict | None) -> str:
+    """One line (improvement plan D1): main claim status, then what the program actually produced."""
+    final: dict[str, str] = {}
+    for e in store.events("lemma.status"):
+        if e["payload"]["status"] in ("verified", "refuted"):
+            final[e["payload"]["id"]] = e["payload"]["status"]
+    status = (chosen or {}).get("status")
+    claim = "proved" if status == "supported" else "disproved" if status == "refuted" else "neither proved nor disproved"
+    return (f"**Main claim: {claim}** · verified lemmas {sum(v == 'verified' for v in final.values())} · "
+            f"refuted lemmas {sum(v == 'refuted' for v in final.values())} · "
+            f"abandoned strategies {len({e['payload']['id'] for e in store.events('strategy.dead')})}")
 
 
 def discovery_section(store: Store) -> list[str]:

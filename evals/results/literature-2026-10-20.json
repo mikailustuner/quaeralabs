@@ -1,0 +1,1063 @@
+{
+  "createdAt": "2026-10-20T12:13:27+00:00",
+  "cases": 48,
+  "repeats": 3,
+  "accuracy": 0.979,
+  "open_marked_done": 0,
+  "classical_marked_novel": 0,
+  "cases_all_repeats_ok": 15,
+  "with_verified_citation": 37,
+  "passed": true,
+  "thresholds": {
+    "accuracy_min": 0.75,
+    "open_marked_done_max": 0,
+    "classical_marked_novel_max": 0
+  },
+  "spent_usd": 0.0838,
+  "rows": [
+    {
+      "id": "lit-01",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "model_knowledge",
+      "ok": true,
+      "searched": 12,
+      "relevant": 0,
+      "reason": "",
+      "verified": [],
+      "rejected": [],
+      "summary": "None of the arXiv entries address whether n³ − n is divisible by 6; they concern class numbers, cubic polynomial iteration, and Fermat quotient congruences. The Mathlib lines (for example `Prime.eq_two_or_odd` and `Prime.odd_of_ne_two`) are general parity and primality lemmas and do not state this result. The arXiv search reported an error, so the literature search was incomplete. The answer is a standard elementary fact: n³ − n = (n − 1)n(n + 1) is a product of three consecutive integers, so it is divisible by 2 and by 3, hence by 6. This comes from model knowledge and is unverified against the provided sources."
+    },
+    {
+      "id": "lit-01",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "model_knowledge",
+      "ok": true,
+      "searched": 10,
+      "relevant": 0,
+      "reason": "",
+      "verified": [],
+      "rejected": [],
+      "summary": "None of the arXiv or DOI search results addresses n³ - n or divisibility of cubic expressions by 6, so none are cited. The claim is a standard elementary fact that I know from model knowledge, not from the search: n³ - n = (n - 1)n(n + 1) is a product of three consecutive integers, so one factor is divisible by 2 and one by 3, and hence by 6. This basis is unverified and is not drawn from the provided sources. The Mathlib declaration `Int.prime_dvd_pow_self_sub` gives the mod-3 part for integers (3 ∣ n ^ 3 - n, since 3 is prime), which is consistent with the claim. The mod-2 part is not covered by any returned declaration. The question is answered, so it is not open."
+    },
+    {
+      "id": "lit-01",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "model_knowledge",
+      "ok": true,
+      "searched": 10,
+      "relevant": 0,
+      "reason": "",
+      "verified": [],
+      "rejected": [],
+      "summary": "None of the arXiv entries address n³ - n or divisibility by 6; they concern cubic polynomials, class numbers, Fermat pseudoprimes, and similar topics, so I ignored them. The arXiv search also returned an error (\"arxiv.search\"), so the search evidence is incomplete. The answer is a standard elementary fact that I am certain of from model knowledge, not from the search: n³ - n = (n - 1)n(n + 1) is a product of three consecutive integers, so it is divisible by 2 and by 3, hence by 6. This claim is unverified by the search results. The Mathlib declarations returned are general integer and prime lemmas and do not state this result, so none is listed as relevant."
+    },
+    {
+      "id": "lit-02",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 12,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "10.4169/193009709x470218",
+        "10.2139/ssrn.5127538"
+      ],
+      "rejected": [
+        {
+          "ref": "10.48550/arxiv.1605.08929",
+          "reason": "unknown"
+        }
+      ],
+      "summary": "The question of whether there are infinitely many primes is classical and settled. The search results contain several related or proof-oriented entries, namely a paper on Furstenberg's topological proof, a short proof of infinitude of primes, and a variant of the Euclid-Mullin sequence, and they are relevant as expositions of the result. Mathlib declarations `Nat.infinite_setOfPred_prime` (via `infinite_setOfPred_prime`) and `Primes.infinite` directly state the result as formalized. The verdict is grounded in both the Mathlib hits and the classical result; the cited papers are expository rather than new findings. The search tool errored on arXiv, so coverage of arXiv results is incomplete, but this does not affect the verdict."
+    },
+    {
+      "id": "lit-02",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 7,
+      "relevant": 2,
+      "reason": "",
+      "verified": [
+        "10.2139/ssrn.5127538",
+        "10.33232/bims.0091.73.76"
+      ],
+      "rejected": [],
+      "summary": "The question asks whether there are infinitely many primes, which is Euclid's theorem. The search returned two relevant papers: a short proof of the infinitude of primes (SSRN) and a paper giving two ring-theoretic variations on Euclid's argument (BIMS). Mathlib already formalises the result, with the instance `Primes.infinite` and the theorem `infinite_setOfPred_prime`, which states that the set of primes is infinite. The Dirichlet and pseudoprime results in the search are related but do not bear on this question, and the arXiv search returned an error. The statement itself is a standard textbook theorem that I know independently of the search, so that part rests on model knowledge rather than the retrieved sources."
+    },
+    {
+      "id": "lit-02",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 8,
+      "relevant": 2,
+      "reason": "",
+      "verified": [
+        "10.2139/ssrn.5127538",
+        "10.33232/bims.0091.73.76"
+      ],
+      "rejected": [],
+      "summary": "The search results include two papers on short proofs of the infinitude of primes, one on Euclid-style arguments in ring theory, and Mathlib declarations that formally state the result. Mathlib's `infinite_setOfPred_prime` proves that the set of primes is infinite, and `Primes.infinite` gives the same fact as an instance. The statement is the classical result attributed to Euclid, which is a standard textbook theorem I am certain of, so the mathematical claim itself rests on model knowledge. The search results supply the formal verification and the modern expository proofs. The remaining search hits, such as the Prime Number Theorem history and the Euclid–Mullin graph paper, are not needed to settle this question and were excluded."
+    },
+    {
+      "id": "lit-03",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 8,
+      "relevant": 1,
+      "reason": "",
+      "verified": [
+        "10.54870/1551-3440.1151"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2410.14434",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The question is whether √2 is irrational, a classical result. The Mathlib declaration `irrational_sqrt_two` directly states `Irrational (√2)`, which is the formal answer. The arXiv entry 2410.14434 ('Geometric Proof of the Irrationality of Square-Roots for Select Integers') is relevant as it concerns the irrationality of square roots of integers, including presumably 2. The Book X entry (10.54870/1551-3440.1151) is relevant to the historical treatment of irrationals in Euclid. The classical proof that √2 is irrational is also a standard textbook fact that I know with certainty, but this is not verified by the search results beyond the Mathlib declaration. The arXiv search reported an error, so the paper coverage may be incomplete."
+    },
+    {
+      "id": "lit-03",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "model_knowledge",
+      "ok": true,
+      "searched": 9,
+      "relevant": 1,
+      "reason": "",
+      "verified": [],
+      "rejected": [
+        {
+          "ref": "10.48550/arxiv.2410.14434",
+          "reason": "unknown"
+        }
+      ],
+      "summary": "The question is a classical result, and the Mathlib search returned a direct formalization: `irrational_sqrt_two` in Mathlib/NumberTheory/Real/Irrational.lean states that √2 is irrational. The general criterion `irrational_sqrt_natCast_iff` (√n is irrational iff n is not a perfect square) and `Nat.Prime.irrational_sqrt` are also present and cover the case. The arXiv entry [unverified source removed] concerns geometric proofs of the irrationality of square roots of select integers, so it is only tangentially related and does not itself establish the result for √2. The mathematical fact that √2 is irrational (the classical proof by contradiction via coprime representation) is standard textbook material, which I state from model knowledge and have not verified against a source here. The answer is therefore settled, and the Lean statement is already available in Mathlib."
+    },
+    {
+      "id": "lit-03",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "model_knowledge",
+      "ok": true,
+      "searched": 6,
+      "relevant": 1,
+      "reason": "",
+      "verified": [],
+      "rejected": [
+        {
+          "ref": "10.48550/arxiv.2410.14434",
+          "reason": "unknown"
+        }
+      ],
+      "summary": "The question is settled: √2 is irrational, a classical result that is also formalized in Mathlib as `irrational_sqrt_two`. The search results confirm the Mathlib declaration, and `irrational_sqrt_natCast_iff` and `irrational_sqrt_ofNat_iff` give the general characterization for square roots of natural numbers. The arXiv entry [unverified source removed] is a geometric proof of irrationality of square roots of select integers, so it is related but does not add anything new for √2. The classical proof that √2 is irrational (via assuming √2 = p/q in lowest terms) is standard textbook material; that claim rests on model knowledge, not on the search results. The historical papers returned concern incommensurability and are not relevant to a formal or new result."
+    },
+    {
+      "id": "lit-04",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 9,
+      "relevant": 2,
+      "reason": "",
+      "verified": [
+        "10.1007/0-387-23483-7_161",
+        "10.1007/978-1-0716-4638-0_29"
+      ],
+      "rejected": [],
+      "summary": "The question is Fermat's Little Theorem: for a prime p and an integer a with p ∤ a, a^(p-1) ≡ 1 (mod p). Two search results are encyclopedic entries titled \"Fermat's Little Theorem\" (Springer DOIs 10.1007/0-387-23483-7_161 and 10.1007/978-1-0716-4638-0_29), which address this exact statement. Mathlib contains the theorem in the natural-number form `Nat.ModEq.pow_card_sub_one_eq_one` (hypotheses `p.Prime` and `n.Coprime p`), in the integer form `Int.ModEq.pow_card_sub_one_eq_one` (with `IsCoprime n p`), and in the field form `ZMod.pow_card_sub_one_eq_one` (for nonzero elements). Coprimality to a prime is equivalent to not being divisible by it, so the statement in the question matches these declarations. The verdict rests on the search results and is not an open question. The remaining search results (pseudoprime tests, Fermat numbers, Carmichael numbers) are not about the theorem itself and were ignored."
+    },
+    {
+      "id": "lit-04",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 9,
+      "relevant": 2,
+      "reason": "",
+      "verified": [
+        "10.1007/0-387-23483-7_161",
+        "10.1007/978-1-0716-4638-0_29"
+      ],
+      "rejected": [],
+      "summary": "The question is Fermat's Little Theorem, a standard textbook result: for prime p and integer a with p not dividing a, a^(p-1) ≡ 1 (mod p). The arXiv search returned no relevant preprints, and the Springer entries cited here are titled \"Fermat's Little Theorem\", but I only saw their titles, not their contents. The Mathlib search returned several declarations that formalise exactly this statement, including `Nat.ModEq.pow_card_sub_one_eq_one` and `Int.ModEq.pow_card_sub_one_eq_one`, whose docstrings state the theorem for n coprime to p. The verdict rests on the classical statement, which I know from model knowledge, and is confirmed for formalisation by the Mathlib declarations. The statement is not open, so the verdict is already_done."
+    },
+    {
+      "id": "lit-04",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 9,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "10.1007/0-387-23483-7_161",
+        "10.1007/978-1-0716-4638-0_29"
+      ],
+      "rejected": [],
+      "summary": "The question asks for Fermat's Little Theorem: for prime p and integer a with p ∤ a, a^(p-1) ≡ 1 (mod p). Mathlib formalizes this directly in `Int.ModEq.pow_card_sub_one_eq_one` (hypothesis `IsCoprime n p`) and `Nat.ModEq.pow_card_sub_one_eq_one` (hypothesis `n.Coprime p`), and the field-level version is `pow_card_sub_one_eq_one` for nonzero elements of `ZMod p`. The search results include encyclopedic and recent literature entries titled \"Fermat's Little Theorem\" (Springer, 2006 and 2026), which are relevant to the statement. For integers, IsCoprime n p is equivalent to p ∤ n when p is prime, so the Mathlib statement matches the question. The verdict rests on the Mathlib declarations, which are search results and not the cited papers' content, so the cited entries only confirm that the theorem is standard. No open variant is indicated."
+    },
+    {
+      "id": "lit-05",
+      "repeat": 1,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 7,
+      "relevant": 1,
+      "reason": "",
+      "verified": [
+        "10.1090/s0025-5718-2013-02787-1"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:1312.7748",
+          "reason": "cited in the summary but not verified; removed from the summary"
+        }
+      ],
+      "summary": "The question is the even Goldbach conjecture, which is not settled. The search result 10.1090/s0025-5718-2013-02787-1 verifies it computationally for all even numbers up to 4·10¹⁸, which is evidence but not a proof for all even n > 2. The ternary Goldbach result ([unverified source removed]) concerns odd numbers as sums of three primes and does not resolve the even case. The 2025 'Solution to the Goldbach Conjecture' entry and the other search hits are not cited because they do not establish a proof that the search results can verify. That the conjecture is open is a claim from model knowledge and is unverified by the search results. The Mathlib declarations listed are basic parity facts about primes that could be used in a formalization, not results about the conjecture itself."
+    },
+    {
+      "id": "lit-05",
+      "repeat": 2,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 10,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "10.1090/s0025-5718-00-01290-4",
+        "10.1090/s0025-5718-2013-02787-1",
+        "10.1142/5096"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:1312.7748",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The search results contain no proof of the binary Goldbach conjecture. The two verification papers (DOIs 10.1090/s0025-5718-00-01290-4 and 10.1090/s0025-5718-2013-02787-1) report computational checks of the even case up to 4⋅10¹⁴ and 4⋅10¹⁸, which is finite verification, not a proof for all even n > 2. The Goldbach book (10.1142/5096) covers the conjecture and its partial results, and the ternary Goldbach paper ([unverified source removed]) settles the odd-number analogue, which is related but not the question asked. The Zenodo and ResearchGate entries claiming proofs or verification frameworks are unvetted and were disregarded. The Mathlib results are basic facts about primes and parity and do not address the conjecture. The statement that the binary conjecture remains open is my model knowledge and is not confirmed by the search results."
+    },
+    {
+      "id": "lit-05",
+      "repeat": 3,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 8,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "10.1007/s10476-026-00191-z",
+        "10.2969/aspm/04910323",
+        "10.51505/ijaemr.2025.1524"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:1312.7748",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:math/0603664",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "This is the binary Goldbach conjecture, which the search results do not settle. The ternary result in [unverified source removed] concerns sums of three primes, and the exceptional-set paper (10.1007/s10476-026-00191-z) and the approximations paper (10.2969/aspm/04910323) concern almost all even numbers or partial approximations, not every even number. The two papers claiming a proof (arXiv:math/0603664 and 10.51505/ijaemr.2025.1524) are unverified and should not be treated as established. The model-knowledge statement is that the binary conjecture remains open as of my knowledge cutoff; this is unverified against the provided search results. No Mathlib declaration in the results states or proves the conjecture, so the closest results are basic facts about primes such as `Prime.eq_two_or_odd` and `Prime.odd_of_ne_two`."
+    },
+    {
+      "id": "lit-06",
+      "repeat": 1,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 9,
+      "relevant": 4,
+      "reason": "",
+      "verified": [
+        "10.1007/s11537-019-1837-z",
+        "10.4007/annals.2014.179.3.7",
+        "10.1017/9781108872201"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:1910.14674",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The question is the Twin Prime Conjecture, which asks whether there are infinitely many primes p with p + 2 also prime. The search results contain no proof or disproof of it, and the titles retrieved are only loosely related. The Annals paper 'Bounded gaps between primes' and the 2021 book of the same name concern bounded gaps between primes, which is partial progress toward the conjecture and does not settle it. The papers titled 'The twin prime conjecture' and 'On the Twin Prime Conjecture' are likely on-topic, but the search returned only titles and years, so I could not verify their content. The Mathlib search found only the infinitude of primes (`Primes.infinite`) and no declaration about twin primes. That the conjecture remains open is my model knowledge and is unverified by the search results. Verdict: partially_done, because related work exists but the exact question is not settled."
+    },
+    {
+      "id": "lit-06",
+      "repeat": 2,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 8,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "10.1007/s11537-019-1837-z",
+        "10.4007/annals.2014.179.3.7",
+        "10.1017/9781108872201"
+      ],
+      "rejected": [],
+      "summary": "The question is the twin prime conjecture, which the search results do not settle. The survey 'The twin prime conjecture' (Japanese Journal of Mathematics, 2019) covers the problem's status. Zhang's 'Bounded gaps between primes' (Annals, 2014) and the related book show that the liminf of p_{n+1} − p_n is finite (≤ 70,000,000 in Zhang's original bound), so infinitely many prime pairs with bounded gap exist, but gap 2 is not shown. Several other search hits (Chebotarev sets, primitive roots, special sequences) are variants of the bounded-gap theme and do not address gap 2. The Zenodo 'generative kernel' and 'Prime Highway' entries claim resolutions of the conjecture, but they are unrefereed claims and are not cited here. To my knowledge, as of my knowledge cutoff, the twin prime conjecture remains open; this is unverified model knowledge, not something the search results establish. The Mathlib results contain the infinitude of primes (`infinite_setOfPred_prime`), but no twin-prime declaration."
+    },
+    {
+      "id": "lit-06",
+      "repeat": 3,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 11,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "10.1017/9781108872201",
+        "10.56827/seajmms.2024.2001.1",
+        "10.5281/zenodo.21833032"
+      ],
+      "rejected": [],
+      "summary": "The Twin Prime Conjecture, that there are infinitely many primes p with p + 2 also prime, is a long-standing open problem, and this is my model knowledge rather than something the search establishes. The search results contain no verified proof: the Zenodo 'proof' and 'Pirez Sieve' entries are unverified self-published claims and were ignored. The book 'Bounded Gaps Between Primes' (10.1017/9781108872201) covers related results showing that prime gaps are bounded infinitely often, but it does not settle gap 2. The 2024 SEAJMMS paper on sieve methods and the twin prime conjecture is topically related, but I could not verify its specific claims from the search metadata. The Zenodo entry 10.5281/zenodo.21833032 explicitly describes the twin prime claims as unproven and lacking verification. None of the Mathlib declarations address twin primes. Hence the question is open and related partial results exist, so the verdict is partially_done."
+    },
+    {
+      "id": "lit-07",
+      "repeat": 1,
+      "kind": "open",
+      "verdict": "unknown",
+      "basis": "search",
+      "ok": true,
+      "searched": 11,
+      "relevant": 1,
+      "reason": "`novel` needs a verified source; none of the 11 search results was a verified relevant source",
+      "verified": [],
+      "rejected": [
+        {
+          "ref": "arXiv:2111.02635",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The Collatz conjecture, that every positive integer's 3x+1 orbit reaches 1, is an open problem, and this is standard knowledge from model memory rather than something the search results establish. The only search result that plausibly addresses the question directly is the overview of the 3x+1 problem ([unverified source removed]), though only its title was provided, so its content is unverified here. Other 3x+1 entries (stopping-time clusters, method studies, lower-bound hypotheses, 3x+1/5x+1 variants) concern related dynamics and do not settle reachability of 1. Several entries claim full resolutions (Preprints, SSRN, Zenodo), but these are unrefereed and I have not cited them or treated them as established. The arxiv.search call returned an error, so search coverage is incomplete. None of the Mathlib declarations concern Collatz dynamics; they are generic prime and number-theory lemmas."
+    },
+    {
+      "id": "lit-07",
+      "repeat": 2,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 11,
+      "relevant": 6,
+      "reason": "",
+      "verified": [
+        "10.1007/978-3-319-11197-1_37",
+        "10.15803/ijnc.7.1_69",
+        "10.1109/hpcc/smartcity/dss.2019.00382",
+        "10.1007/s11227-025-07337-0",
+        "10.1109/ispa.2009.35",
+        "10.1090/s0025-5718-99-01031-5"
+      ],
+      "rejected": [],
+      "summary": "The search results are computational verification papers (GPU-based, automata-based, and hardware-software exhaustive checks, plus a 2025 paper on a higher verification limit) that confirm the Collatz sequence reaches 1 for all starting values up to some finite bound. None of them proves the statement for every positive integer. The 1999 record-holder paper gives computational data on stopping times, and the other results are not about convergence to 1. The question of whether every positive integer reaches 1 is the Collatz conjecture, which is open as far as I know; this open status comes from model knowledge and is unverified by the search. Two arXiv queries failed, so arXiv coverage is incomplete. The Mathlib declarations returned concern primes, digits and PNat coprimality and do not bear on this question."
+    },
+    {
+      "id": "lit-07",
+      "repeat": 3,
+      "kind": "open",
+      "verdict": "unknown",
+      "basis": "search",
+      "ok": true,
+      "searched": 12,
+      "relevant": 0,
+      "reason": "`partially_done` needs a verified source; none of the 12 search results was a verified relevant source",
+      "verified": [],
+      "rejected": [
+        {
+          "ref": "arXiv:2111.02635",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The Collatz conjecture, that every positive integer's trajectory under the 3x+1 map reaches 1, is an open problem, and no result in the search settles it. The overview [unverified source removed] ('The 3x+1 Problem: An Overview') is relevant background on the problem's status and related partial results. Several other hits have titles claiming a proof or a disproof (e.g. 'A Collatz Conjecture Proof', 'Collatz Conjecture: Is It False?'), but their content was not available, so I treat them as unverified and do not cite them. The openness claim is my own knowledge, not something the search results confirm. The 'search_errors' field reports two failed arXiv searches, so coverage may be incomplete. None of the Mathlib declarations returned concern the Collatz map."
+    },
+    {
+      "id": "lit-08",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "model_knowledge",
+      "ok": true,
+      "searched": 8,
+      "relevant": 0,
+      "reason": "",
+      "verified": [],
+      "rejected": [
+        {
+          "ref": "arXiv:1805.11604",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1806.02375",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1805.10694",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "Three search results bear directly on whether batch normalization speeds up training: 'How Does Batch Normalization Help Optimization?' ([unverified source removed]), 'Understanding Batch Normalization' ([unverified source removed]), and 'Exponential convergence rates for Batch Normalization' ([unverified source removed]). Only titles were provided, not abstracts, so I cannot confirm their specific findings or quote their results. The remaining entries (L1-norm BN, BN for circuit macromodeling, momentum BN for small batches, Decorrelated BN, and BN with Adam for CNNs) are off-topic or concern variants and were ignored. The search returned three errors, so coverage may be incomplete. The claim that batch normalization accelerates training of deep networks is a widely established empirical fact, which I know from general knowledge and which is not verified by the supplied material. The cited titles are consistent with it, and 1805.10694 also points to convergence-rate analysis. Verdict is therefore already_done on mixed grounds, and the specific mechanism should be checked against the full papers before relying on it."
+    },
+    {
+      "id": "lit-08",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 15,
+      "relevant": 5,
+      "reason": "",
+      "verified": [
+        "10.48550/arxiv.1805.10694"
+      ],
+      "rejected": [
+        {
+          "ref": "10.48550/arxiv.1805.11604",
+          "reason": "unknown"
+        },
+        {
+          "ref": "10.48550/arxiv.1806.02375",
+          "reason": "unknown"
+        },
+        {
+          "ref": "10.48550/arxiv.1905.05928",
+          "reason": "unknown"
+        },
+        {
+          "ref": "10.48550/arxiv.2006.06878",
+          "reason": "unknown"
+        }
+      ],
+      "summary": "Several search results address batch normalization (BN) and optimization, most directly 'How Does Batch Normalization Help Optimization?' ([unverified source removed]), 'Understanding Batch Normalization' ([unverified source removed]), and 'Exponential convergence rates for Batch Normalization' (10.48550/arxiv.1805.10694). The results give only titles and no summaries, so I cannot confirm their findings from the search material itself. The affirmative answer that BN accelerates training of deep networks is a well-established empirical finding, and I am drawing that on model knowledge (unverified here), including the original BN paper by Ioffe and Szegedy (2015), which did not appear in the search results. The search also returned two errors, so coverage is incomplete. The question as posed is answered at the level of the general claim, but the mechanism and the scope of the speed-up are still debated in the cited works. No Mathlib declarations were returned."
+    },
+    {
+      "id": "lit-08",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 9,
+      "relevant": 4,
+      "reason": "",
+      "verified": [
+        "10.1109/tnnls.2020.3026784"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:1502.03167",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1805.11604",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1806.02375",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The original Batch Normalization paper ([unverified source removed]) reports that normalizing layer inputs accelerates training of deep networks, with large gains in training steps on image classification. [unverified source removed] attributes the speedup to a smoother optimization landscape rather than to reducing internal covariate shift, and [unverified source removed] studies why BN helps training. [unverified source removed] and the 2020 paper \"Revisiting Internal Covariate Shift for Batch Normalization\" (DOI 10.1109/tnnls.2020.3026784) question the covariate-shift explanation, so the mechanism is debated even though the speedup itself is well supported empirically. The speedup is an empirical finding and not a universal theorem, and the search returned no Mathlib declarations. Three of the four searches errored, so coverage may be incomplete. Weight normalization and L1-norm BN are related methods and were not used as evidence for BN itself."
+    },
+    {
+      "id": "lit-09",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 12,
+      "relevant": 6,
+      "reason": "",
+      "verified": [
+        "10.58915/amci.v13ino.1.561",
+        "10.30574/wjaets.2024.13.2.0584",
+        "10.1109/incit50588.2020.9310787",
+        "10.24108/preprints-3114058",
+        "10.24108/preprints-3114054"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:1207.0580",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "Only titles and years were returned, not abstracts, so every judgement here rests on titles. Several results address dropout and overfitting directly: a 2024 study on dropout in Extreme Learning Machine classifiers, a 2024 study on dropout layers in CNNs, and a 2020 study on reducing overfitting under limited sample sizes. Hinton et al. ([unverified source removed]) introduced dropout as a way to prevent co-adaptation of feature detectors, and two 2025 preprints cover regularization for small neural networks trained on limited data. The LoRA dropout, Curriculum Dropout, R-Drop, SAR and seismic results concern other settings and were excluded. The claim that dropout reduces overfitting is standard in the field (model knowledge, unverified here), but the search does not show whether the effect holds reliably on small datasets specifically, so the question is not settled by this evidence."
+    },
+    {
+      "id": "lit-09",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 12,
+      "relevant": 5,
+      "reason": "",
+      "verified": [
+        "10.3390/a11030028",
+        "10.1007/s10462-019-09784-7",
+        "10.9734/ajrcos/2024/v17i10511",
+        "10.1201/9781003516385-13"
+      ],
+      "rejected": [],
+      "summary": "The search returned only titles and years, with no abstracts or full texts, so I could not verify any claim about dropout's effect on small datasets from the results themselves. The most relevant entries are a 2018 paper on a CNN with dropout (10.3390/a11030028), a 2019 survey of regularization strategies for deep models (10.1007/s10462-019-09784-7), and two 2024–2025 overfitting and regularization studies. The remaining entries are off-topic or only tangentially related. Standard background (model_knowledge, unverified here): dropout is widely reported to reduce overfitting, but its benefit on very small datasets is not guaranteed and depends on architecture and training setup. Since the search establishes related work but not a settled answer to this exact question, the verdict is partially_done."
+    },
+    {
+      "id": "lit-09",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 10,
+      "relevant": 5,
+      "reason": "",
+      "verified": [
+        "10.1109/icpr48806.2021.9412492",
+        "10.24963/ijcai.2017/318",
+        "10.14419/ijet.v7i2.32.15399",
+        "10.48550/arxiv.1710.10686",
+        "10.3390/electronics12143106"
+      ],
+      "rejected": [],
+      "summary": "The search returned only titles and years, with no abstracts or results, and the arxiv.search tool reported an error, so coverage is incomplete. Several titles touch the question: a 2021 ICPR paper on deep learning with small data, an IJCAI 2017 paper on deep networks for high-dimension, low-sample-size data, a survey on overfitting prevention in CNNs, a taxonomy of regularization for deep learning, and a review of dropout regularization approaches. None of the retrieved titles is verifiably a study of dropout's effect on overfitting in small datasets, so the findings cannot be confirmed from the search material. From general knowledge (unverified, not from the search results), dropout is a standard regularizer that often reduces overfitting, but its benefit depends on dataset size, architecture and dropout rate, and on very small datasets it can also cause underfitting. Because the question is broad and the relevant literature exists but does not settle this specific setting, the verdict is partially_done."
+    },
+    {
+      "id": "lit-10",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "unknown",
+      "basis": "search",
+      "ok": false,
+      "searched": 18,
+      "relevant": 5,
+      "reason": "`partially_done` needs a verified source; none of the 18 search results was a verified relevant source",
+      "verified": [],
+      "rejected": [
+        {
+          "ref": "arXiv:2010.05627",
+          "reason": "unknown"
+        },
+        {
+          "ref": "arXiv:1806.06763",
+          "reason": "unknown"
+        },
+        {
+          "ref": "arXiv:1908.04457",
+          "reason": "unknown"
+        },
+        {
+          "ref": "arXiv:2106.06749",
+          "reason": "unknown"
+        },
+        {
+          "ref": "arXiv:2006.16541",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1901.09517",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "Several search results report that adaptive methods such as Adam often generalize worse than SGD in deep learning. [unverified source removed] attributes the gap to heavy-tailed gradient noise, and [unverified source removed] proposes a method (Padam) to close it. [unverified source removed] and [unverified source removed] propose schemes that transition from Adam to SGD or bridge the two. [unverified source removed] notes that Adam is less sensitive to hyperparameter tuning than SGD and that it can fail to converge. None of these results directly tests Adam against well-tuned SGD across tasks, so they do not settle the universal claim in either direction. Two arXiv searches returned errors, so coverage may be incomplete. The question as posed is a universal negative ('always'), which a single counterexample would refute, and the results show generalization gaps in specific settings rather than a general law."
+    },
+    {
+      "id": "lit-10",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 18,
+      "relevant": 4,
+      "reason": "",
+      "verified": [
+        "arXiv:1806.06763"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2010.05627",
+          "reason": "unknown"
+        },
+        {
+          "ref": "arXiv:1908.04457",
+          "reason": "unknown"
+        },
+        {
+          "ref": "10.48550/arxiv.1712.07628",
+          "reason": "unknown"
+        }
+      ],
+      "summary": "The search results show that SGD often generalizes better than Adam-type methods, and that this gap is setting-dependent rather than universal. [unverified source removed] attributes the generalization gap to heavy-tailed gradient noise in adaptive methods. arXiv:1806.06763 reports that the gap can be closed with a modified adaptive method, which argues against an always-holds claim. [unverified source removed] notes that Adam can fail to converge and generalize poorly, and the DOI [unverified source removed] reports that switching from Adam to SGD improves generalization. A single documented case where SGD beats Adam refutes the universal claim, but none of these results directly compares against a well-tuned SGD across all settings, so the 'well-tuned' qualifier is not fully addressed."
+    },
+    {
+      "id": "lit-10",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 12,
+      "relevant": 2,
+      "reason": "",
+      "verified": [
+        "10.24963/ijcai.2020/452"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2010.05627",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:2006.16541",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1902.09843",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The search returned only titles and years, not abstracts, so every claim below about content is unverified. Several results directly address the SGD-versus-Adam generalization gap, including 'Towards Theoretically Understanding Why SGD Generalizes Better Than ADAM in Deep Learning', 'Closing the Generalization Gap of Adaptive Gradient Methods in Training Deep Neural Networks', and 'AdaSGD: Bridging the gap between SGD and Adam'. Their titles suggest that SGD often generalizes better than Adam, and that the gap can be narrowed, which is consistent with the question being answered negatively. The word 'always' is a universal claim, so a single setting where Adam matches or beats well-tuned SGD would refute it. Whether such settings are documented here cannot be confirmed from titles alone. The claim that the answer is no therefore rests on model knowledge, which is unverified. The search errors mean coverage may be incomplete."
+    },
+    {
+      "id": "lit-11",
+      "repeat": 1,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 11,
+      "relevant": 1,
+      "reason": "",
+      "verified": [
+        "10.52202/079017-3549"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2603.05369",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:2505.23420",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1810.13243",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "None of the search results reports a warmup-versus-no-warmup comparison for a roughly 20-million-parameter transformer trained at a learning rate of 3e-4. The closest hits are \"Why Warmup the Learning Rate? Underlying Mechanisms and Improvements\", which studies why warmup helps, and \"Progressive Residual Warmup for Language Model Pretraining\", which proposes a warmup variant for language model pretraining. \"The Warmup Dilemma\" concerns speech-to-text models, and \"A Closer Look at Deep Learning Heuristics\" examines warmup as one heuristic among several. I have only the titles and years, not the experimental details, so I cannot confirm model size, learning rate, or validation-loss effects from these results. Three arXiv searches failed, so coverage may be incomplete. The exact question is therefore not settled by the retrieved material, but related work exists."
+    },
+    {
+      "id": "lit-11",
+      "repeat": 2,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 12,
+      "relevant": 4,
+      "reason": "",
+      "verified": [
+        "10.5281/zenodo.21461180",
+        "10.2478/pralin-2018-0002"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2505.21910",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:1810.13243",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "The search returned one directly relevant item, 'When Does Learning-Rate Warmup Matter? Conditional and Persistent Benefits in Decoder-Only Transformers' (2026), which appears to study warmup effects in decoder-only transformers. Its title suggests the benefit is conditional, so it may depend on learning rate and model scale, but only the title was available, so I cannot confirm the 20M-parameter setting or the 3e-4 learning rate. 'Taming Transformer Without Using Learning Rate Warmup' (2025) and 'Training Tips for the Transformer Model' (2018) address warmup in transformers more broadly. 'A Closer Look at Deep Learning Heuristics: Learning rate restarts, Warmup and Distillation' (2018) covers warmup generally, not transformers specifically. The other results (looped language models, WSD schedules, learning-rate transfer, retrosynthesis, vision transformers, scheduled sampling) are off-topic or only tangential and were ignored. Two arXiv/DOI searches returned errors, so coverage may be incomplete. No Mathlib declarations are relevant to this empirical question."
+    },
+    {
+      "id": "lit-11",
+      "repeat": 3,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 11,
+      "relevant": 1,
+      "reason": "",
+      "verified": [
+        "10.5281/zenodo.21461180"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2505.21910",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:2603.05369",
+          "reason": "not in the search results"
+        },
+        {
+          "ref": "arXiv:2608.24814",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "Four search results bear on warmup in transformer training: a paper on training transformers without learning-rate warmup ([unverified source removed]), a paper on when warmup matters in decoder-only transformers (zenodo DOI 10.5281/zenodo.21461180), a progressive residual warmup method for language model pretraining ([unverified source removed]), and a study of effective learning rate and loss dynamics in language model pretraining ([unverified source removed]). The titles indicate that warmup effects are conditional, but I only have titles, not abstracts, so I cannot confirm any result for 20-million-parameter models at a learning rate of 3e-4. The search for arxiv.search returned an error, so coverage may be incomplete. The question is therefore related to existing work but not settled by the material I have. No Mathlib declarations are relevant."
+    },
+    {
+      "id": "lit-12",
+      "repeat": 1,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 24,
+      "relevant": 6,
+      "reason": "",
+      "verified": [
+        "arXiv:2603.13331",
+        "arXiv:2609.26679",
+        "arXiv:2607.23967",
+        "arXiv:2603.25009",
+        "arXiv:2501.04697",
+        "arXiv:2402.15555"
+      ],
+      "rejected": [],
+      "summary": "None of the retrieved summaries directly reports a controlled experiment setting weight decay to zero on modular addition and checking whether grokking still occurs. Several papers treat weight decay as central to the grokking mechanism: arXiv:2603.13331 describes grokking as norm-driven in regularised training, and arXiv:2609.26679 argues that weight decay induces the feature learning seen during the delay. arXiv:2603.25009 studies regularization on mod 97 as one factor among several, and arXiv:2501.04697 states that the dependence of grokking on regularization remains unclear and argues a mechanism that may not require it. arXiv:2402.15555 argues that deep networks grok under broader conditions, but its summary is truncated and does not settle the zero-weight-decay case. The question is therefore related to existing work but not settled by the retrieved material, so the verdict is partially_done."
+    },
+    {
+      "id": "lit-12",
+      "repeat": 2,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 22,
+      "relevant": 5,
+      "reason": "",
+      "verified": [
+        "arXiv:2506.05718",
+        "arXiv:2606.13753",
+        "arXiv:2603.25009",
+        "arXiv:2511.01938",
+        "arXiv:2608.25813"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2301.02679",
+          "reason": "not in the search results"
+        }
+      ],
+      "summary": "Several search results study grokking as driven by weight decay or norm dynamics, which bears on the question. arXiv:2506.05718 reports that grokking can be induced by explicit or implicit regularization, so removing explicit weight decay does not rule out delayed generalization by itself. arXiv:2606.13753 claims a causal link between weight norm and the grokking delay via norm interventions, and arXiv:2603.25009 is a controlled study of regularization on modular addition (mod 97). arXiv:2511.01938 describes weight decay driving norm minimization on the zero-loss manifold, and [unverified source removed] is titled as a study of grokking modular arithmetic. None of the visible snippets states the result for weight decay exactly zero on modular addition, so the question is not settled by the search evidence. The summaries are truncated, so the full papers would be needed to confirm any specific finding."
+    },
+    {
+      "id": "lit-12",
+      "repeat": 3,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 25,
+      "relevant": 6,
+      "reason": "",
+      "verified": [
+        "arXiv:2603.13331",
+        "arXiv:2607.23967",
+        "arXiv:2609.10657",
+        "arXiv:2610.22593",
+        "10.48550/arxiv.2609.26679",
+        "10.48550/arxiv.2605.20441"
+      ],
+      "rejected": [],
+      "summary": "The search results are titles and truncated abstracts, not full papers. Several papers tie grokking to weight decay: arXiv:2603.13331 describes grokking as a norm-driven transition in regularised training, arXiv:2607.23967 studies a late-time relaxation driven by weight decay, and arXiv:2609.10657 maps the memorization-to-generalization boundary across hyperparameters. The DOI 10.48550/arxiv.2609.26679 (\"Weight Decay induces Feature Learning\") suggests weight decay is needed for feature learning, which would bear on the zero-decay case. arXiv:2610.22593 reports that ReLU networks with weight decay can keep 100% training accuracy while features still change. None of the snippets states what happens at exactly zero weight decay on modular addition, so the question is not settled by these results. I cannot confirm the full claims of these papers from the snippets alone."
+    },
+    {
+      "id": "lit-13",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 11,
+      "relevant": 1,
+      "reason": "",
+      "verified": [
+        "10.1080/0020739x.2015.1044042"
+      ],
+      "rejected": [],
+      "summary": "The question asks whether the sum of the first n odd numbers equals n² for every natural number n. The search result 'The odd-number sequence: squares and sums' (DOI 10.1080/0020739x.2015.1044042) is directly on topic, since its title concerns squares and sums of odd numbers, but only the title was provided, so its content is not verified. The other results concern sums of squares of consecutive odd integers, Pell numbers, or unrelated topics, and were judged irrelevant. The provided Mathlib lines contain no declaration stating this identity directly; `sum_range_id` (Gauss' formula) is unrelated. The identity is a standard textbook fact that follows by induction, since (n+1)² − n² = 2n + 1; this is model knowledge and unverified by the search results. The question is therefore settled, with the basis being mixed."
+    },
+    {
+      "id": "lit-13",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 12,
+      "relevant": 2,
+      "reason": "",
+      "verified": [
+        "10.1080/0020739x.2015.1044042"
+      ],
+      "rejected": [
+        {
+          "ref": "10.5281/zenodo.22730222",
+          "reason": "cited in the summary but not verified; removed from the summary"
+        }
+      ],
+      "summary": "The identity is a standard textbook result: the sum of the first n odd numbers, 1 + 3 + ... + (2n − 1), equals n² for every n ∈ ℕ, including n = 0 under the empty-sum convention. This is provable by induction, since adding the (n+1)-th odd number 2n + 1 to n² gives (n+1)². The search result 10.1080/0020739x.2015.1044042 ('The odd-number sequence: squares and sums') addresses this exact relationship, and [unverified source removed] discusses powers as sums of consecutive odd numbers. The proof and the claim itself are from model knowledge and were not verified against the cited texts. None of the Mathlib declarations returned directly states the odd-sum formula; the Gauss sum lemmas are only related."
+    },
+    {
+      "id": "lit-13",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "model_knowledge",
+      "ok": true,
+      "searched": 10,
+      "relevant": 0,
+      "reason": "",
+      "verified": [],
+      "rejected": [],
+      "summary": "None of the arXiv or DOI search results address the sum of the first n odd numbers, so they were all judged irrelevant and none are cited. The Mathlib hits are also unrelated: `sum_range_id` and `sum_range_id_mul_two` concern Gauss' summation of the first n natural numbers, not odd numbers. The claim is a standard textbook identity: 1 + 3 + … + (2n − 1) = n² for every natural number n, provable by induction since n² + (2n + 1) = (n + 1)². This verdict rests on model knowledge and has not been verified against the search results or checked in Lean. The search found no Mathlib declaration stating this identity directly."
+    },
+    {
+      "id": "lit-14",
+      "repeat": 1,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 17,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "arXiv:2210.07657",
+        "arXiv:2111.02788",
+        "arXiv:1705.07498"
+      ],
+      "rejected": [],
+      "summary": "The question is Fermat's two squares theorem: every prime p with p % 4 = 1 is a sum of two squares. arXiv:2210.07657 and arXiv:2111.02788 both state that primes of the form 1 + 4N are sums of two squares, and give elementary proofs. arXiv:1705.07498 states the same result as Fermat's theorem (p = a² + b²) and uses it for a study of Gaussian primes. Mathlib has `Nat.eq_sq_add_sq_of_isSquare_mod_neg_one`, which gives n = x² + y² with x, y : ℕ whenever -1 is a square modulo n, and `exists_sq_eq_neg_one_iff`, which says -1 is a square in ZMod p iff p % 4 ≠ 3; combining these yields the statement for p % 4 = 1. The Mathlib lemma `sq_add_sq_of_nat_prime_of_not_irreducible` is a related route through the Gaussian integers, and its integer witnesses can be replaced by their absolute values to get natural numbers. The search results show no open variant, so the question is settled by known results, and the Mathlib declarations listed are sufficient for a formal proof."
+    },
+    {
+      "id": "lit-14",
+      "repeat": 2,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "search",
+      "ok": true,
+      "searched": 16,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "arXiv:2111.02788",
+        "arXiv:2210.07657",
+        "arXiv:1705.07498"
+      ],
+      "rejected": [],
+      "summary": "The question is Fermat's two squares theorem for primes, which is a classical result. Search results arXiv:2111.02788 and arXiv:2210.07657 both state it directly, giving a proof that primes of the form 1 + 4N are sums of two squares, and arXiv:1705.07498 cites it as Fermat's theorem for p ≡ 1 mod 4. Mathlib's `Nat.eq_sq_add_sq_iff` characterises natural numbers that are sums of two squares, and applied to a prime p with p % 4 = 1 it gives the result, since p has exponent 1 and has no prime factor ≡ 3 mod 4. The Mathlib result `sq_add_sq_of_nat_prime_of_not_irreducible` is related but its hypothesis is about irreducibility in ℤ[i] rather than p % 4, so the link to p % 4 = 1 is not stated in the search output. The natural-number version (0 included) is harmless since p ≥ 5 for such primes. The verdict rests on the search results and the classical theorem."
+    },
+    {
+      "id": "lit-14",
+      "repeat": 3,
+      "kind": "classical",
+      "verdict": "already_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 18,
+      "relevant": 3,
+      "reason": "",
+      "verified": [
+        "arXiv:1705.07498",
+        "arXiv:2210.07657",
+        "arXiv:2111.02788"
+      ],
+      "rejected": [],
+      "summary": "This is Fermat's two squares theorem, a classical textbook result: every prime p with p ≡ 1 (mod 4) is a sum a² + b² of integers. The search results confirm it: arXiv:1705.07498 states that Fermat showed every prime p ≡ 1 mod 4 is a sum of two squares, and arXiv:2210.07657 and arXiv:2111.02788 give new proofs of it. Since p is odd, neither a nor b can be zero (p would otherwise be a perfect square), so both can be taken as natural numbers. The Mathlib declarations `sq_add_sq_of_nat_prime_of_not_irreducible` and `Nat.eq_sq_add_sq_of_isSquare_mod_neg_one` are relevant formalizations of this statement. The natural-number form of the claim rests partly on my own knowledge of the theorem, not on a search result that states it in exactly this form."
+    },
+    {
+      "id": "lit-15",
+      "repeat": 1,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 17,
+      "relevant": 6,
+      "reason": "",
+      "verified": [
+        "arXiv:2205.09042",
+        "arXiv:2501.14545",
+        "arXiv:2610.08965",
+        "arXiv:2609.33043"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2511.20059",
+          "reason": "cited in the summary but not verified; removed from the summary"
+        },
+        {
+          "ref": "arXiv:2010.05335",
+          "reason": "cited in the summary but not verified; removed from the summary"
+        },
+        {
+          "ref": "arXiv:1708.01209",
+          "reason": "cited in the summary but not verified; removed from the summary"
+        }
+      ],
+      "summary": "The search results do not resolve the Riemann Hypothesis. The strongest hits are partial results: arXiv:2205.09042 claims that almost all nontrivial zeros lie on the critical line, and arXiv:2609.33043 and arXiv:2610.08965 give lower bounds on the proportion of distinct zeros (about 83.9%) and on simple zeros on the critical line. arXiv:2501.14545 and [unverified source removed] work under the assumption of RH, which means they are conditional and do not settle it. Several hits ([unverified source removed], [unverified source removed], and the DOI-only preprints) claim full proofs, but these are unverified and I have not treated them as established. From my own knowledge, the Riemann Hypothesis is a standard open problem, but that claim is not confirmed by the search results. The verdict is therefore that the question is not settled, with related partial work available."
+    },
+    {
+      "id": "lit-15",
+      "repeat": 2,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 21,
+      "relevant": 4,
+      "reason": "",
+      "verified": [
+        "arXiv:2205.09042",
+        "arXiv:2608.13637",
+        "arXiv:2501.14545",
+        "arXiv:2511.20059"
+      ],
+      "rejected": [
+        {
+          "ref": "arXiv:2010.05335",
+          "reason": "cited in the summary but not verified; removed from the summary"
+        },
+        {
+          "ref": "arXiv:1708.01209",
+          "reason": "cited in the summary but not verified; removed from the summary"
+        }
+      ],
+      "summary": "The Riemann Hypothesis is an open problem: to my knowledge no accepted proof or disproof exists, a claim based on model knowledge that the search results do not verify. The search results contain related partial results: arXiv:2205.09042 claims that almost all nontrivial zeros lie on the critical line, and arXiv:2608.13637 claims that at least two thirds of the nontrivial zeros are simple and on the critical line. arXiv:2501.14545 and arXiv:2511.20059 study pair correlation of zeros under the assumption of RH and do not settle it. Several search hits (for example [unverified source removed], [unverified source removed], and various Zenodo and preprint DOIs) claim complete proofs; I cannot verify these from the material given, they are not peer-accepted results as far as I know, and I do not cite them as evidence. The Mathlib declarations only provide analytic infrastructure for ζ (differentiability, the Dirichlet series region, and the zeros set), not a resolution of the hypothesis."
+    },
+    {
+      "id": "lit-15",
+      "repeat": 3,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 28,
+      "relevant": 5,
+      "reason": "",
+      "verified": [
+        "arXiv:2501.14545",
+        "arXiv:0810.2103",
+        "arXiv:2004.00460",
+        "10.3390/sym17020225"
+      ],
+      "rejected": [],
+      "summary": "The Riemann Hypothesis is a famous open problem, and none of the search results settles it. Standard knowledge (model_knowledge, unverified against these results) is that it remains unproven and unrefuted as of the knowledge cutoff. The search results include related work: arXiv:2501.14545 studies pair correlation of zeros, assuming RH, and arXiv:0810.2103 proves the strong Density Hypothesis, a weaker statement. The survey 10.3390/sym17020225 and the claimed proof attempt arXiv:2004.00460 are not accepted proofs, and the latter's correctness is not established here. Mathlib has the zeta function and the nonvanishing result for re s > 1 (`riemannZeta_ne_zero_of_one_lt_re`), but no statement about zeros on the critical line."
+    },
+    {
+      "id": "lit-16",
+      "repeat": 1,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 21,
+      "relevant": 7,
+      "reason": "",
+      "verified": [
+        "arXiv:2404.01508",
+        "arXiv:2502.20935",
+        "arXiv:2511.07465",
+        "arXiv:2206.10319",
+        "arXiv:1812.05684",
+        "arXiv:2505.08716",
+        "10.48550/arxiv.1001.1100"
+      ],
+      "rejected": [],
+      "summary": "The question is the Erdős–Straus conjecture, which the search results treat as open. Several results address it only in part: arXiv:2511.07465 gives constructive solutions for primes P ≡ 1 (mod 4), arXiv:2502.20935 claims a partial resolution via analytical formulas, and arXiv:2404.01508 and arXiv:2206.10319 give congruence and structural results on solutions. arXiv:2505.08716 derives its decomposition only under a personal conjecture, so it does not settle the question. arXiv:1812.05684 studies the Diophantine equation but its summary does not show a full proof. The DOI 10.48550/arxiv.1001.1100 is relevant by title, but I only have its title, so I cannot characterise its content. The claim that the full conjecture is open is from model knowledge and is unverified by the search results. No retrieved Mathlib declaration is relevant to this question."
+    },
+    {
+      "id": "lit-16",
+      "repeat": 2,
+      "kind": "open",
+      "verdict": "unknown",
+      "basis": "search",
+      "ok": true,
+      "searched": 14,
+      "relevant": 2,
+      "reason": "`partially_done` needs a verified source; none of the 14 search results was a verified relevant source",
+      "verified": [],
+      "rejected": [
+        {
+          "ref": "arXiv:1010.2035",
+          "reason": "unknown"
+        },
+        {
+          "ref": "arXiv:2605.04551",
+          "reason": "unknown"
+        }
+      ],
+      "summary": "The question is the Erdős–Straus conjecture, which asks whether 4/n = 1/x + 1/y + 1/z has a solution in positive integers for every n ≥ 2. The search results do not settle it: [unverified source removed] gives a polynomial in three variables whose values satisfy the conjecture, but it misses the perfect squares, and [unverified source removed] gives only a heuristic finiteness argument for counterexamples. Several Zenodo and ResearchGate entries claim constructive proofs or describe the conjecture as unresolved, but they are unrefereed and I have not relied on them or cited them. Standard background from my own knowledge, which is unverified by the search, is that the conjecture is open and has been checked computationally for n up to very large bounds, and that it is known for many residue classes of n. The search returned no Mathlib declaration that addresses this equation, so no Mathlib names are listed."
+    },
+    {
+      "id": "lit-16",
+      "repeat": 3,
+      "kind": "open",
+      "verdict": "partially_done",
+      "basis": "mixed",
+      "ok": true,
+      "searched": 11,
+      "relevant": 2,
+      "reason": "",
+      "verified": [
+        "10.48550/arxiv.1812.05684",
+        "10.48550/arxiv.1001.1100"
+      ],
+      "rejected": [],
+      "summary": "The question is the Erdős–Straus conjecture, a well-known open problem. The search results contain only titles and years, so I could not check the content of the cited papers, and I am not claiming anything they prove. The two arXiv entries (1812.05684 and 1001.1100) are on-topic by title, but nothing in the results shows a general proof. The 2026 Zenodo entry titled 'THE ERDOS–STRAUS CONJECTURE IS TRUE' is an unverified, non-peer-reviewed claim, so I did not rely on it. Based on model knowledge (unverified), the conjecture is not known to be settled for all n ≥ 2, though it has been checked computationally for large ranges and proved for many residue classes of n. The question is therefore not settled, so the verdict is partially_done. No Mathlib declaration addresses the conjecture directly; the returned declarations are generic modular-arithmetic and rational-number lemmas."
+    }
+  ]
+}

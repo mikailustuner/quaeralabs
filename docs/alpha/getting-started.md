@@ -4,7 +4,7 @@ Goal: get from installation to your first report in 30 minutes without a guide. 
 
 ## 1. Installation (10–15 min)
 ```bash
-git clone https://github.com/quaeralabs/quaeralabs.git && cd quaeralabs
+git clone https://github.com/mikailustuner/quaeralabs.git && cd quaeralabs
 ./install.sh                 # for math: ./install.sh --with-lean   · for ML: --with-ml
 quaera doctor                # every required line must be ✓
 ```

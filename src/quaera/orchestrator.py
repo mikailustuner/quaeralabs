@@ -22,7 +22,7 @@ from typing import Callable
 from . import prompts
 from .contracts import prereg_hash
 from .gateway import BudgetExceeded, Gateway, ModelError, parse_json
-from .lean import DEFAULT_WORKSPACE, normalize, statement_of
+from .lean import lean_versions, normalize, statement_of
 from .permissions import Permissions
 from .store import IntegrityError, Store, now
 from .tools import ToolRegistry
@@ -39,6 +39,10 @@ PROVE_BUDGET_SHARE = 0.5
 # Capacity plan R2: the proof search repeats its ladder (with fresh hints) while its budget share remains, up to this
 # many rounds. Subscription CLIs report $0, so rounds are also bounded here and by the call/time budget (P4).
 SEARCH_ROUNDS = max(1, int(os.environ.get("QUAERA_SEARCH_ROUNDS", "3")))
+# Improvement plan C2, behind settings until measured (evals/README.md): the Engineer climbs its ladder after this many
+# failed checks (2 = the shipped behaviour; the plan's proposal is 1), and `apply?` suggestions feed later rounds.
+LADDER_STEP = max(1, int(os.environ.get("QUAERA_LADDER_STEP", "2")))
+APPLY_HINTS = os.environ.get("QUAERA_APPLY_HINTS", "0") == "1"
 
 
 class SearchBudget(Exception):
@@ -216,14 +220,17 @@ class Orchestrator:
         """A call that expects JSON (capacity plan R1). Levels: JSON mode on API providers → lenient parse with shape
         coercion → a cheap repair pass → the question again on the same family, then on another family. Only then:
         `default` (call sites that can continue without the answer) or a controlled stop."""
-        from .structured import REPAIR_JSON, repair_prompt, try_parse
+        from .structured import REPAIR_JSON, looks_cut, repair_prompt, try_parse
         purpose = purpose_of(system)
         text, actor = self.guarded(self.llm, role, system, prompt, max_output_tokens, lane=lane, family=family, json_mode=True)
         out, _ = try_parse(text, purpose)
         self.stat(actor, purpose, "json_ok" if out is not None else "json_bad")
         if out is not None:
             return out, actor
-        self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300]})
+        cut = looks_cut(text)
+        if cut:
+            self.stat(actor, purpose, "output_cut")
+        self.store.append("model.invalid_json", actor, {"role": role, "preview": text[:300], "cut": cut})
         # Repair: a cheap call converts the broken answer; it adds no reasoning, so a weak model's content is kept.
         try:
             fixed, fixer = self.llm(role, REPAIR_JSON, repair_prompt(text, purpose, system), min(4000, max_output_tokens),
@@ -391,6 +398,16 @@ class Orchestrator:
     def question(self) -> dict:
         return self.store.latest("question")[0]
 
+    def novelty_check(self, lit: dict) -> dict:
+        """The experiment's noveltyCheck from the literature state. A project started before the code-side verdict rule
+        (literature.decide) may still hold `novel` without a source; it is read as `unknown` (contract rule 3b)."""
+        prior = [self.store.get(p)["uri"] for p in lit["papers"]]
+        basis = lit.get("basis", "search")
+        if basis == "mathlib":     # a branch of a project whose statement was found in Mathlib (B2): Mathlib is the source
+            basis, prior = "search", [f"Mathlib: {lit['mathlibKnown']['decl']}"] + prior
+        verdict = "unknown" if lit["verdict"] in ("novel", "partially_done") and not prior else lit["verdict"]
+        return {"verdict": verdict, "basis": basis, "summary": lit["summary"] or "No literature summary.", "priorWork": prior}
+
     def selected_hypothesis(self) -> dict:
         return self.store.get(self.state("hypothesis_id"))
 
@@ -402,6 +419,9 @@ class Orchestrator:
                 if stage in done:
                     continue
                 if self.state("stopped") and stage not in ("conclude", "report"):
+                    continue
+                if stage in self.fast_path_skips():
+                    self.mark(stage, skipped="fast path")
                     continue
                 self.log(f"▶ {stage}")
                 getattr(self, f"stage_{stage}")()
@@ -417,6 +437,21 @@ class Orchestrator:
                     self.mark(stage)
             self.learn()
         return self.state("report_path", "")
+
+    FAST_SKIP = ("explore",)
+
+    def fast_path_skips(self) -> tuple[str, ...]:
+        """Improvement plan C4: a known mathematical result (the literature step says `already_done`) does not need the
+        numerical exploration of small cases before the proof; the proof search itself starts with the Mathlib probe.
+        QUAERA_FAST_PATH=0 turns this off."""
+        lit = self.state("literature") or {}
+        if (os.environ.get("QUAERA_FAST_PATH", "1") == "0" or self.question().get("domain") != "math"
+                or lit.get("verdict") != "already_done"):
+            return ()
+        if not self.store.events("fastpath"):
+            self.store.append("fastpath", self.det("director"), {"reason": "the literature step found the result already known",
+                                                                 "skipped": list(self.FAST_SKIP)})
+        return self.FAST_SKIP
 
     def guarded(self, fn, *args, **kwargs):
         try:
@@ -441,8 +476,12 @@ class Orchestrator:
             art = self.store.put({"type": "artifact", "createdBy": lit.actor, "kind": "paper", "uri": v["ref"],
                                   "provider": "arxiv" if v["kind"] == "arxiv" else "doi", "citationVerified": True})
             papers.append(art["id"])
+        if lit.reason:
+            self.store.append("literature.verdict_changed", self.det("literature"), {"to": lit.verdict, "reason": lit.reason})
         self.set_state("literature", {"summary": lit.summary, "verdict": lit.verdict, "basis": lit.basis,
-                                      "papers": papers, "mathlib": lit.mathlib})
+                                      "papers": papers, "mathlib": lit.mathlib, "searched": lit.searched,
+                                      "relevant": lit.relevant, "reason": lit.reason, "queries": lit.queries,
+                                      "replanned": lit.replanned})
 
     def stage_hypothesis(self) -> None:
         q, lit = self.question(), self.state("literature")
@@ -583,8 +622,7 @@ class Orchestrator:
     def stage_design(self) -> None:
         h, lit = self.selected_hypothesis(), self.state("literature")
         actor = self.det("experiment_designer")
-        toolchain = (DEFAULT_WORKSPACE / "lean-toolchain").read_text().strip()
-        mathlib_rev = re.search(r'rev = "([^"]+)"', (DEFAULT_WORKSPACE / "lakefile.toml").read_text()).group(1)
+        toolchain, mathlib_rev = lean_versions()
         prereg = {"type": "preregistration", "createdBy": actor, "hypothesisId": h["id"],
                   "primaryMetric": "lean_verified",
                   "successCriterion": "The quaera_main theorem compiles with the approved statement, without sorry or non-standard axioms.",
@@ -599,9 +637,7 @@ class Orchestrator:
             "metrics": [{"name": "lean_verified", "direction": "binary"}],
             "lean": {"toolchain": toolchain, "mathlibRev": mathlib_rev},
             "budget": {"estimatedUsd": estimate},
-            "noveltyCheck": {"verdict": lit["verdict"], "basis": lit.get("basis", "search"),
-                             "summary": lit["summary"] or "No literature summary.",
-                             "priorWork": [self.store.get(p)["uri"] for p in lit["papers"]]},
+            "noveltyCheck": self.novelty_check(lit),
             "preregistrationId": prereg["id"], "status": "awaiting_approval",
         })
 
@@ -809,7 +845,7 @@ class Orchestrator:
                 raise SearchBudget(f"proof search used its budget share ({PROVE_BUDGET_SHARE:.0%})")
             prompt = prompt + self.human_notes("engineer")
             fam = self.lane_family(lane)
-            rung = failures["n"] // 2 if fam is None and self.gateway.ladders.get("engineer") else None   # S1
+            rung = failures["n"] // LADDER_STEP if fam is None and self.gateway.ladders.get("engineer") else None   # S1
             try:
                 completion, _cross = self.gateway.call("engineer", system, prompt, min(n, settings["max_tokens"]), family=fam,
                                                        rung=rung, sample=(ord(lane) - 64) if lane and lane != "A" else None)
@@ -837,6 +873,9 @@ class Orchestrator:
                     verified_main.update(run=run["id"], artifact=art["id"])
             return report
 
+        if self._mathlib_probe(formal, check):
+            self.set_state("proof", {"source": self.state("mathlibProof"), **verified_main})
+            return
         h = self.selected_hypothesis()
         hints = (f"Useful Mathlib declarations: {', '.join(lit['mathlib']) or '—'}" + self._exploration_text()
                  + self.mathlib_hints(formal["statement"] or h["statement"]) + self.bank_hints(f"{h['statement']} {formal['statement']}"))
@@ -845,7 +884,8 @@ class Orchestrator:
             res = prove_search(formal["source"], THEOREM, ask, check, attempts=limit + 1, hints=hints,
                                progress=progress, samples=settings["samples"], rounds=SEARCH_ROUNDS, more=share, heavy=True,
                                depth=settings["depth"], interactive=self.interactive("engineer"),
-                               interactive_first=settings["interactive_first"])
+                               interactive_first=settings["interactive_first"],
+                               suggest=(lambda: self._apply_suggestions(formal)) if APPLY_HINTS else None)
         except SearchBudget as exc:
             self.store.append("proof.search", self.det("engineer"), {"solved": False, "stopped": str(exc)})
             self.set_state("proof", None)
@@ -863,6 +903,49 @@ class Orchestrator:
             return
         self.set_state("proof", None)
         self._try_refute()
+
+    def _apply_suggestions(self, formal: dict) -> str:
+        """`apply?` on the approved statement, once, without a model: its "Try this" lines name concrete Mathlib lemmas."""
+        from .prover import apply_suggestions, with_proof
+        probe = with_proof(formal["source"], THEOREM, "apply?")
+        try:
+            rep = self.tools.call_json("engineer", "lean.compile", source=probe, theorem=THEOREM) if probe else {}
+        except Exception as exc:   # optional: a Lean tool error leaves the prompts as they were
+            self.store.append("tool.error", self.det("engineer"), {"tool": "lean.compile", "query": "apply?", "error": str(exc)[:200]})
+            return ""
+        return apply_suggestions(rep.get("output", ""))
+
+    def _mathlib_probe(self, formal: dict, check) -> bool:
+        """Improvement plan B2: is the approved statement already in Mathlib? `exact?` is run once, without a model.
+        A suggested term is compiled as an ordinary proof attempt (`check`, so the run and the Lean output are recorded);
+        if Lean accepts it, the literature verdict becomes `already_done` with basis `mathlib` and the proof search is skipped."""
+        from .prover import with_proof
+        probe = with_proof(formal["source"], THEOREM, "exact?")
+        if not probe:
+            return False
+        self.activity("engineer", "Looking the statement up in Mathlib (exact?, no model)", "start")
+        try:
+            rep = self.tools.call_json("engineer", "lean.compile", source=probe, theorem=THEOREM, approved_statement=formal["statement"])
+        except Exception as exc:   # the probe is optional: a Lean tool error falls through to the normal proof search
+            self.store.append("tool.error", self.det("engineer"), {"tool": "lean.compile", "query": "exact?", "error": str(exc)[:200]})
+            self.activity("engineer", "Looking the statement up in Mathlib (exact?, no model)", "fail")
+            return False
+        term = suggested_term(rep.get("output", "")) if rep.get("verified") else None
+        source = term and with_proof(formal["source"], THEOREM, f"exact {term}")
+        ok = bool(source) and check(source)["verified"]
+        self.activity("engineer", "Looking the statement up in Mathlib (exact?, no model)", "done" if ok else "fail")
+        if not ok:
+            return False
+        decl = mathlib_decl(term)
+        lit = self.state("literature") or {}
+        self.store.append("literature.mathlib_known", self.det("literature"), {"decl": decl, "term": term[:300]})
+        self.set_state("literature", {**lit, "verdict": "already_done", "basis": "mathlib", "reason": "",
+                                      "mathlibKnown": {"decl": decl, "term": term[:300]},
+                                      "mathlib": [decl] + [m for m in lit.get("mathlib", []) if m != decl]})
+        self.set_state("mathlibProof", source)
+        self.store.append("proof.search", self.det("engineer"), {"solved": True, "modelCalls": 0,
+                                                                 "steps": [{"kind": "mathlib_probe", "verified": True}]})
+        return True
 
     def stage_analysis(self) -> None:
         h, proof, refutation = self.selected_hypothesis(), self.state("proof"), self.state("refutation")
@@ -1010,6 +1093,23 @@ def similar(a: str, b: str, threshold: float = 0.85) -> bool:
     """Two nearly identical hypotheses (word-level similarity) count as one candidate."""
     import difflib
     return difflib.SequenceMatcher(a=a.lower().split(), b=b.lower().split()).ratio() >= threshold
+
+
+TRY_THIS = re.compile(r"Try this:\s*(?:\[apply\]\s*)?exact\s+([\s\S]+?)(?=\n(?:info|warning|error):\d+: |\n\S[^\n]*:\d+:\d+: |\Z)")
+DECL = re.compile(r"[A-Za-z_][\w'!?]*(?:\.[\w'!?₀-₉]+)+")
+
+
+def suggested_term(output: str) -> str | None:
+    """The term from `exact?`'s "Try this: exact …" message (REPL or one-shot compiler output)."""
+    m = TRY_THIS.search(output or "")
+    term = m and " ".join(m.group(1).split())
+    return term if term and "sorry" not in term else None
+
+
+def mathlib_decl(term: str) -> str:
+    """The Mathlib declaration a suggested term is built from: the first dotted name, else the first word."""
+    m = DECL.search(term)
+    return m.group(0) if m else term.split()[0].strip("()@")
 
 
 def extract_lean(text: str) -> str:

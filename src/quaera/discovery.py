@@ -45,6 +45,9 @@ LANES = int(os.environ.get("QUAERA_IDEATION_LANES", "4"))
 ATTACK_SHARE = 0.7          # attack rounds use at most 70% of the measured budget left at stage start
 SORRY = "Proof contains `sorry`."
 WEIGHTS = {"plausibility": 0.35, "barrierAwareness": 0.25, "novelty": 0.25, "testability": 0.15}
+DIFFICULTIES = {"tractable", "hard", "famous_open"}
+FAMOUS_OPEN_NOTE = ("Expectation: the research landscape rates this a famous open problem. The realistic output is a set of "
+                    "Lean-verified partial lemmas and refuted approaches, not a proof or disproof of the claim.")
 
 
 def lemma_file(lean: str, name: str) -> str:
@@ -114,7 +117,9 @@ class DiscoveryOrchestrator(Orchestrator):
                                f"Question: {q['title']}\nScope: {q['scope']}\nLiterature summary: {lit['summary']}\n"
                                f"Mathlib declarations found: {', '.join(lit['mathlib']) or '—'}" + self.recall_memory(q), 6000,
                                default={"approaches": [], "barriers": [], "partialResults": [], "openAngles": []})
-        self.set_state("landscape", {k: out.get(k) or [] for k in ("approaches", "barriers", "partialResults", "openAngles")})
+        landscape = {k: out.get(k) or [] for k in ("approaches", "barriers", "partialResults", "openAngles")}
+        landscape["difficulty"] = out.get("difficulty") if out.get("difficulty") in DIFFICULTIES else None
+        self.set_state("landscape", landscape)
 
     def stage_target(self) -> None:
         """Target claim: the question as it is (not narrowed). The human approves the target; strategies try to prove or refute it."""
@@ -126,7 +131,12 @@ class DiscoveryOrchestrator(Orchestrator):
                             "falsifiabilityNote": f"Negation: {out.get('negation') or '—'}",
                             "expectedSignal": "A Lean-verified proof of the claim or of its negation.", "status": "draft",
                             "scopeRelation": {"relation": "full", "note": out.get("note") or "The question itself, not narrowed."}})
-        decision = self.ask_human(actor, "accept_hypothesis", h["id"], "Target claim for the discovery program (not narrowed):", 0.0,
+        summary = "Target claim for the discovery program (not narrowed):"
+        if (self.state("landscape") or {}).get("difficulty") == "famous_open":
+            # Improvement plan D1: say up front what such a run can produce, before the budget is spent.
+            summary = (f"{FAMOUS_OPEN_NOTE} Budget cap: ${self.gateway.remaining():.2f}.\n\n{summary}")
+            self.store.append("discovery.expectation", self.det("director"), {"difficulty": "famous_open", "note": FAMOUS_OPEN_NOTE})
+        decision = self.ask_human(actor, "accept_hypothesis", h["id"], summary, 0.0,
                                   [f"{h['statement']} [fully answers the question]"])
         if not decision.approved:
             self.store.put({**h, "status": "rejected"}, by=self.human())

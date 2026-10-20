@@ -87,7 +87,7 @@
         "approvedUsd": 1.5
       },
       "noveltyCheck": {
-        "verdict": "novel",
+        "verdict": "unknown",
         "summary": "No direct comparison found in this setting."
       },
       "preregistrationId": "PRE-0040",

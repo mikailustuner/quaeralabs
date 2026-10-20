@@ -107,6 +107,12 @@ def repair_prompt(text: str, purpose: str, system: str) -> str:
             f"Answer to convert:\n{text[-12000:]}")
 
 
+def looks_cut(text: str) -> bool:
+    """An invalid answer that stops before its closing bracket: cut at the output limit, not malformed."""
+    t = text.strip().removesuffix("```").strip()
+    return bool(t) and not t.endswith(("}", "]"))
+
+
 def try_parse(text: str, purpose: str):
     try:
         return parse(text, purpose), None

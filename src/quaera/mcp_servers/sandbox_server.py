@@ -2,8 +2,9 @@
 
 Every project has a working directory (`<project>/work`); the code is kept there in a git repository.
 - sandbox_write: writes a file and commits it; returns the commit ID.
-- sandbox_exec: runs a command inside bwrap. No network, the ML environment and data are read-only, only the working directory is writable.
+- sandbox_exec: runs a command inside the sandbox (bwrap or a container, quaera.sandbox.make_sandbox). No network, the ML environment and data are read-only, only the working directory is writable.
   GPU is enabled only with `gpu=true` and after the tool registry's permission check.
+  The ML environment is the host's (ml-env) or the ML image (quaera.images, QUAERA_ML=host|image|auto); the image is CPU-only.
 - sandbox_create_clean: extracts a given commit from scratch into a new directory (the Verifier's clean environment).
 
 Remote runner (capacity plan ML3): with QUAERA_REMOTE_RUNNER set (a command prefix, e.g. `ssh -i ~/.ssh/key user@gpu-host`),
@@ -26,15 +27,24 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
-from quaera.sandbox import SYSTEM_RO, resource_prefix
+from quaera import images
+from quaera.resources import ml_env
+from quaera.sandbox import ContainerSandbox, make_sandbox
 
-ROOT = Path(__file__).resolve().parents[3]
-ML_ENV = Path(os.environ.get("QUAERA_ML_ENV", ROOT / "ml-env"))
+ML_ENV = ml_env()
 GPU_DEVICES = ["/dev/nvidia0", "/dev/nvidiactl", "/dev/nvidia-uvm", "/dev/nvidia-uvm-tools"]
 mcp = MCPServer("sandbox")
 
 
-def _base_python_binds() -> list[str]:
+def ml_image_in_use() -> str | None:
+    """The ML image when experiments run from it, None for the host environment."""
+    m = images.mode("ml")
+    if m == "image" or (m == "auto" and not (ML_ENV / "bin" / "python").exists() and images.present(images.ml_image())):
+        return images.ml_image()
+    return None
+
+
+def _base_python_binds() -> list:
     """The virtualenv's base interpreter: both the path as seen through the symlink and the real path are bound."""
     cfg = ML_ENV / "pyvenv.cfg"
     if not cfg.exists():
@@ -43,10 +53,7 @@ def _base_python_binds() -> list[str]:
     if not home:
         return []
     shown, real = Path(home).parent, Path(home).resolve().parent
-    out = ["--ro-bind", str(real), str(real)]
-    if shown != real:
-        out += ["--ro-bind", str(real), str(shown)]
-    return out
+    return [real] + ([(real, shown)] if shown != real else [])
 
 
 def _git(work: Path, *args: str) -> str:
@@ -132,32 +139,30 @@ def sandbox_exec(workdir: str, command: list[str], data_dir: str | None = None, 
             res = {"returncode": -1, "stdout": "", "stderr": f"remote runner failed: {exc}", "timed_out": False, "runner": runner["label"]}
         res["gpu"] = True
         return json.dumps(res, ensure_ascii=False)
-    args = ["bwrap", "--die-with-parent", "--new-session", "--unshare-all", "--cap-drop", "ALL"]
-    for p in SYSTEM_RO:
-        if os.path.exists(p):
-            args += ["--ro-bind", p, p]
-    args += ["--ro-bind", str(ML_ENV.resolve()), str(ML_ENV.resolve())]
-    args += _base_python_binds()   # the virtualenv's python is a symlink to the base interpreter installed by uv
+    image = ml_image_in_use()
+    if image and gpu:
+        return json.dumps({"returncode": -1, "stdout": "", "timed_out": False, "gpu": True, "stderr":
+                           "GPU jobs need the host ML environment (quaera setup ml) or a remote runner; the ML image is CPU-only"})
+    # the virtualenv's python is a symlink to the base interpreter installed by uv
+    binds = [] if image else [ML_ENV.resolve(), *_base_python_binds()]
     if data_dir:
-        args += ["--ro-bind", str(Path(data_dir).resolve()), "/data"]
-    args += ["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", str(work), str(work), "--chdir", str(work)]
-    if gpu:
-        for dev in GPU_DEVICES:
-            if os.path.exists(dev):
-                args += ["--dev-bind", dev, dev]
-        if os.path.exists("/sys"):
-            args += ["--ro-bind", "/sys", "/sys"]
-    env = {"PATH": f"{ML_ENV.resolve()}/bin:/usr/bin:/bin", "HOME": str(work), "LANG": "C.UTF-8",
+        binds.append((Path(data_dir).resolve(), "/data"))
+    if gpu and os.path.exists("/sys"):
+        binds.append(Path("/sys"))
+    try:
+        path = images.layout(image)["path"] if image else f"{ML_ENV.resolve()}/bin:/usr/bin:/bin"
+    except images.ImageUnavailable as exc:
+        return json.dumps({"returncode": -1, "stdout": "", "stderr": str(exc), "timed_out": False, "gpu": gpu})
+    env = {"PATH": path, "HOME": str(work), "LANG": "C.UTF-8",
            "PYTHONHASHSEED": "0", "CUBLAS_WORKSPACE_CONFIG": ":4096:8", "OMP_NUM_THREADS": "4",
            "CUDA_VISIBLE_DEVICES": "0" if gpu else ""}
-    args += ["--clearenv"] + [x for k, v in env.items() for x in ("--setenv", k, v)]
-    limits = ["prlimit", f"--cpu={timeout_s * 4}", "--nproc=512", "--"]
-    try:
-        proc = subprocess.run(resource_prefix() + args + limits + command, capture_output=True, text=True, timeout=timeout_s)
-        res = {"returncode": proc.returncode, "stdout": proc.stdout[-8000:], "stderr": proc.stderr[-4000:], "timed_out": False}
-    except subprocess.TimeoutExpired as exc:
-        res = {"returncode": -1, "stdout": str(exc.stdout or "")[-4000:], "stderr": str(exc.stderr or "")[-2000:], "timed_out": True}
+    limits = dict(cpu_seconds=timeout_s * 4, max_processes=512)
+    box = ContainerSandbox(**limits, image=image, host_binds=False) if image else make_sandbox(**limits)
+    r = box.run(command, work, ro_paths=binds, env=env, timeout_s=timeout_s, devices=GPU_DEVICES if gpu else [])
+    res = ({"returncode": -1, "stdout": r.stdout[-4000:], "stderr": r.stderr[-2000:], "timed_out": True} if r.timed_out else
+           {"returncode": r.returncode, "stdout": r.stdout[-8000:], "stderr": r.stderr[-4000:], "timed_out": False})
     res["gpu"] = gpu
+    res["sandbox"] = box.kind + (f" ({image})" if image else "")
     return json.dumps(res, ensure_ascii=False)
 
 

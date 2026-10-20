@@ -1,4 +1,5 @@
-"""Critic test v0.2: measured with the QuaeraLabs Critic agent (CRITIC_EXPERIMENT prompt).
+"""Critic test v0.2: measured with the QuaeraLabs Critic agent (CRITIC_EXPERIMENT prompt), through the same function as
+`quaera critique` (quaera.critique.review), so the measured path is the product's path (improvement plan E1).
 
 Usage: uv run python evals/critic_v2_run.py --budget 5
 """
@@ -17,7 +18,8 @@ from pathlib import Path
 import yaml
 
 from quaera import prompts
-from quaera.gateway import ClaudeCLIProvider, Gateway, ModelError, parse_json
+from quaera.critique import review
+from quaera.gateway import ClaudeCLIProvider, Gateway
 from quaera.permissions import Permissions
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,11 +55,10 @@ def main() -> int:
     gw = Gateway({"anthropic": ClaudeCLIProvider()}, a.budget, perms.agents)
     rows = []
     for cid in order:
-        try:
-            c, _ = gw.call("critic", prompts.CRITIC_EXPERIMENT, f"Experiment report:\n{cases[cid]['report']}", 1500)
-            out = parse_json(c.text)
-        except ModelError as exc:
-            out = {"flawed": None, "categories": [], "summary": f"error: {exc}"}
+        def ask(system, prompt, n):
+            c, _ = gw.call("critic", system, prompt, n)
+            return c.text, c.model
+        out = review(cases[cid]["report"], ask)
         rows.append({"id": cid, "split": cases[cid]["split"], "kind": cases[cid]["kind"], "flawed": bool(out.get("flawed")),
                      "categories": out.get("categories") or [], "severity": out.get("severity"),
                      "evidence": out.get("evidence", ""), "summary": out.get("summary", "")})

@@ -1,4 +1,5 @@
-"""Literature step: search plan → arXiv, OpenAlex and Mathlib search → relevance filtering and novelty verdict → citation check.
+"""Literature step: search plan → arXiv, OpenAlex, Semantic Scholar and Mathlib search → relevance filtering and novelty
+verdict → citation check. If nothing relevant was found, the queries are rewritten once (improvement plan B3).
 
 The orchestrator and the evaluation set (evals/literature_run.py) use the same function.
 """
@@ -6,6 +7,7 @@ The orchestrator and the evaluation set (evals/literature_run.py) use the same f
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Callable
@@ -23,6 +25,7 @@ def _json(llm, system: str, prompt: str, n: int) -> tuple[dict, dict]:
         return parse_json(text), actor
 
 VERDICTS = {"novel", "partially_done", "already_done", "unknown"}
+MAX_QUERIES = 8          # distinct paper-search queries per literature step, both passes together
 BASES = {"search", "model_knowledge", "mixed"}
 
 
@@ -37,15 +40,45 @@ class LiteratureResult:
     searched: int = 0
     actor: dict | None = None
     tool_errors: list = field(default_factory=list)
+    relevant: int = 0                                    # search results the model judged relevant
+    reason: str = ""                                     # why the code changed the model's verdict ("" = kept)
+    queries: list[str] = field(default_factory=list)     # paper-search queries run, in order
+    replanned: bool = False                              # the first queries found nothing relevant and were rewritten
 
 
 def _safe(tools, errors: list, *args, **kw):
     """External literature services (arXiv, OpenAlex) can go down temporarily: an error does not stop the research, it is recorded."""
     try:
-        return tools.call_json(*args, **kw)
+        res = tools.call_json(*args, **kw)
     except Exception as exc:  # network/service errors: continue as if there were no results
         errors.append({"tool": args[1], "query": kw.get("query"), "error": str(exc)[:200]})
         return []
+    if isinstance(res, dict) and "error" in res:     # the service answered with an error (HTTP status, rate limit)
+        errors.append({"tool": args[1], "query": kw.get("query"), "error": str(res["error"])[:200]})
+        return []
+    return res
+
+
+def _search(tools, errors: list, found: dict, arxiv: list[str], scholar: list[str]) -> None:
+    """arXiv queries on arXiv; the other queries on OpenAlex and, with an S2_API_KEY, Semantic Scholar (without a key
+    its shared rate limit refuses most requests)."""
+    for query in arxiv:
+        for r in _safe(tools, errors, "literature", "arxiv.search", query=query, max_results=6):
+            found.setdefault(r["id"], {"id": r["id"], "title": r["title"], "year": r["year"], "summary": r["summary"][:350]})
+    for query in scholar:
+        for r in _safe(tools, errors, "literature", "openalex.search", query=query, max_results=6):
+            if r.get("doi"):
+                found.setdefault(r["doi"], {"id": r["doi"], "title": r["title"], "year": r["year"],
+                                            **({"summary": r["summary"][:350]} if r.get("summary") else {})})
+        if os.environ.get("S2_API_KEY"):
+            for r in _safe(tools, errors, "literature", "s2.search", query=query, max_results=6):
+                found.setdefault(r["id"], {"id": r["id"], "title": r["title"], "year": r["year"], "summary": r["summary"][:350]})
+
+
+def _queries(plan: dict, key: str, n: int, used: list[str]) -> list[str]:
+    out = [q for q in plan.get(key, []) if isinstance(q, str) and q.strip() and q not in used][:n]
+    used += out
+    return out
 
 
 def run_literature(question: str, scope: str, domain: str, llm: Callable[[str, str, int], tuple[str, dict]],
@@ -54,28 +87,41 @@ def run_literature(question: str, scope: str, domain: str, llm: Callable[[str, s
     tool_errors: list = []
     plan, actor = _json(llm, prompts.LITERATURE_PLAN, f"Research question: {question}\nScope: {scope}\nDomain: {domain}", 1500)
     found: dict[str, dict] = {}
-    for query in plan.get("arxiv_queries", [])[:3]:
-        res = _safe(tools, tool_errors, "literature", "arxiv.search", query=query, max_results=6)
-        for r in res if isinstance(res, list) else []:
-            found.setdefault(r["id"], {"id": r["id"], "title": r["title"], "year": r["year"], "summary": r["summary"][:350]})
-    for query in plan.get("openalex_queries", [])[:2]:
-        res = _safe(tools, tool_errors, "literature", "openalex.search", query=query, max_results=6)
-        for r in res if isinstance(res, list) else []:
-            if r.get("doi"):
-                found.setdefault(r["doi"], {"id": r["doi"], "title": r["title"], "year": r["year"]})
+    used: list[str] = []
+    _search(tools, tool_errors, found, _queries(plan, "arxiv_queries", 3, used), _queries(plan, "openalex_queries", 2, used))
     mathlib = []
     if domain == "math":
         for query in plan.get("mathlib_queries", [])[:3]:
             res = _safe(tools, tool_errors, "literature", "mathlib.search", query=query, limit=12)
             mathlib += res if isinstance(res, list) else []
-    raw = json.dumps({"papers": list(found.values())[:24], "mathlib": mathlib[:30],
-                      "search_errors": [e["tool"] for e in tool_errors]}, ensure_ascii=False)
-    out, actor = _json(llm, prompts.LITERATURE_SUMMARY, f"Research question: {question}\n\nSearch results:\n{raw}", 3000)
+
+    def summarize():
+        raw = json.dumps({"papers": list(found.values())[:30], "mathlib": mathlib[:30],
+                          "search_errors": sorted({e["tool"] for e in tool_errors})}, ensure_ascii=False)
+        return _json(llm, prompts.LITERATURE_SUMMARY, f"Research question: {question}\n\nSearch results:\n{raw}", 3000)
+
+    out, actor = summarize()
+    first_relevant = {r for r in [*out.get("relevant", []), *out.get("cited", [])] if isinstance(r, str) and r in found}
+    replanned = False
+    if not first_relevant and not (tool_errors and not found) and len(used) < MAX_QUERIES:
+        # Second pass: nothing relevant (or nothing at all). The model sees what the first queries returned and rewrites them.
+        seen = "; ".join(p["title"] for p in list(found.values())[:12]) or "nothing"
+        again, _a = _json(llm, prompts.LITERATURE_REPLAN, f"Research question: {question}\nScope: {scope}\nDomain: {domain}\n"
+                          f"Queries used: {json.dumps(used, ensure_ascii=False)}\nThey returned (titles): {seen}", 1000)
+        room = MAX_QUERIES - len(used)
+        arxiv = _queries(again, "arxiv_queries", min(2, room), used)
+        scholar = _queries(again, "openalex_queries", min(1, MAX_QUERIES - len(used)), used)
+        if arxiv or scholar:
+            before = len(found)
+            _search(tools, tool_errors, found, arxiv, scholar)
+            replanned = True
+            if len(found) > before:
+                out, actor = summarize()
 
     verdict = out.get("verdict") if out.get("verdict") in VERDICTS else "unknown"
     basis = out.get("basis") if out.get("basis") in BASES else "search"
     result = LiteratureResult(out.get("summary", ""), verdict, basis, mathlib=out.get("relevant_mathlib", [])[:20],
-                              searched=len(found), actor=actor)
+                              searched=len(found), actor=actor, queries=used, replanned=replanned)
     result.tool_errors = tool_errors
     for ref in out.get("cited", []):
         if ref not in found:
@@ -98,10 +144,26 @@ def run_literature(question: str, scope: str, domain: str, llm: Callable[[str, s
     for ref in removed:
         if ref not in {r["ref"] for r in result.rejected}:
             result.rejected.append({"ref": ref, "reason": "cited in the summary but not verified; removed from the summary"})
-    # Without a verified source, a "search" basis cannot be claimed.
-    if not result.verified and result.basis == "search" and result.verdict in ("already_done", "partially_done", "novel"):
-        result.basis = "model_knowledge"
+    result.relevant = len({r for r in out.get("relevant", []) if isinstance(r, str) and r in found})
+    result.verdict, result.basis, result.reason = decide(result.verdict, result.basis, len(result.verified),
+                                                         searched=len(found), service_down=bool(tool_errors) and not found)
     return result
+
+
+def decide(verdict: str, basis: str, verified: int, *, searched: int, service_down: bool) -> tuple[str, str, str]:
+    """The model proposes a verdict; the code decides what may be claimed (improvement plan B1).
+
+    In the 2026-10-04 run on "is n³ − n divisible by 6" the search returned only unrelated papers and the model answered
+    `novel`, although the literature eval accepted only `already_done` for the same question: the prompt rule alone was
+    not enough. Claiming that something is new, or partly done, needs a verified relevant source; a textbook fact the
+    model is sure about stays `already_done`, marked as unverified model knowledge."""
+    if verdict in ("novel", "partially_done") and verified == 0:
+        why = ("the literature services could not be reached" if service_down else
+               f"none of the {searched} search results was a verified relevant source" if searched else "the search found nothing")
+        return "unknown", "search", f"`{verdict}` needs a verified source; {why}"
+    if verified == 0 and verdict == "already_done" and basis in ("search", "mixed"):
+        return verdict, "model_knowledge", ""      # without a verified source a "search" basis cannot be claimed
+    return verdict, basis, ""
 
 
 ARXIV_TEXT = re.compile(r"\barXiv:\s*\d{4}\.\d{4,5}(?:v\d+)?", re.I)

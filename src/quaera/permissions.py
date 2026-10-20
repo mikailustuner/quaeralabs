@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+from .resources import data_path
 
 # Object types a human may write directly (questions, approval revisions, objections, messages).
 HUMAN_WRITABLE = {"question", "hypothesis", "experiment", "critique", "message"}
@@ -27,7 +27,8 @@ class Permissions:
     skills: dict[str, dict]   # skill id -> definition
 
     @classmethod
-    def load(cls, agents_dir: Path = ROOT / "agents", skills_dir: Path = ROOT / "skills") -> "Permissions":
+    def load(cls, agents_dir: Path | None = None, skills_dir: Path | None = None) -> "Permissions":
+        agents_dir, skills_dir = agents_dir or data_path("agents"), skills_dir or data_path("skills")
         agents = {}
         for p in sorted(agents_dir.glob("*.yaml")):
             spec = yaml.safe_load(p.read_text(encoding="utf-8"))

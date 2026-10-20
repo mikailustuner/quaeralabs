@@ -17,7 +17,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from .lean import DEFAULT_WORKSPACE, mathlib_rev
+from .lean import mathlib_rev, mathlib_sources
 
 SYMBOLS = {
     "∑": "sum", "∏": "prod", "≤": "le", "≥": "ge", "<": "lt", ">": "gt", "≠": "ne", "∣": "dvd", "∈": "mem", "∉": "notmem",
@@ -74,7 +74,7 @@ class MathlibIndex:
             if cls._default is None:
                 home = Path(os.environ.get("QUAERA_HOME", Path.home() / ".quaera"))
                 rev = mathlib_rev()
-                cls._default = cls(home / f"mathlib-{rev[:12]}.db", DEFAULT_WORKSPACE / ".lake" / "packages" / "mathlib" / "Mathlib")
+                cls._default = cls(home / f"mathlib-{rev[:12]}.db", mathlib_sources())
             return cls._default
 
     def built(self) -> bool:

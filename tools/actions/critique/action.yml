@@ -1,0 +1,64 @@
+name: QuaeraLabs critique
+description: >-
+  Runs the QuaeraLabs Critic (`quaera critique`) on every experiment directory changed in a pull request and posts the
+  critique as a PR comment. Nothing in the repository is executed. Improvement plan E2.
+inputs:
+  paths:
+    description: Directory that holds the experiments; each directory directly below it is one experiment
+    default: experiments
+  budget:
+    description: Budget cap in USD per experiment directory; never exceeded
+    default: "0.5"
+  fail-on:
+    description: Fail the check when an objection has at least this severity (low, medium, high, blocking); empty = never
+    default: ""
+  models:
+    description: >-
+      The models, as QUAERA_LITELLM_MODELS JSON, e.g. {"cheap": "anthropic/<model>", "best": "anthropic/<model>"}
+    required: true
+  api-key-env:
+    description: Name of the environment variable that holds the provider's API key (set it from a repository secret)
+    default: ANTHROPIC_API_KEY
+  github-token:
+    description: Token used to post the comment
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v6
+    - name: Install QuaeraLabs (from this action's repository)
+      shell: bash
+      run: uv tool install --quiet "${{ github.action_path }}/../../..[providers]"
+    - name: Critique changed experiments
+      shell: bash
+      env:
+        QUAERA_LITELLM_MODELS: ${{ inputs.models }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        PATHS: ${{ inputs.paths }}
+        BUDGET: ${{ inputs.budget }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        KEY_ENV: ${{ inputs.api-key-env }}
+      run: |
+        set -euo pipefail
+        [ -n "${!KEY_ENV:-}" ] || { echo "::error::$KEY_ENV is not set; pass it from a repository secret"; exit 1; }
+        base="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+        prefix="${PATHS%/}"
+        # one experiment = one directory directly below the prefix
+        dirs=$(git diff --name-only "$base" HEAD -- "$prefix" | sed -nE "s#^(${prefix}/[^/]+)/.*#\1#p" | sort -u)
+        if [ -z "$dirs" ]; then echo "No experiment directory changed under $PATHS."; exit 0; fi
+        status=0
+        body=$(mktemp)
+        for d in $dirs; do
+          [ -d "$d" ] || continue
+          args=(critique "$d" --budget "$BUDGET" --out "$d.critique.md")
+          [ -n "$FAIL_ON" ] && args+=(--fail-on "$FAIL_ON")
+          quaera "${args[@]}" > /dev/null || status=$?
+          cat "$d.critique.md" >> "$body"; echo >> "$body"
+          rm -f "$d.critique.md"
+        done
+        if [ -n "${{ github.event.pull_request.number }}" ]; then
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file "$body"
+        else
+          cat "$body" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        exit $status

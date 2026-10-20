@@ -11,13 +11,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-USER_AGENT = "QuaeraLabs-citation-check/0.1 (+https://github.com/quaeralabs)"
+USER_AGENT = "QuaeraLabs-citation-check/0.1 (+https://github.com/mikailustuner/quaeralabs)"
 TIMEOUT = 15
 ARXIV_ID = re.compile(r"^\d{4}\.\d{4,5}(v\d+)?$")
 
 
-def _get(url: str) -> tuple[int, str]:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+def _get(url: str, headers: dict | None = None) -> tuple[int, str]:
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             return resp.status, resp.read().decode("utf-8", "replace")

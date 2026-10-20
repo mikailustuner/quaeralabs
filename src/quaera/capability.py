@@ -67,7 +67,7 @@ class ModelStats:
             self.db.commit()
 
     def profile(self, model: str) -> dict:
-        valid, invalid = self._sum(model, "json_ok"), self._sum(model, "json_bad")
+        valid, invalid, cut = self._sum(model, "json_ok"), self._sum(model, "json_bad"), self._sum(model, "output_cut")
         ok, bad = self._sum(model, "compile_ok"), self._sum(model, "compile_bad")
         calls, errors = self._sum(model, "call"), self._sum(model, "error")
         with self.lock:
@@ -77,6 +77,7 @@ class ModelStats:
                 "meanUsd": round(self._sum(model, "usd_micro") / 1e6 / calls, 5) if calls else None,
                 "meanTokens": round(self._sum(model, "tokens") / calls) if calls else None,
                 "json_reliability": round(valid / (valid + invalid), 3) if valid + invalid else None, "json_n": valid + invalid,
+                "output_cut": cut,
                 "compile_rate": round(ok / (ok + bad), 3) if ok + bad else None, "compile_n": ok + bad,
                 "verified": self._sum(model, "verified"),
                 "probe": {"score": pr[0], "of": pr[1], "jsonOk": bool(pr[2]), "at": pr[3]} if pr else None}

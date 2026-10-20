@@ -8,10 +8,17 @@ export type QObject = { id: string; type: string; createdBy: Actor; [k: string]:
 
 export type Summary = {
   id: string; title: string; shortTitle: string; managerUsd: number; domain: "math" | "ml"; mode?: "verify" | "discover"; families?: string[] | null; stages: string[]; done: string[]; current: string | null;
-  running: boolean; error: string | null; stopped: any; spentUsd: number; capUsd: number | null; calls: number; cachedCalls?: number;
+  running: boolean; status?: ProjectStatus; error: string | null; stopped: any; spentUsd: number; capUsd: number | null; calls: number; cachedCalls?: number;
   keepTrying?: boolean; limits?: { calls?: number; tokens?: number; hours?: number; deadline?: number } | null;
   hypothesis: { id: string; status: string; statement: string } | null; branchOf: string | null; branchAt: number | null; createdAt: string | null;
 };
+export type ProjectStatus = "running" | "waiting" | "crashed" | "stopped" | "paused" | "done";
+/** Label and badge tone per project status (server.project_status); "done" shows the hypothesis outcome instead. */
+export const STATUS_BADGE: Record<ProjectStatus, [string, string]> = {
+  running: ["running", "accent"], waiting: ["needs your decision", "warn"], crashed: ["crashed", "bad"],
+  stopped: ["stopped", "warn"], paused: ["paused", ""], done: ["finished", "good"],
+};
+export const needsAttention = (p: Summary) => p.status === "waiting" || p.status === "crashed" || p.status === "paused";
 export type Pending = { id: string; action: string; summary: string; cost_usd: number; options: string[] | null };
 export type Detail = Summary & { objects: QObject[]; states: Record<string, any>; pending: Pending[]; report: string | null };
 

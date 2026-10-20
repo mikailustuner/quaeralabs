@@ -143,9 +143,7 @@ class MLOrchestrator(Orchestrator):
                "metrics": [m for m in plan.get("metrics", []) if m.get("direction") in ("higher_is_better", "lower_is_better", "binary")],
                "environment": {"runtime": "python3.12 · numpy · scikit-learn · torch (quaera ml-env)"},
                "budget": {"estimatedUsd": round(self.gateway.remaining(), 2)},
-               "noveltyCheck": {"verdict": lit["verdict"], "basis": lit.get("basis", "search"),
-                                "summary": lit["summary"] or "No literature summary.",
-                                "priorWork": [self.store.get(p)["uri"] for p in lit["papers"]]},
+               "noveltyCheck": self.novelty_check(lit),
                "status": "draft"}
         return self.store.put(obj)
 

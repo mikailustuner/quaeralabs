@@ -141,9 +141,15 @@ def test_probe_reports_ok(fakes):
 CLAUDE = '''
 import os
 prompt = sys.stdin.read()
+assert sys.argv[sys.argv.index("--output-format") + 1] == "stream-json" and "--verbose" in sys.argv
 limit = int(os.environ["CLAUDE_CODE_MAX_OUTPUT_TOKENS"])
 turns = 3 if "LONG" in prompt else 1
-print(json.dumps({"subtype": "success", "is_error": False, "num_turns": turns, "result": f"limit={limit}",
+blocks = ['{"title": "first half, ', 'second half"}'] if "SPLIT" in prompt else [f"limit={limit}"]
+print(json.dumps({"type": "system", "subtype": "init"}))
+for i, text in enumerate(blocks):     # thinking between text blocks, as with interleaved thinking
+    print(json.dumps({"type": "assistant", "message": {"id": "m1", "content": [{"type": "thinking", "thinking": "..."}]}}))
+    print(json.dumps({"type": "assistant", "message": {"id": "m1", "content": [{"type": "text", "text": text}]}}))
+print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "num_turns": turns, "result": blocks[-1],
                   "total_cost_usd": 0.01, "usage": {"input_tokens": 5, "output_tokens": 7}, "modelUsage": {"claude-x": {}}}))
 '''
 
@@ -156,3 +162,10 @@ def test_claude_cli_adds_thinking_headroom_and_rejects_continued_answers(tmp_pat
     assert p.complete("opus", "sys", "short", 2500, 1.0).text == "limit=2500"
     with pytest.raises(ModelError, match="cut off"):
         p.complete("opus", "sys", "LONG answer", 2500, 1.0, effort="high")
+
+
+def test_claude_cli_joins_an_answer_split_by_thinking(tmp_path):
+    """`result` holds only the last text block; the answer is all text blocks (improvement plan D3)."""
+    from quaera.gateway import ClaudeCLIProvider
+    c = ClaudeCLIProvider(str(fake_bin(tmp_path, "claude", CLAUDE))).complete("opus", "sys", "SPLIT", 2500, 1.0, effort="high")
+    assert json.loads(c.text) == {"title": "first half, second half"} and c.blocks == 2

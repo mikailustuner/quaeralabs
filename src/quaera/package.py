@@ -19,6 +19,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import zipfile
 from pathlib import Path
 
@@ -134,3 +135,57 @@ def verify_package(data: bytes) -> list[str]:
             elif hashlib.sha256(z.read(f["path"])).hexdigest() != f["sha256"]:
                 problems.append(f"modified file: {f['path']}")
     return problems
+
+
+def check_package(data: bytes, online: bool = True, lean: bool = False) -> list[dict]:
+    """Every check a third party can run on a package (improvement plan E3), as [{check, status, detail}];
+    status is ok, fail or skipped. Offline: signature, AI label, file hashes, manifest schema. Online: every arXiv id and
+    DOI in the report is a verified paper of the package and exists in the official registry. With `lean`: the proof is
+    recompiled from scratch in a clean Lean process."""
+    from . import citations
+    from .literature import ARXIV_TEXT, DOI_TEXT, norm_ref
+    out = []
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+        manifest = json.loads(z.read("quaera-manifest.json"))
+    except (zipfile.BadZipFile, KeyError, ValueError) as exc:
+        return [{"check": "package", "status": "fail", "detail": f"not a QuaeraLabs evidence package: {exc}"}]
+    problems = verify_package(data)
+    out.append({"check": "signature, AI label and file hashes", "status": "fail" if problems else "ok",
+                "detail": "; ".join(problems) or f"{len(manifest.get('files', []))} files match the signed manifest"})
+    errors = contracts.schema_errors("evidence-package", manifest, "manifest")
+    out.append({"check": "manifest schema", "status": "fail" if errors else "ok", "detail": "; ".join(errors)})
+    names = set(z.namelist())
+    report = z.read("report.md").decode("utf-8") if "report.md" in names else ""
+    bundle = json.loads(z.read("bundle.json")) if "bundle.json" in names else {}
+    papers = {norm_ref(o["uri"]) for o in bundle.get("objects", []) if o.get("type") == "artifact" and o.get("kind") == "paper"}
+    cited = sorted({m.group(0).rstrip(".") for rx in (ARXIV_TEXT, DOI_TEXT) for m in rx.finditer(report)})
+    if not online:
+        out.append({"check": "citations", "status": "skipped", "detail": f"{len(cited)} cited; --offline"})
+    else:
+        bad = []
+        for ref in cited:
+            plain = re.sub(r"^arxiv:\s*", "", ref, flags=re.I)
+            status = citations.check("arxiv" if ref.lower().startswith("arxiv") else "doi", plain)
+            if status == "fake":
+                bad.append(f"{ref}: not in the official registry")
+            elif norm_ref(ref) not in papers:
+                bad.append(f"{ref}: cited in the report but not a verified paper of the package")
+        out.append({"check": "citations", "status": "fail" if bad else "ok",
+                    "detail": "; ".join(bad) or f"{len(cited)} cited, all verified"})
+    if not lean:
+        out.append({"check": "Lean proof", "status": "skipped", "detail": "not recompiled (use --lean)"})
+    else:
+        events = json.loads(z.read("events.json")) if "events.json" in names else []
+        states = {e["payload"]["key"]: e["payload"]["value"] for e in events if e.get("kind") == "state"}
+        if not (states.get("proof") and states.get("formal")):
+            out.append({"check": "Lean proof", "status": "skipped", "detail": "the package contains no verified proof"})
+        else:
+            from .lean import LeanChecker, LeanUnavailable
+            try:
+                rep = LeanChecker().check(states["proof"]["source"], "quaera_main", states["formal"]["statement"], clean=True)
+                out.append({"check": "Lean proof", "status": "ok" if rep.verified else "fail",
+                            "detail": "recompiled from scratch" if rep.verified else "; ".join(rep.errors + rep.problems)[:300]})
+            except LeanUnavailable as exc:
+                out.append({"check": "Lean proof", "status": "skipped", "detail": f"Lean is not available here: {exc}"})
+    return out

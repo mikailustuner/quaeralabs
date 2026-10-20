@@ -27,10 +27,10 @@ from . import __version__
 from .cli import HOME, build, slugify, stages_for
 from .ml_loop import ML_STAGES
 from .orchestrator import STAGES, Approver, Decision
+from .resources import data_path
 from .store import Store, now, report_file
 
-ROOT = Path(__file__).resolve().parents[2]
-WEB_DIST = ROOT / "web" / "dist"
+WEB_DIST = data_path("web", "dist")
 
 
 # --- web approver ----------------------------------------------------------------
@@ -217,6 +217,22 @@ def states(store: Store) -> dict:
     return out
 
 
+def project_status(pid: str, s: Store, stopped) -> tuple[str, str | None]:
+    """Status from the event log, so it survives a server restart (improvement plan D2). A crash used to live only in
+    RUNNER.errors: after a restart a crashed project looked merely paused."""
+    if s.events("report.written"):
+        return "done", None
+    if RUNNER.running(pid):
+        approver = RUNNER.approvers.get(pid)
+        return ("waiting" if approver and approver.pending else "running"), None
+    crashes, stages = s.events("run.crashed"), s.events("stage.done")
+    if crashes and (not stages or crashes[-1]["seq"] > stages[-1]["seq"]):
+        return "crashed", crashes[-1]["payload"].get("error")
+    if stopped:
+        return "stopped", None
+    return "paused", None
+
+
 def summary(pid: str) -> dict:
     s = open_store(pid)
     calls = [e["payload"] for e in s.events("model.call")]
@@ -227,12 +243,13 @@ def summary(pid: str) -> dict:
     chosen = next((h for h in hyps if h["status"] not in ("draft", "rejected")), None)
     st = states(s)
     parent = s.meta("branchOf")
+    status, crash = project_status(pid, s, st.get("stopped"))
     from .manager import fallback_title
     out = {"id": pid, "mode": s.meta("mode", "verify"), "families": s.meta("families"), "title": s.meta("title"), "shortTitle": s.meta("shortTitle") or fallback_title(s.meta("title") or pid),
            "domain": domain, "stages": stages, "done": done,
            "current": None if s.events("report.written") else next((x for x in stages if x not in done), None),
-           "running": RUNNER.running(pid),
-           "error": RUNNER.errors.get(pid), "stopped": st.get("stopped"),
+           "running": RUNNER.running(pid), "status": status,
+           "error": RUNNER.errors.get(pid) or crash, "stopped": st.get("stopped"),
            "spentUsd": round(sum(c["costUsd"] for c in calls), 4), "capUsd": s.meta("budgetCapUsd"),
            "calls": sum(1 for c in calls if not c.get("cached")), "cachedCalls": sum(1 for c in calls if c.get("cached")),
            "keepTrying": bool(s.meta("keepTrying")), "limits": s.meta("budget"), "managerUsd": round(sum(e["payload"].get("costUsd", 0) for k in ("manager.call", "manager.error") for e in s.events(k)), 4),
@@ -679,6 +696,8 @@ async def api_settings(request: Request):
     from .providers import detect, enabled_ids
     allow = enabled_ids()
     found = await asyncio.to_thread(detect)
+    from .readiness import checks, domains as domain_status
+    domains = domain_status(await asyncio.to_thread(checks, found))
     for d in found:
         d["enabled"] = d["ready"] and (allow is None or d["id"] in allow)
     return JSONResponse({
@@ -688,6 +707,7 @@ async def api_settings(request: Request):
         "models": found, "managerCapUsd": float(os.environ.get("QUAERA_MANAGER_CAP_USD", "0.5")),
         "sandbox": {"mem": os.environ.get("QUAERA_SANDBOX_MEM", "2G"), "cpu": os.environ.get("QUAERA_SANDBOX_CPU", "200%"),
                     "leanMem": os.environ.get("QUAERA_LEAN_MEM", "7G"), "systemd": bool(shutil.which("systemd-run"))},
+        "domains": domains,
     })
 
 

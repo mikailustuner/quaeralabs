@@ -10,6 +10,7 @@ Tool name mapping: `lean.compile` in a skill (server `lean`) → MCP tool `lean_
 from __future__ import annotations
 
 import asyncio
+import atexit
 import json
 import os
 import sys
@@ -74,6 +75,24 @@ class MCPPool:
         self.loop.call_soon_threadsafe(self.loop.stop)
 
 
+SHARED = {"lean"}           # servers shared by every registry in this process (improvement plan A4)
+_shared: MCPPool | None = None
+_shared_lock = threading.Lock()
+
+
+def shared_pool() -> MCPPool:
+    """One Lean server for the whole process. Each Lean server keeps a REPL with Mathlib loaded (4-5 GB), so a server per
+    research branch made parallel branches cost that much memory each (QUAERA_BEAM stayed 1). Proof states are numbered
+    by the REPL itself, so branches sharing it do not see each other's states; checks are serialized by the server.
+    QUAERA_SHARED_LEAN=0 gives every registry its own server again."""
+    global _shared
+    with _shared_lock:
+        if _shared is None:
+            _shared = MCPPool()
+            atexit.register(_shared.close)
+        return _shared
+
+
 class ToolRegistry:
     def __init__(self, permissions: Permissions, record: Callable[[str, dict], None] = lambda k, p: None,
                  pool: MCPPool | None = None):
@@ -97,7 +116,8 @@ class ToolRegistry:
                                      "args": {k: (v if len(str(v)) < 200 else str(v)[:200] + "…") for k, v in args.items()
                                               if k not in ("source", "content")},
                                      **({"code": str(code)[:20000]} if code else {})})
-        out = self.pool.call(server, tool.replace(".", "_"), args)
+        shared = server in SHARED and os.environ.get("QUAERA_SHARED_LEAN", "1") != "0"
+        out = (shared_pool() if shared else self.pool).call(server, tool.replace(".", "_"), args)
         self.record("tool.call", {"role": role, "tool": tool, "args": {k: (v if len(str(v)) < 200 else str(v)[:200] + "…")
                                                                         for k, v in args.items()},
                                   "resultPreview": out[:300]})

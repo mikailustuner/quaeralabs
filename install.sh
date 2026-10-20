@@ -5,22 +5,26 @@
 #   ./install.sh --with-ml           # + ML experiment environment (numpy, scikit-learn, torch; CUDA if NVIDIA is present)
 #   ./install.sh --with-lean         # + Lean 4 + Mathlib + REPL (~8 GB download/build)
 #   ./install.sh --all               # everything
+#   ./install.sh --lean-image        # Lean as a prebuilt container image instead (Docker or Podman; no build)
+#   ./install.sh --ml-image          # the ML environment as a container image (CPU only)
 #
 # Run outside the repo, it clones from QUAERA_REPO (default below) into the --dir directory.
-# Supported: Linux (x86_64, arm64) and WSL2 on Windows. macOS is not supported yet (see docs/installation.md).
-# The script never runs sudo; if a system package is needed it prints the command and stops.
+# Supported: Linux (x86_64, arm64), WSL2 on Windows, and macOS with Docker Desktop, OrbStack or Podman (Lean and ML
+# always come as images there). The script never runs sudo; if a system package is needed it prints the command and stops.
 set -euo pipefail
 
-REPO_URL="${QUAERA_REPO:-https://github.com/quaeralabs/quaeralabs.git}"
+REPO_URL="${QUAERA_REPO:-https://github.com/mikailustuner/quaeralabs.git}"
 DIR="${QUAERA_DIR:-$HOME/quaeralabs}"
-WITH_ML=0 WITH_LEAN=0
+WITH_ML=0 WITH_LEAN=0 ML_IMAGE=0 LEAN_IMAGE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --with-ml) WITH_ML=1 ;;
     --with-lean) WITH_LEAN=1 ;;
     --all) WITH_ML=1; WITH_LEAN=1 ;;
+    --ml-image) WITH_ML=1; ML_IMAGE=1 ;;
+    --lean-image) WITH_LEAN=1; LEAN_IMAGE=1 ;;
     --dir) DIR="$2"; shift ;;
-    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -36,7 +40,10 @@ case "$(uname -s)" in
   Linux)
     if grep -qi microsoft /proc/version 2>/dev/null; then PLATFORM="WSL2"; else PLATFORM="Linux"; fi ;;
   Darwin)
-    die "macOS is not supported yet: the sandbox that isolates agent-written code is Linux-only (bubblewrap). A macOS backend is planned for Phase 5; details: docs/installation.md" ;;
+    PLATFORM="macOS"
+    # No bubblewrap on macOS: every sandboxed command runs in a container, and Lean and the ML environment are images.
+    [ "$WITH_LEAN" = 1 ] && LEAN_IMAGE=1
+    [ "$WITH_ML" = 1 ] && ML_IMAGE=1 ;;
   *)
     die "Unsupported system: $(uname -s). On Windows, run it inside WSL2 (docs/installation.md)." ;;
 esac
@@ -50,20 +57,35 @@ pm_install() {
   elif command -v zypper >/dev/null; then echo "sudo zypper install $*"
   else echo "install with your package manager: $*"; fi
 }
+ENGINE=""
+for e in podman docker; do
+  if command -v "$e" >/dev/null && "$e" info >/dev/null 2>&1; then ENGINE="$e"; break; fi
+done
 missing=()
-for tool in git curl bwrap; do command -v "$tool" >/dev/null || missing+=("$tool"); done
-if [ ${#missing[@]} -gt 0 ]; then
-  pkgs="${missing[*]}"; pkgs="${pkgs/bwrap/bubblewrap}"
-  die "Missing system packages: ${missing[*]}. To install: $(pm_install $pkgs) — then run the script again."
-fi
-if ! bwrap --unshare-all --ro-bind / / true 2>/dev/null; then
-  die "bubblewrap is installed but unprivileged namespaces are disabled (no user namespace permission). Details and fix: docs/installation.md#bubblewrap"
-fi
-ok "bubblewrap works (sandbox)"
-if command -v systemd-run >/dev/null && systemd-run --user --scope --quiet true 2>/dev/null; then
-  ok "systemd user session: memory/CPU limits can be applied"
+for tool in git curl; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+if [ "$PLATFORM" = "macOS" ]; then
+  [ ${#missing[@]} -eq 0 ] || die "Missing tools: ${missing[*]}. Install the Xcode command line tools: xcode-select --install"
+  [ -n "$ENGINE" ] || die "macOS needs a running container engine for the sandbox: Docker Desktop, OrbStack or Podman (podman machine start). Details: docs/installation.md#macos"
+  ok "Sandbox: containers ($ENGINE)"
 else
-  warn "No systemd user session: memory/CPU limits cannot be applied to experiments (ADR 0010). On WSL2, set [boot] systemd=true in /etc/wsl.conf."
+  [ ${#missing[@]} -eq 0 ] || die "Missing system packages: ${missing[*]}. To install: $(pm_install ${missing[*]}) — then run the script again."
+  if command -v bwrap >/dev/null && bwrap --unshare-all --ro-bind / / --proc /proc --dev /dev true 2>/dev/null; then
+    ok "bubblewrap works (sandbox)"
+  elif [ -n "$ENGINE" ]; then
+    warn "bubblewrap is missing or cannot create namespaces here; the sandbox uses containers ($ENGINE) instead (docs/installation.md#bubblewrap)"
+  elif command -v bwrap >/dev/null; then
+    die "bubblewrap is installed but unprivileged namespaces are disabled, and no container engine (podman, docker) is running. Details and fix: docs/installation.md#bubblewrap"
+  else
+    die "No sandbox: install bubblewrap ($(pm_install bubblewrap)) or a container engine (podman or docker), then run the script again."
+  fi
+  if command -v systemd-run >/dev/null && systemd-run --user --scope --quiet true 2>/dev/null; then
+    ok "systemd user session: memory/CPU limits can be applied"
+  else
+    warn "No systemd user session: memory/CPU limits cannot be applied to experiments (ADR 0010). On WSL2, set [boot] systemd=true in /etc/wsl.conf."
+  fi
+fi
+if { [ "$LEAN_IMAGE" = 1 ] || [ "$ML_IMAGE" = 1 ]; } && [ -z "$ENGINE" ]; then
+  die "--lean-image and --ml-image need a running container engine (podman or docker)."
 fi
 
 # 3) Source code ------------------------------------------------------------------------------
@@ -97,16 +119,18 @@ if [ -f web/dist/index.html ]; then
 else
   if ! node_ok; then
     case "$(uname -m)" in x86_64) NODE_ARCH=x64 ;; aarch64|arm64) NODE_ARCH=arm64 ;; *) NODE_ARCH="" ;; esac
+    NODE_OS=linux; [ "$PLATFORM" = "macOS" ] && NODE_OS=darwin
+    if command -v sha256sum >/dev/null; then SHA="sha256sum"; else SHA="shasum -a 256"; fi
     NODE_HOME="$HOME/.cache/quaeralabs/node"
     if [ -n "$NODE_ARCH" ] && [ ! -x "$NODE_HOME/bin/node" ]; then
       say "Node.js 20+ not found; downloading a portable Node 22 to build the UI (~30 MB, ~/.cache/quaeralabs)"
       base="https://nodejs.org/dist/latest-v22.x"
       sums="$(curl -fsSL "$base/SHASUMS256.txt")"
-      line="$(printf '%s\n' "$sums" | grep -E " node-v[0-9.]+-linux-${NODE_ARCH}\.tar\.gz$" | head -1)"
+      line="$(printf '%s\n' "$sums" | grep -E " node-v[0-9.]+-${NODE_OS}-${NODE_ARCH}\.tar\.gz$" | head -1)"
       file="${line##* }"; sum="${line%% *}"
       tmp="$(mktemp -d)"
       curl -fsSL "$base/$file" -o "$tmp/$file"
-      echo "$sum  $tmp/$file" | sha256sum -c --quiet - || die "Node archive checksum mismatch; the download is corrupt or was tampered with."
+      echo "$sum  $tmp/$file" | $SHA -c --quiet - || die "Node archive checksum mismatch; the download is corrupt or was tampered with."
       mkdir -p "$NODE_HOME" && tar -xzf "$tmp/$file" -C "$NODE_HOME" --strip-components=1 && rm -rf "$tmp"
     fi
     [ -x "$NODE_HOME/bin/node" ] && export PATH="$NODE_HOME/bin:$PATH"
@@ -121,7 +145,13 @@ else
 fi
 
 # 6) ML experiment environment (optional) ---------------------------------------------------------
-if [ "$WITH_ML" = 1 ]; then
+image_of() { uv run --quiet python -c "from quaera import images; print(images.$1())"; }
+if [ "$ML_IMAGE" = 1 ]; then
+  img="$(image_of ml_image)"
+  say "Pulling the ML image (CPU; ~2 GB): $img"
+  "$ENGINE" pull "$img"
+  ok "ML image ready"
+elif [ "$WITH_ML" = 1 ]; then
   if command -v nvidia-smi >/dev/null && nvidia-smi >/dev/null 2>&1; then
     TORCH_INDEX="https://download.pytorch.org/whl/cu126"; kind="CUDA"
   else
@@ -135,7 +165,12 @@ if [ "$WITH_ML" = 1 ]; then
 fi
 
 # 7) Lean 4 + Mathlib (optional) -------------------------------------------------------------------
-if [ "$WITH_LEAN" = 1 ]; then
+if [ "$LEAN_IMAGE" = 1 ]; then
+  img="$(image_of lean_image)"
+  say "Pulling the Lean image (Lean + Mathlib + REPL; several GB): $img"
+  "$ENGINE" pull "$img"
+  ok "Lean image ready"
+elif [ "$WITH_LEAN" = 1 ]; then
   if ! command -v lake >/dev/null && [ ! -x "$HOME/.elan/bin/lake" ]; then
     say "Installing elan (Lean version manager)"
     curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none

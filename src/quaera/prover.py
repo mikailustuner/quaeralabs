@@ -129,13 +129,24 @@ def _ask_safe(ask: Ask, system: str, prompt: str, max_tokens: int, log: list, la
         return None
 
 
+APPLY_LINE = re.compile(r"Try this:\s*(?:\[apply\]\s*)?((?:refine|apply|exact)\s[^\n]+)")
+
+
+def apply_suggestions(output: str, k: int = 5) -> str:
+    """The first `k` distinct "Try this: …" lines of an `apply?` run, one per line."""
+    seen = list(dict.fromkeys(" ".join(m.group(1).split()) for m in APPLY_LINE.finditer(output or "")))
+    return "\n".join(f"- {s[:300]}" for s in seen[:k] if "sorry" not in s)
+
+
 def prove_search(statement_file: str, name: str, ask: Ask, check: Check, attempts: int = 2,
                  hints: str = "", max_tokens: int = 16000, sketches: int = 2,
                  progress: Callable | None = None, parallel: int = 1, *, rounds: int = 1,
                  more: Callable[[], bool] | None = None, samples: int | None = None, heavy: bool = False,
                  depth: int = 1, prefix: str = "quaera_step_", interactive: Interactive | None = None,
-                 interactive_first: bool = False) -> ProofResult:
+                 interactive_first: bool = False, suggest: Callable[[], str] | None = None) -> ProofResult:
     """`progress(step, status, detail="", lane=None)`: for the live view (status: start/done/fail).
+    `suggest()`: concrete Mathlib suggestions for the goal (e.g. from `apply?`), asked once after the first round fails
+    and added to later prompts (improvement plan C2).
     `parallel`/`samples`: candidates written concurrently in the first round (lanes A, B, …); Lean checks are sequential."""
     res = ProofResult(False, None, 0)
     note = progress or (lambda *a, **k: None)
@@ -179,14 +190,19 @@ def prove_search(statement_file: str, name: str, ask: Ask, check: Check, attempt
         note("Proving step by step in the Lean REPL (goal states)", "done" if src else "fail")
         return done(src) if src else None
 
+    suggestions = None
     for rnd in range(max(1, rounds)):
         if rnd > 0:
             if more is None or not more():
                 break
+            if suggest is not None and suggestions is None:
+                suggestions = suggest() or ""
+                res.log.append({"kind": "suggestions", "verified": False, "found": bool(suggestions)})
             res.log.append({"kind": "round", "round": rnd + 1, "verified": False})
             note(f"Search round {rnd + 1}: budget remains, trying again with what failed", "start")
         round_hint = ROUND_HINTS[min(rnd, len(ROUND_HINTS) - 1)]
         prompt = base + (f"\n{round_hint}\n" if round_hint else "") + (
+            f"Lean's `apply?` suggests for the goal (candidates, not proofs):\n{suggestions}\n" if suggestions else "") + (
             "Compiler errors seen in earlier rounds (avoid them):\n- " + "\n- ".join(distinct[-8:]) + "\n" if rnd > 0 and distinct else "")
         if interactive_first and (r := interactive_rung()):
             return r

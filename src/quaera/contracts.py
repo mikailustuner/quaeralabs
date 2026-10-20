@@ -17,8 +17,10 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 
-ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_DIR = ROOT / "schemas" / "v1"
+from .resources import data_path
+
+ROOT = Path(__file__).resolve().parents[2]     # repo checks (tools/validate.py) read agents/, skills/, examples/ here
+SCHEMA_DIR = data_path("schemas", "v1")
 
 TYPE_TO_SCHEMA = {
     "question": "question",
@@ -157,6 +159,10 @@ def check_bundle(bundle: dict, where: str, final: bool = True) -> list[str]:
             pilots_ok = [r for r in runs if r["kind"] == "pilot" and r["status"] == "succeeded" and r["startedAt"] < first_full]
             if not pilots_ok:
                 errors.append(f"{where}: {exp['id']} moved to full runs without a successful pilot run")
+        # 3b. Claiming novelty (or partial prior work) needs a cited source (improvement plan B1)
+        nov = exp.get("noveltyCheck") or {}
+        if nov.get("verdict") in ("novel", "partially_done") and not nov.get("priorWork"):
+            errors.append(f"{where}: {exp['id']} noveltyCheck says '{nov['verdict']}' without any priorWork source")
         for run in runs:
             if run["kind"] == "verification" and run["createdBy"].get("role") != "verifier":
                 errors.append(f"{where}: {run['id']} verification run was started by someone other than the Verifier")

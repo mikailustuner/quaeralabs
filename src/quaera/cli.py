@@ -14,7 +14,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import sys
 import unicodedata
 from pathlib import Path
@@ -100,6 +99,9 @@ def build(project: Path, budget: float | None, auto_limit: float | None, provide
     reg = registry.load()
     routing = {**reg["routing"], **(store.meta("routing") or {})}
     ladders = {**reg["ladders"], **(store.meta("ladders") or {})}
+    if os.environ.get("QUAERA_ENGINEER_LADDER") and "engineer" not in ladders and providers:
+        # improvement plan C2 (measurement switch): the Engineer starts cheap and climbs, on its primary route
+        ladders["engineer"] = [f"{next(iter(providers))}@{p.strip()}" for p in os.environ["QUAERA_ENGINEER_LADDER"].split(",")]
     lim = store.meta("budget") or {}          # P4: {"calls": n, "tokens": n, "deadline": unix time}
     gateway = Gateway(providers, cap, perms.agents, record, spent_usd=spent, routing=routing, ladders=ladders,
                       limits=Limits(lim.get("calls"), lim.get("tokens"), lim.get("deadline")), calls=len(paid),
@@ -223,56 +225,130 @@ def cmd_verify(a) -> int:
     return 0 if report.verified else 1
 
 
-def cmd_doctor(a) -> int:
-    """Environment check. Returns 1 if a required component is missing; optional components only warn."""
-    import platform
-    import subprocess
-    from .lean import DEFAULT_WORKSPACE, LeanChecker, LeanUnavailable
-    from .mcp_servers.sandbox_server import ML_ENV
-    from .server import WEB_DIST
+def cmd_prove(a) -> int:
+    """Lean project mode (improvement plan C3): close the `sorry` of one declaration in your own Lean project."""
+    import time
+    from . import registry
+    from .gateway import BudgetExceeded, Limits
+    from .lean import LeanUnavailable
+    from .prove_file import ProveError, checker_for, load_target, prove_file, run_dir
+    from .resources import quaera_home
+    from .sandbox import SandboxUnavailable
 
-    def runs(cmd):
-        try:
-            return subprocess.run(cmd, capture_output=True, timeout=20).returncode == 0
-        except (OSError, subprocess.TimeoutExpired):
-            return False
-
-    wsl = "microsoft" in platform.release().lower()
-    print(f"Platform: {platform.system()} {platform.machine()}{' (WSL2)' if wsl else ''} · Python {platform.python_version()}")
-    required = [
-        ("Linux (for the sandbox)", platform.system() == "Linux", "macOS/Windows: docs/installation.md"),
-        ("bubblewrap sandbox works", bool(shutil.which("bwrap")) and runs(["bwrap", "--unshare-all", "--ro-bind", "/", "/", "true"]),
-         "apt install bubblewrap; for namespace permission see docs/installation.md#bubblewrap"),
-        ("model provider (a CLI, an API key in the provider registry, or QUAERA_LITELLM_MODELS)",
-         bool(shutil.which("claude") or os.environ.get("QUAERA_LITELLM_MODELS") or any(d["ready"] for d in __import__("quaera.providers", fromlist=["detect"]).detect())),
-         "install Claude Code and log in, or add an API key: quaera providers add …"),
-    ]
-    optional = [
-        ("systemd user session (memory/CPU limits)", bool(shutil.which("systemd-run")) and runs(["systemd-run", "--user", "--scope", "--quiet", "true"]),
-         "WSL2: /etc/wsl.conf → [boot] systemd=true"),
-        ("web UI built", (WEB_DIST / "index.html").exists(), "cd web && npm ci && npm run build"),
-        ("ML experiment environment (ml-env)", (ML_ENV / "bin" / "python").exists(), "./install.sh --with-ml"),
-    ]
     try:
-        c = LeanChecker()
-        optional.append(("Lean 4 + Mathlib", True, ""))
-        optional.append(("Lean REPL", c.repl_bin.exists(), f"cd {DEFAULT_WORKSPACE} && lake build REPL/repl"))
-    except LeanUnavailable as exc:
-        optional.append(("Lean 4 + Mathlib (for math research)", False, f"./install.sh --with-lean ({exc})"))
-    from .memory import default_embedder
-    optional.append(("lab memory embeddings (Turkish/English recall)", default_embedder() is not None,
-                     "uv sync --extra memory (or QUAERA_MEMORY_EMBED is off)"))
-    from .providers import detect
-    for d in detect():
-        if d["id"] != "claude":
-            optional.append((f"{d['name']} ({d['family']}; cross-check) {d['version'] or ''}".strip(), d["ready"], d["note"]))
-    ok = True
-    for name, passed, fix in required:
-        print(f"[{'✓' if passed else '✗'}] {name}" + ("" if passed else f" → {fix}"))
-        ok &= passed
-    for name, passed, fix in optional:
-        print(f"[{'✓' if passed else '–'}] {name}" + ("" if passed else f" (optional) → {fix}"))
-    print("Ready." if ok else "Required components are missing.")
+        target = load_target(Path(a.file), a.decl, Path(a.project) if a.project else None)
+        checker = checker_for(target)
+    except (ProveError, LeanUnavailable, SandboxUnavailable) as exc:
+        print(f"quaera prove: {exc}", file=sys.stderr)
+        return 2
+    perms = Permissions.load()
+    run = run_dir(quaera_home(), target)
+    store = Store(run / "quaera.db", perms)
+    store.set_meta("title", f"prove {target.name} in {target.path}")
+    store.set_meta("mode", "prove")
+    actor = {"kind": "agent", "role": "director", "model": "quaera/deterministic", "modelFamily": "quaera"}
+    record = lambda kind, payload: store.append(kind, actor, payload)  # noqa: E731
+    reg = registry.load()
+    deadline = time.time() + a.max_hours * 3600 if a.max_hours else None
+    gateway = Gateway(make_providers(), a.budget, perms.agents, record, routing=reg["routing"], ladders=reg["ladders"],
+                      limits=Limits(a.max_calls, a.max_tokens, deadline))
+    share = gateway.share_cap(0.95)       # keep a little for the final clean build's bookkeeping, never above the cap
+
+    class Spent(Exception):
+        pass
+
+    def ask(system: str, prompt: str, n: int, lane: str | None = None) -> str:
+        if not share():
+            raise Spent(gateway.exhausted() or "budget used")
+        try:   # one declaration needs far less output than a research proof file; this also keeps each call affordable
+            completion, _ = gateway.call("engineer", system, prompt, min(n, a.max_output))
+        except BudgetExceeded as exc:
+            raise Spent(f"{exc} (raise --budget, lower --max-output, or route the engineer to a cheaper model: "
+                        f"quaera route engineer …)") from exc
+        return completion.text
+
+    def progress(step, status, detail="", lane=None):
+        if status in ("start", "done", "fail") and not a.quiet:
+            print(f"  {'·' if status == 'start' else '✓' if status == 'done' else '✗'} {step}", flush=True)
+
+    hints = ""
+    if "import Mathlib" in target.prefix:
+        try:
+            from .mathlib_index import MathlibIndex
+            hits = MathlibIndex.default().search(target.statement, 8)
+            hints = "Possibly useful Mathlib declarations: " + "; ".join(h.get("text", "")[:160] for h in hits) if hits else ""
+        except Exception:   # the index is optional (built lazily from our Mathlib workspace)
+            hints = ""
+    print(f"Proving `{target.name}` in {target.path} (project {target.project.name}, "
+          f"{'REPL' if checker.repl_bin else 'one-shot builds'}) · budget ${a.budget:.2f}", flush=True)
+    try:
+        out = prove_file(target, checker, ask, hints=hints, rounds=a.rounds, more=share, record=record, progress=progress)
+    except Spent as exc:
+        out = None
+        stopped = str(exc)
+    finally:
+        checker.close()
+    spent = f"${gateway.spent_usd:.4f} / ${gateway.cap_usd:.2f}, {gateway.calls} model calls"
+    if out is None or not out.solved:
+        why = stopped if out is None else out.stopped
+        store.append("prove.done", actor, {"solved": False, "stopped": why})
+        print(f"No proof found: {why}. Spent {spent}. Log: {run}")
+        return 1
+    store.append("prove.done", actor, {"solved": True, "calls": out.model_calls})
+    print(out.diff)
+    print(f"Proof found and checked by a clean build of the whole file. Spent {spent}.")
+    if not a.write:
+        patch = run / f"{target.name}.patch"
+        patch.write_text(out.diff, encoding="utf-8")
+        print(f"The file was not changed. Patch: {patch}\nApply it with --write, or: cd {target.project} && git apply {patch}")
+        return 0
+    if target.path.read_text(encoding="utf-8") != target.text:
+        print("The file changed while the proof was searched; not writing. Run again.", file=sys.stderr)
+        return 1
+    if not a.yes and input(f"Write the proof into {target.path}? [y/N]: ").strip().lower() not in ("y", "yes"):
+        print("Not written.")
+        return 0
+    target.path.write_text(out.new_text, encoding="utf-8")
+    print(f"Written: {target.path}")
+    return 0
+
+
+ML_PACKAGES = ["numpy", "scipy", "scikit-learn"]
+
+
+def cmd_setup(a) -> int:
+    """`quaera setup ml`: the ML experiment environment for an installed package (install.sh --with-ml does the same in a
+    repo checkout). A separate virtualenv: agent-written experiment code never runs in quaera's own environment."""
+    import shutil
+    import subprocess
+    from .resources import ml_env
+    target = Path(a.path) if a.path else ml_env()
+    if (target / "bin" / "python").exists() and not a.force:
+        print(f"ML environment already exists: {target} (use --force to rebuild)")
+        return 0
+    gpu = bool(shutil.which("nvidia-smi")) and subprocess.run(["nvidia-smi"], capture_output=True).returncode == 0
+    index = "https://download.pytorch.org/whl/cu126" if gpu else "https://download.pytorch.org/whl/cpu"
+    print(f"Creating the ML environment ({'CUDA' if gpu else 'CPU'}) in {target} …", flush=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    steps = [[sys.executable, "-m", "venv", "--clear", str(target)],
+             [str(target / "bin" / "python"), "-m", "pip", "install", "--quiet", "--upgrade", "pip"],
+             [str(target / "bin" / "python"), "-m", "pip", "install", "--quiet", *ML_PACKAGES]]
+    if not a.no_torch:
+        steps.append([str(target / "bin" / "python"), "-m", "pip", "install", "--quiet", "torch", "--index-url", index])
+    for cmd in steps:
+        if subprocess.run(cmd).returncode != 0:
+            print(f"failed: {' '.join(cmd)}", file=sys.stderr)
+            return 1
+    print(f"ML environment ready: {target}" + ("" if a.path is None or a.path == str(ml_env()) else
+                                                f"\nSet QUAERA_ML_ENV={target} so research uses it."))
+    return 0
+
+
+def cmd_doctor(a) -> int:
+    """Environment check in tiers (core, ML, mathematics, extras). Returns 1 only if a core component is missing."""
+    from .readiness import checks, report
+    text, ok = report(checks())
+    print(text)
     return 0 if ok else 1
 
 def cmd_memory(a) -> int:
@@ -446,8 +522,9 @@ def cmd_models(a) -> int:
     for p in rows:
         _, why = adapt(p)
         probe = p["probe"]
+        cut = f", {p['output_cut']} cut off" if p["output_cut"] else ""
         print(f"{p['model']:<40} calls {p['calls']} · ${p['meanUsd'] or 0:.4f}/call · errors {fmt(p['errorRate'])} · "
-              f"JSON {fmt(p['json_reliability'])} ({p['json_n']}) · compile {fmt(p['compile_rate'])} ({p['compile_n']})"
+              f"JSON {fmt(p['json_reliability'])} ({p['json_n']}{cut}) · compile {fmt(p['compile_rate'])} ({p['compile_n']})"
               + (f" · probe {probe['score']}/{probe['of']}" if probe else "") + (f"\n    adapts: {'; '.join(why)}" if why else ""))
     return 0
 
@@ -464,6 +541,58 @@ def cmd_cache(a) -> int:
     c = CompletionCache(HOME.parent / "cache.db")
     print(json.dumps(c.stats() if a.action == "stats" else {"cleared": c.clear()}))
     return 0
+
+
+def cmd_critique(a) -> int:
+    """Improvement plan E1: the measured Critic on an experiment directory that QuaeraLabs did not run."""
+    from . import registry
+    from .critique import as_dict, critique, markdown
+    from .gateway import BudgetExceeded
+    root = Path(a.dir)
+    if not root.is_dir():
+        print(f"quaera critique: no such directory: {root}", file=sys.stderr)
+        return 2
+    perms = Permissions.load()
+    reg = registry.load()
+    gateway = Gateway(make_providers(), a.budget, perms.agents, routing=reg["routing"], ladders=reg["ladders"])
+
+    def on(family):
+        def call(system, prompt, n):
+            c, _ = gateway.call("critic", system, prompt, n, family=family)
+            return c.text, c.model
+        return call
+    first = next(iter(gateway.providers))
+    other = next((k for k in gateway.providers if gateway.family_of(k) != gateway.family_of(first)), None)
+    try:
+        c = critique(root, on(first), on(other) if other else None,
+                     Path(a.prereg) if a.prereg else None, Path(a.results) if a.results else None)
+    except BudgetExceeded as exc:
+        print(f"quaera critique: {exc} (raise --budget)", file=sys.stderr)
+        return 2
+    text = json.dumps(as_dict(c), ensure_ascii=False, indent=2) if a.json else markdown(c, root)
+    if a.out:
+        Path(a.out).write_text(text, encoding="utf-8")
+    print(text)
+    if c.flawed is None:
+        return 2
+    return 1 if a.fail_on and c.flawed and SEVERITY.index(c.severity or "low") >= SEVERITY.index(a.fail_on) else 0
+
+
+SEVERITY = ["low", "medium", "high", "blocking"]
+
+
+def cmd_verify_package(a) -> int:
+    """Improvement plan E3: check an evidence package someone else produced."""
+    from .package import check_package
+    data = Path(a.file).read_bytes()
+    checks = check_package(data, online=not a.offline, lean=a.lean)
+    if a.json:
+        print(json.dumps(checks, ensure_ascii=False, indent=2))
+    else:
+        for c in checks:
+            mark = {"ok": "✓", "fail": "✗", "skipped": "–"}[c["status"]]
+            print(f"[{mark}] {c['check']}" + (f": {c['detail']}" if c["detail"] else ""))
+    return 1 if any(c["status"] == "fail" for c in checks) else 0
 
 
 def cmd_audit(a) -> int:
@@ -525,6 +654,33 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--auto-approve-under", type=float, help="pre-grant approvals below this amount (autonomy level 2)")
     add_limit_args(s)
     s.set_defaults(fn=cmd_ask)
+    s = sub.add_parser("prove", help="close the `sorry` of one declaration in your own Lean project (Lean project mode)")
+    s.add_argument("file", help="the .lean file")
+    s.add_argument("--decl", required=True, help="name of the theorem or lemma whose `sorry` to close")
+    s.add_argument("--project", help="the Lean project's root (default: the nearest directory with a lakefile)")
+    s.add_argument("--budget", type=float, required=True, help="budget cap (USD); never exceeded")
+    s.add_argument("--rounds", type=int, default=3, help="search rounds while the budget lasts")
+    s.add_argument("--max-output", type=int, default=6000, help="output tokens per model call (bounds the worst-case cost of a call)")
+    s.add_argument("--write", action="store_true", help="write the proof into the file (asks first; the file is otherwise unchanged)")
+    s.add_argument("--yes", action="store_true", help="with --write: do not ask")
+    s.add_argument("--quiet", action="store_true")
+    add_limit_args(s)
+    s.set_defaults(fn=cmd_prove)
+    s = sub.add_parser("critique", help="the Critic on an experiment directory you ran yourself (nothing is executed)")
+    s.add_argument("dir", help="the experiment directory: code, results, pre-registration, report")
+    s.add_argument("--prereg", help="the pre-registration file, if it is not in the directory or should be read first")
+    s.add_argument("--results", help="the results file (JSON/CSV), read before the code")
+    s.add_argument("--budget", type=float, default=0.5, help="budget cap (USD); never exceeded")
+    s.add_argument("--json", action="store_true", help="JSON instead of Markdown")
+    s.add_argument("--out", help="also write the critique to this file")
+    s.add_argument("--fail-on", choices=SEVERITY, help="exit 1 when an objection has at least this severity (CI)")
+    s.set_defaults(fn=cmd_critique)
+    s = sub.add_parser("verify-package", help="check an evidence package: signature, label, hashes, citations, Lean")
+    s.add_argument("file", help="the evidence package (.zip)")
+    s.add_argument("--offline", action="store_true", help="do not query the official registries for the citations")
+    s.add_argument("--lean", action="store_true", help="recompile the proof in a clean Lean process (heavy)")
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(fn=cmd_verify_package)
     s = sub.add_parser("resume")
     s.add_argument("project")
     s.add_argument("--budget", type=float, help="to change the cap (human only)")
@@ -610,6 +766,12 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--name", required=True)
     s.set_defaults(fn=cmd_branch)
     sub.add_parser("doctor").set_defaults(fn=cmd_doctor)
+    s = sub.add_parser("setup", help="install a research domain's environment outside a repo checkout: setup ml")
+    s.add_argument("what", choices=["ml"])
+    s.add_argument("--path", help="where to create it (default: the repo's ml-env, or ~/.quaera/ml-env for an installed package)")
+    s.add_argument("--no-torch", action="store_true", help="skip PyTorch (numpy, scipy and scikit-learn only)")
+    s.add_argument("--force", action="store_true")
+    s.set_defaults(fn=cmd_setup)
     s = sub.add_parser("serve", help="local web UI (127.0.0.1)")
     s.add_argument("--port", type=int, default=8765)
     s.set_defaults(fn=lambda a: __import__("quaera.server", fromlist=["serve"]).serve(a.port) or 0)

@@ -19,7 +19,7 @@ permissions:
   codeWrite: none
   codeExecute: none
   gpuSpend: none
-  networkAllowlist: [export.arxiv.org, api.openalex.org, api.crossref.org]
+  networkAllowlist: [export.arxiv.org, api.openalex.org, api.semanticscholar.org, api.crossref.org, api.datacite.org]
   requestApproval: false
   sendMessages: [response, handoff]
   publish: false

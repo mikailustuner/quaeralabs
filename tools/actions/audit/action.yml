@@ -1,0 +1,36 @@
+name: QuaeraLabs package audit
+description: >-
+  Checks every QuaeraLabs evidence package in the repository (`quaera verify-package`): signature, AI label, file hashes,
+  manifest schema and, online, every citation against arXiv, Crossref and DataCite. Needs no model and no API key.
+  Improvement plan E2.
+inputs:
+  glob:
+    description: Which files are evidence packages
+    default: "**/*evidence-package*.zip"
+  offline:
+    description: Skip the citation check against the official registries ("true" or "false")
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@v6
+    - name: Install QuaeraLabs (from this action's repository)
+      shell: bash
+      run: uv tool install --quiet "${{ github.action_path }}/../../.."
+    - name: Verify evidence packages
+      shell: bash
+      env:
+        GLOB: ${{ inputs.glob }}
+        OFFLINE: ${{ inputs.offline }}
+      run: |
+        set -uo pipefail
+        shopt -s globstar nullglob
+        files=( $GLOB )
+        if [ ${#files[@]} -eq 0 ]; then echo "No evidence package matches $GLOB."; exit 0; fi
+        status=0
+        for f in "${files[@]}"; do
+          echo "── $f"
+          if [ "$OFFLINE" = "true" ]; then quaera verify-package "$f" --offline || status=1
+          else quaera verify-package "$f" || status=1; fi
+        done
+        exit $status

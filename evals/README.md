@@ -9,19 +9,27 @@
 
 ## Capacity measurements (docs/capacity-plan.md)
 
-| Set | Source | What it measures |
-| --- | --- | --- |
-| `capacity-synth` | `sets/capacity-synth.yaml` · 30 statements, three tiers, frozen hidden split (12) | Proof search at three difficulty levels; the hidden ids must never reach prompts or rules |
-| `minif2f-valid` | miniF2F valid split without `mathd_*` | Olympiad-style problems with headroom for small models |
-| `putnam` | `data/putnam-sample-7.jsonl` | Ceiling probe |
-| `discovery` | `sets/capacity-discovery.yaml` · 5 targets | Discovery progress: verified / refuted lemmas, dead strategies, synthesis |
+| Set | Source | What it measures | Contamination |
+| --- | --- | --- | --- |
+| `putnambench` | `data/putnambench-a635813f.jsonl` · all 672 PutnamBench problems (326 without an answer to guess), answer comments removed | Proof search with room to improve; `--n 50 --seed S` | public; formal proofs mostly unpublished |
+| `capacity-synth` | `sets/capacity-synth.yaml` · 30 statements, three tiers, frozen hidden split (12) | Proof search at three difficulty levels | dev: public here · hidden: run only on release tags (`--split hidden --tag vX.Y.Z` → `results/hidden-<tag>.json`) |
+| `fresh` | `sets/fresh-2026-q4.yaml` · approved problems only (none yet) | Problems published after the models' knowledge cutoff | none by construction |
+| `minif2f-valid` | miniF2F valid split without `mathd_*` | Olympiad-style problems | public since 2021: **a ceiling**, not a measure |
+| `putnam` | `data/putnam-sample-7.jsonl` | Ceiling probe (superseded by `putnambench`) | public |
+| `discovery` | `sets/capacity-discovery.yaml` · 5 targets with an expectation each | Discovery progress: verified / refuted lemmas, dead strategies, synthesis | public problems; scored by progress |
 
 ```bash
 uv run python -u evals/capacity_run.py --set capacity-synth --profile cheap --budget 4      # both arms, same per-task cap
 uv run python -u evals/capacity_run.py --set minif2f-valid --n 12 --provider openrouter --budget 6
 uv run python -u evals/capacity_run.py --set putnam --arms after --provider local --max-calls 8 --budget 1   # $0 provider
 uv run python -u evals/capacity_run.py --set discovery --n 2 --budget 4
+uv run python -u evals/capacity_run.py --set putnambench --n 50 --seed 1 --arms after --profile cheap --budget 10
 ```
+
+Baselines still to record (improvement plan C1 and D4; they need a machine that loads Mathlib, see
+`docs/installation.md#lean-on-a-slow-disk`): `putnambench`, the hidden `capacity-synth` split and `fresh` for the `cheap`
+and `balanced` profiles, and the five discovery targets. A discovery target that misses its `expect` in two runs in a row
+is listed in the result (`repeatedFailures`) and goes to `sets/failures.yaml` after review.
 
 Recorded results (Claude, both arms on the same tasks and the same per-task cap):
 

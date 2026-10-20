@@ -216,6 +216,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .segmented button { border: 0; background: transparent; padding: 5px 14px; border-radius: var(--r-pill); white-space: nowrap; transition: background .15s var(--ease), color .15s var(--ease); font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; min-height: 30px; }
 .segmented button[aria-pressed="true"], .segmented button[aria-checked="true"], .segmented button[aria-selected="true"] { background: var(--bg-elev); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.14), 0 0 0 0.5px rgba(0,0,0,.06); }
 .segmented button:hover:not([aria-selected="true"]):not([aria-pressed="true"]) { color: var(--text); }
+.segmented button:disabled { cursor: not-allowed; text-decoration: line-through; color: var(--muted); }
 .segmented .n { color: var(--faint); font-weight: 500; margin-left: 4px; font-variant-numeric: tabular-nums; }
 
 /* ---------------- badge, chip ---------------- */
@@ -229,6 +230,7 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .dot.working { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .dot.done { background: var(--green); }
 .dot.fail, .dot.objecting { background: var(--orange); }
+.dot.crashed { background: var(--red); }
 @media (prefers-reduced-motion: no-preference) { .dot.working { animation: pulse 1.4s ease-in-out infinite; } }
 @keyframes pulse { 50% { box-shadow: 0 0 0 6px transparent; } }
 
@@ -497,6 +499,14 @@ legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .check-row { display: flex; align-items: flex-start; gap: 10px; font-weight: 600; cursor: pointer; }
 .check-row input { accent-color: var(--accent); width: 16px; height: 16px; margin-top: 3px; flex: none; }
 .check-row .help { display: block; font-weight: 400; margin-top: 2px; }
+.attention { width: 100%; max-width: 760px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: var(--s4); }
+.attention h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0; }
+.attention ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.attention a { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 12px; border-radius: var(--r-card); background: var(--fill); color: var(--text); text-decoration: none; }
+.attention a:hover { background: var(--accent-soft); }
+.attention a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.attention .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attention .more { background: none; padding: 0 4px; font-size: 13px; color: var(--accent); }
 .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 760px; }
 .suggestion { display: inline-flex; align-items: center; gap: 8px; text-align: left; border: 1px solid var(--sep); background: transparent; border-radius: var(--r-pill);
               padding: 6px 14px 6px 8px; font-size: 13.5px; color: var(--text-2); cursor: pointer; max-width: 100%; min-height: 36px; }

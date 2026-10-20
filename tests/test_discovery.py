@@ -41,7 +41,7 @@ class LemmaTools(FakeTools):
 
 
 def key_of(system):
-    keys = ("LITERATURE_PLAN", "LITERATURE_SUMMARY", "LANDSCAPE", "TARGET", "IDEATE", "CROSS_REVIEW", "PROGRAM",
+    keys = ("LITERATURE_PLAN", "LITERATURE_REPLAN", "LITERATURE_SUMMARY", "LANDSCAPE", "TARGET", "IDEATE", "CROSS_REVIEW", "PROGRAM",
                             "REPAIR", "FORMALIZE", "CRITIC_STATEMENT", "BACKTRANSLATE", "PROVE", "SKETCH", "REFUTE",
                             "EXPLORE_MATH", "CRITIC_RESULT")
     for norm in (system, re.sub(r"quaera_L\d+", "quaera_main", system),

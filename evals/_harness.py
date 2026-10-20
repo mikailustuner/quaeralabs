@@ -3,6 +3,9 @@ every proof benchmark, so every change is judged on the same sets with the same 
 
 Sets (`load_set`):
   putnam            PutnamBench sample (seed 7), far above small models — a ceiling probe
+  putnambench       the whole of PutnamBench, pinned (data/putnambench-<commit>.jsonl); problems without an answer to guess,
+                    shuffled by --seed (improvement plan C1)
+  fresh             statements from competitions after the models' knowledge cutoff (sets/fresh-*.yaml, approved only)
   minif2f-valid     miniF2F valid split without the easy mathd_* problems
   minif2f-test      miniF2F test split (public since 2021: read as an optimistic ceiling)
   synth-1/2/3       the generated QuaeraLabs-Synth-Math sets (template, hard, olympiad)
@@ -37,7 +40,14 @@ sys.path.insert(0, str(ROOT / "evals"))
 
 SYNTH = {"synth-1": "synth-math-2026.jsonl", "synth-2": "synth-math-hard-2027.jsonl", "synth-3": "synth-math-olympiad-2028.jsonl"}
 SYNTH_HEADER = "import Mathlib\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat\n\n"
-SET_NAMES = ("putnam", "minif2f-valid", "minif2f-test", *SYNTH, "capacity-synth")
+SET_NAMES = ("putnam", "putnambench", "minif2f-valid", "minif2f-test", *SYNTH, "capacity-synth", "fresh")
+# How far each set can be trusted as a measure of ability (evals/README.md): public sets may be in the models' training data.
+CONTAMINATION = {"putnam": "public; formal proofs mostly unpublished", "putnambench": "public; formal proofs mostly unpublished",
+                 "minif2f-valid": "public since 2021: a ceiling", "minif2f-test": "public since 2021: a ceiling",
+                 "synth-1": "generated here; public in this repo", "synth-2": "generated here; public in this repo",
+                 "synth-3": "generated here; public in this repo",
+                 "capacity-synth": "dev: public in this repo; hidden: run only on release tags",
+                 "fresh": "after the models' knowledge cutoff"}
 
 
 @dataclass
@@ -77,6 +87,16 @@ def load_set(name: str, n: int | None = None, seed: int = 0, split: str = "dev")
     from minif2f_run import HEADER, modernize
     if name == "putnam":
         tasks = [Task(r["name"], r["statement_file"]) for r in _jsonl("putnam-sample-7.jsonl")]
+    elif name == "putnambench":
+        pinned = sorted(DATA.glob("putnambench-*.jsonl"))
+        if not pinned:
+            raise ValueError("PutnamBench is not pinned: evals/putnam_run.py pin --src <PutnamBench>/lean4/src --commit <sha>")
+        rows = [r for r in _jsonl(pinned[-1].name) if not r["hasSolution"]]
+        random.Random(seed).shuffle(rows)
+        tasks = [Task(r["name"], r["statement_file"]) for r in rows]
+    elif name == "fresh":
+        tasks = [Task(p["name"], p["lean"]) for f in sorted(SETS_DIR.glob("fresh-*.yaml"))
+                 for p in (yaml.safe_load(f.read_text(encoding="utf-8")).get("problems") or []) if p.get("status") == "approved"]
     elif name.startswith("minif2f-"):
         want = name.split("-", 1)[1]
         rows = [r for r in _jsonl("minif2f-deepseek-v15.jsonl") if r["split"] == want and not (want == "valid" and r["name"].startswith("mathd"))]

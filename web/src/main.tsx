@@ -1,6 +1,6 @@
 import { Component, ReactNode, StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Learning, Summary, api } from "./api";
+import { Learning, STATUS_BADGE, Summary, api } from "./api";
 import { useLoad } from "./components";
 import { Memory, NewResearch, Projects, Settings } from "./pages/Home";
 import { useTheme } from "./theme";
@@ -9,6 +9,8 @@ import { Replay } from "./pages/Replay";
 import { useRoute } from "./router";
 import { BrandMark, EVAL_PREFIX, ICONS, icon } from "./ui";
 import "./styles.css";
+
+const STATUS_DOT: Record<string, string> = { running: "working", waiting: "fail", crashed: "crashed", done: "done" };
 
 /** If one view crashes the whole app must not go blank: the error is shown and the menu keeps working. */
 class Boundary extends Component<{ children: ReactNode; k: string }, { error: string | null }> {
@@ -111,9 +113,9 @@ function Sidebar({ section, pid, onCollapse, onNavigate }: { section: string; pi
                 {items.map((p) => (
                   <li key={p.id}>
                     <a className="proj-link" href={`#/p/${encodeURIComponent(p.id)}`} onClick={onNavigate} aria-current={pid === p.id ? "page" : undefined} title={p.title}>
-                      <span className={`dot ${p.running ? "working" : p.current ? "" : "done"}`} aria-hidden="true" />
+                      <span className={`dot ${STATUS_DOT[p.status || ""] ?? ""}`} aria-hidden="true" />
                       <span className="txt">{p.shortTitle}</span>
-                      {p.running && <span className="sr-only">(running)</span>}
+                      {p.status && p.status !== "done" && <span className="sr-only">({STATUS_BADGE[p.status][0]})</span>}
                     </a>
                   </li>
                 ))}

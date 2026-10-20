@@ -20,7 +20,7 @@ rsync -a --exclude .venv --exclude ml-env --exclude lean/.lake --exclude web/nod
 
 for img in "${IMAGES[@]}"; do
   echo "════ $img"
-  docker run --rm -m 3g --cpus 2 --security-opt seccomp=unconfined --security-opt apparmor=unconfined --cap-add SYS_ADMIN \
+  docker run --rm -m 3g --cpus 2 --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined --cap-add SYS_ADMIN \
     -v "$SRC/quaeralabs:/src:ro" "$img" bash -euo pipefail -c '
       export DEBIAN_FRONTEND=noninteractive
       cp -r /src /tmp/q && cd /tmp/q
@@ -36,5 +36,8 @@ for img in "${IMAGES[@]}"; do
       echo "── 4) server and tests"
       su - researcher -c "cd ~/quaeralabs && (~/.local/bin/quaera serve >/tmp/serve.log 2>&1 &) ; for i in \$(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:8765/api/settings && break; sleep 1; done; curl -s -o /dev/null -w \"api/settings: %{http_code}\n\" http://127.0.0.1:8765/api/settings; curl -s -o /dev/null -w \"web UI: %{http_code}\n\" http://127.0.0.1:8765/"
       su - researcher -c "cd ~/quaeralabs && uv run --quiet pytest -q tests/test_validate.py tests/test_server.py tests/test_memory.py tests/test_triage.py 2>&1 | tail -2"
+      echo "── 5) the default clone address (used when install.sh runs outside the repo) exists"
+      url=$(sed -n "s/^REPO_URL=\"\${QUAERA_REPO:-\(.*\)}\"$/\1/p" /src/install.sh)
+      git ls-remote --exit-code "$url" HEAD >/dev/null && echo "ok: $url" || { echo "FAIL: $url is not reachable"; exit 1; }
     ' 2>&1 | tee "/tmp/install-test-${img//[:\/]/-}.log" | grep -vE "^(Get|Hit|Selecting|Preparing|Unpacking|Setting up|Processing)"
 done

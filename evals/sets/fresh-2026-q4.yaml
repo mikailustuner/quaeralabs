@@ -1,0 +1,21 @@
+# Fresh set (improvement plan C1, third layer): competition problems published AFTER the knowledge cutoff of the models in
+# use, so a solution cannot come from training data. 20 statements per quarter.
+#
+# How a problem gets in:
+#   1. source: the competition, problem number and publication date (after every routed model's cutoff),
+#   2. lean: the Engineer formalizes the statement (theorem named `fresh_<id>`, proof `sorry`), it compiles with our Mathlib,
+#   3. the Critic's fidelity check (CRITIC_STATEMENT + back-translation) finds no mismatch,
+#   4. a human compares the Lean statement with the original problem and sets status: approved.
+# Only `approved` problems are loaded (evals/_harness.py, set "fresh"). Problems whose answer must be guessed are left out.
+# The mathematical counterpart of the "after the cutoff" rule in known-findings.yaml.
+version: 1
+quarter: 2026-q4
+cutoff: "2026-06"          # the latest knowledge cutoff among the routed models (Claude 5 family: June 2026)
+problems: []
+# - id: imo-2026-p1
+#   source: "IMO 2026, problem 1 (published 2026-07)"
+#   name: fresh_imo_2026_p1
+#   lean: |
+#     import Mathlib
+#     theorem fresh_imo_2026_p1 ... := by sorry
+#   status: draft          # draft → fidelity_ok → approved

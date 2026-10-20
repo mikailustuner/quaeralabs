@@ -76,7 +76,7 @@ class Script:
         self.critic_objects_first = critic_objects_first
 
     def __call__(self, system, prompt):
-        keys = ("LITERATURE_PLAN", "LITERATURE_SUMMARY", "HYPOTHESIS", "FORMALIZE", "PROVE", "CRITIC_STATEMENT", "CRITIC_RESULT",
+        keys = ("LITERATURE_PLAN", "LITERATURE_REPLAN", "LITERATURE_SUMMARY", "HYPOTHESIS", "FORMALIZE", "PROVE", "CRITIC_STATEMENT", "CRITIC_RESULT",
                 "BACKTRANSLATE", "REFUTE", "EXPLORE_MATH", "RANK_HYPOTHESES", "SKETCH")
         key = next((k for k in keys if getattr(prompts, k) == system), None)
         if key is None:   # lemma proof prompt: the main proof prompt with the theorem name replaced by the lemma name
@@ -86,6 +86,8 @@ class Script:
         i = self.n[key]
         if key == "LITERATURE_PLAN":
             return '{"arxiv_queries": ["sum odd numbers"], "openalex_queries": ["odd sum square"], "mathlib_queries": ["sum_range_succ"]}'
+        if key == "LITERATURE_REPLAN":
+            return '{"arxiv_queries": ["odd numbers square identity"], "openalex_queries": []}'
         if key == "LITERATURE_SUMMARY":
             return ('```json\n{"summary": "A known result.", "verdict": "already_done", '
                     '"cited": ["arXiv:1111.11111", "arXiv:2222.22222"], "relevant_mathlib": ["Finset.sum_range_succ"]}\n```')

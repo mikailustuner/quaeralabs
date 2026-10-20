@@ -2,7 +2,15 @@
 
 import json
 
+import pytest
+
 from quaera import prompts
+
+
+@pytest.fixture(autouse=True)
+def no_fast_path(monkeypatch):
+    """The scripted literature step says `already_done`, which would take the fast path past exploration (plan C4)."""
+    monkeypatch.setenv("QUAERA_FAST_PATH", "0")
 
 from test_ml_loop import MLScript, make as make_ml
 from test_orchestrator import FakeTools, Script, make

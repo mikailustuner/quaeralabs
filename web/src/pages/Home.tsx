@@ -1,6 +1,6 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { Learning, MemoryHit, Registry } from "../api";
-import { ROLES, ROLE_NAME, STAGE_NAME, api, date, money } from "../api";
+import { ROLES, ROLE_NAME, STAGE_NAME, STATUS_BADGE, api, date, money, needsAttention } from "../api";
 import { StateBox, statusBadge, useLoad } from "../components";
 import { BrandMark, EVAL_PREFIX } from "../ui";
 import { InlineMath } from "../rich";
@@ -48,9 +48,9 @@ export function Projects() {
                     </span>
                   </div>
                   <div className="row">
-                    {p.running && <span className="badge accent">running</span>}
-                    {p.error && <span className="badge bad">error</span>}
-                    {p.current && !p.running && !p.error ? <span className="badge">paused</span> : p.hypothesis && statusBadge(p.hypothesis.status)}
+                    {p.status && p.status !== "done"
+                      ? <span className={`badge ${STATUS_BADGE[p.status][1]}`} title={p.status === "crashed" ? p.error || undefined : undefined}>{STATUS_BADGE[p.status][0]}</span>
+                      : p.hypothesis && statusBadge(p.hypothesis.status)}
                   </div>
                 </a>
               </li>
@@ -66,8 +66,8 @@ const greeting = () => {
   return h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 };
 const EXAMPLES = [
-  { domain: "math", mode: "discover", q: "Is the Riemann Hypothesis true? Prove or disprove Mathlib's `RiemannHypothesis` exactly as stated." },
   { domain: "math", q: "Is n³ − n divisible by 6 for every natural number n?" },
+  { domain: "math", mode: "discover", q: "For positive reals x₁,…,xₙ with product 1, is their sum at least n? Prove it in Lean exactly as stated." },
   { domain: "math", q: "If ∑ 1/aₙ converges for positive integers aₙ, does #{k : a_k ≤ n}/n tend to 0?" },
   { domain: "ml", q: "Does label smoothing improve calibration of a small MLP on this dataset?" },
 ];
@@ -77,6 +77,17 @@ export function NewResearch() {
   const [f, setF] = useState({ question: "", domain: "math", mode: "verify", budget: 2, dataDir: "", scope: "", autonomy: "manual", autoLimit: 0.5,
                                keepTrying: false, maxCalls: "", maxHours: "", gpu: false });
   const settings = useLoad(api.settings, []);
+  const projects = useLoad(api.projects, []);
+  const domains: Record<string, { ready: boolean; missing: string[] }> | undefined = settings.data?.domains;
+  const off = domains?.[f.domain]?.ready === false ? domains[f.domain] : null;
+  // a domain that is not installed is never the preselected one (improvement plan A3)
+  useEffect(() => {
+    if (domains && domains[f.domain]?.ready === false) {
+      const other = f.domain === "math" ? "ml" : "math";
+      if (domains[other]?.ready) setF((x) => ({ ...x, domain: other }));
+    }
+  }, [domains]);
+  const attention = (projects.data || []).filter((p) => needsAttention(p) && !EVAL_PREFIX.test(p.id));
   const models: any[] = (settings.data?.models || []).filter((m: any) => m.enabled);
   const [families, setFamilies] = useState<string[] | null>(null);       // null: all available ones
   const chosen = families ?? [...new Set(models.map((m) => m.family))];
@@ -100,6 +111,7 @@ export function NewResearch() {
     if (!(f.budget > 0 && f.budget <= maxBudget)) er.budget = `Budget must be between $0 and $${maxBudget}.`;
     if (families && !families.length) er.question = "Choose at least one model family.";
     if (f.domain === "ml" && !f.dataDir.trim()) er.dataDir = "An ML study needs a data directory.";
+    if (off) er.question = `${f.domain === "math" ? "Mathematics" : "AI/ML"} research is not installed on this machine.`;
     setErrors(er);
     if (Object.keys(er).length) {
       if (er.dataDir || er.budget) setMore(true);
@@ -121,24 +133,25 @@ export function NewResearch() {
   return (
     <div className="hero">
       <h1 className="hero-title"><BrandMark />{greeting()}</h1>
-      <p className="hero-sub">What should the lab investigate? The team surveys the literature, proposes hypotheses, runs the experiment or proof, and asks you at every critical step.</p>
+      <p className="hero-sub">What should the lab investigate? The team surveys the literature, proposes hypotheses, runs the experiment or proof, and asks you at every critical step. A proof counts only if Lean accepts it, a source only if its registry confirms it.</p>
       <form className="composer-hero" onSubmit={submit} noValidate aria-label="New research">
         {serverError && <p className="err" role="alert">{serverError}</p>}
         <label className="sr-only" htmlFor="f-question">Research question</label>
         <textarea id="f-question" ref={ta} rows={2} value={f.question} onChange={(e) => set("question", e.target.value)} onKeyDown={onKey}
-          placeholder={discover ? "Name an open problem to attack, e.g. the Riemann Hypothesis…" : "Ask a precise, testable question…"} aria-invalid={!!errors.question} aria-describedby={describedBy("question")} />
+          placeholder={discover ? "State a precise claim to attack with a lemma program…" : "Ask a precise, testable question…"} aria-invalid={!!errors.question} aria-describedby={describedBy("question")} />
         <span id="h-question" className="sr-only">Press Ctrl+Enter to start.</span>
         {errors.question && <p id="e-question" className="err">{errors.question}</p>}
         <div className="composer-bar">
           <div className="composer-controls">
           <div className="segmented" role="radiogroup" aria-label="Domain">
             {([["math", "Mathematics"], ["ml", "AI / ML"]] as const).map(([v, t]) => (
-              <button key={v} type="button" role="radio" aria-checked={f.domain === v} onClick={() => set("domain", v)}>{t}</button>
+              <button key={v} type="button" role="radio" aria-checked={f.domain === v} onClick={() => set("domain", v)}
+                disabled={domains?.[v]?.ready === false} title={domains?.[v]?.ready === false ? `Not installed on this machine` : undefined}>{t}</button>
             ))}
           </div>
           {f.domain === "math" && (
             <div className="segmented" role="radiogroup" aria-label="Research mode">
-              {([["verify", "Verify"], ["discover", "Discover"]] as const).map(([v, t]) => (
+              {([["verify", "Verify"], ["discover", "Discover · experimental"]] as const).map(([v, t]) => (
                 <button key={v} type="button" role="radio" aria-checked={f.mode === v} onClick={() => set("mode", v)}
                   title={v === "verify" ? "Test a precise claim; the team may propose provable hypotheses" : "Attack an open problem as stated, with several models"}>{t}</button>
               ))}
@@ -181,6 +194,11 @@ export function NewResearch() {
           </fieldset>
         )}
         <p id="h-budget" className="composer-note">No model call can exceed the budget cap; the worst-case cost is checked before every call. {f.autonomy === "cap" ? "Publishing always needs your approval." : ""}</p>
+        {domains && Object.entries(domains).filter(([d, v]) => !v.ready && d !== f.domain).map(([d, v]) => (
+          <p key={d} className="composer-note">{d === "math" ? "Mathematics" : "AI/ML"} research is not installed on this machine: {v.missing[0]}. <code>quaera doctor</code> lists what is missing.</p>
+        ))}
+        {off && <p className="err" role="status">{f.domain === "math" ? "Mathematics" : "AI/ML"} research is not installed on this machine: {off.missing.join("; ")}. Run <code>quaera doctor</code> for details.</p>}
+        {discover && <p className="composer-note">Discover is experimental. Only Lean-verified lemmas count; on famous open problems expect partial lemmas, not a proof.</p>}
         {errors.budget && <p id="e-budget" className="err">{errors.budget}</p>}
         {more && (
           <div className="composer-more">
@@ -235,6 +253,22 @@ export function NewResearch() {
           </button>
         ))}
       </div>
+      {attention.length > 0 && (
+        <section className="attention" aria-labelledby="attention-h">
+          <h2 id="attention-h">{attention.length === 1 ? "1 project needs attention" : `${attention.length} projects need attention`}</h2>
+          <ul>
+            {attention.slice(0, 5).map((p) => (
+              <li key={p.id}>
+                <a href={`#/p/${encodeURIComponent(p.id)}`} title={p.status === "crashed" ? p.error || p.title : p.title}>
+                  <span className={`badge ${STATUS_BADGE[p.status!][1]}`}>{STATUS_BADGE[p.status!][0]}</span>
+                  <span className="t">{p.shortTitle}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          {attention.length > 5 && <a className="more" href="#/research">All research</a>}
+        </section>
+      )}
     </div>
   );
 }

@@ -1,0 +1,54 @@
+name: Release
+
+# Publishes the wheel to PyPI when a version tag is pushed (improvement plan A3).
+# One-time setup on PyPI: add a "trusted publisher" for this repository and the workflow file release.yml,
+# environment "pypi". No token is stored in the repository.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Tests
+        run: |
+          uv sync --locked
+          uv run pytest -q
+      - name: Build the web UI (shipped inside the wheel)
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Build
+        run: |
+          test "v$(uv version --short)" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match pyproject version"; exit 1; }
+          uv build --wheel   # wheel only: the sdist would not contain the built web UI (web/dist is not in git)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

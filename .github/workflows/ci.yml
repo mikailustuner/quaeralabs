@@ -15,10 +15,14 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      - name: Sandbox backends for the contract tests (ADR 0018)
+        run: |
+          sudo apt-get install -y -qq bubblewrap
+          docker pull -q debian:13
       - name: Python tests
         run: |
           uv sync --locked
