@@ -104,7 +104,7 @@ def domains(found: list[Check]) -> dict:
     def tier(t):
         missing = [f"{c.name} → {c.fix}" for c in found if c.tier in ("core", t) and not c.ok and c.name != "web UI built"]
         return {"ready": not missing, "missing": missing}
-    return {"math": tier("math"), "ml": tier("ml")}
+    return {"math": tier("math"), "ml": tier("ml"), "review": tier("review")}   # a review needs only the core and the network
 
 
 TIER_TITLE = {"core": "Core (required)", "ml": "AI/ML research", "math": "Mathematics research (Lean)", "extras": "Extras"}
@@ -123,9 +123,9 @@ def report(found: list[Check]) -> tuple[str, bool]:
             mark = "✓" if c.ok else ("✗" if t == "core" else "–")
             lines.append(f"  [{mark}] {c.name}" + ("" if c.ok else f" → {c.fix}"))
     dom = domains(found)
-    on = [d for d in ("math", "ml") if dom[d]["ready"]]
+    on = [d for d in ("math", "ml", "review") if dom[d]["ready"]]
     lines.append("")
-    lines.append("Ready: " + (", ".join({"math": "mathematics", "ml": "AI/ML"}[d] for d in on) + " research." if core_ok and on else
+    lines.append("Ready: " + (", ".join({"math": "mathematics", "ml": "AI/ML", "review": "systematic review"}[d] for d in on) + " research." if core_ok and on else
                               "the core works, but no research domain is installed yet (see the hints above)."
                               if core_ok else "required components are missing."))
     return "\n".join(lines), core_ok

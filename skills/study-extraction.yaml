@@ -1,0 +1,16 @@
+id: study-extraction
+version: 0.1.0
+description: Searches Europe PMC for studies and reads a study's source text (open-access full text or abstract) so its numbers
+  can be traced to a verbatim quote.
+domains:
+- review
+tools:
+- name: europepmc.search
+  protocol: mcp
+  server: literature
+- name: source.text
+  protocol: mcp
+  server: literature
+requiredPermissions:
+  literatureRead: true
+eval: pending

@@ -24,7 +24,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from . import __version__
-from .cli import HOME, build, slugify, stages_for
+from .cli import DEFAULT_SCOPE, HOME, build, slugify, stages_for
 from .ml_loop import ML_STAGES
 from .orchestrator import STAGES, Approver, Decision
 from .resources import data_path
@@ -303,8 +303,8 @@ async def api_create(request: Request):
     budget = float(body.get("budget", 0))
     # Discovery mode is for open problems: a higher cap is allowed (still a hard cap; the human sets it).
     max_budget = 500 if mode == "discover" else 50
-    if len(question) < 8 or domain not in ("math", "ml") or mode not in ("verify", "discover") or not (0 < budget <= max_budget):
-        return JSONResponse({"error": f"a question (≥8 characters), a domain (math/ml), a mode (verify/discover) and a budget of 0–{max_budget} USD are required"}, 400)
+    if len(question) < 8 or domain not in ("math", "ml", "review") or mode not in ("verify", "discover") or not (0 < budget <= max_budget):
+        return JSONResponse({"error": f"a question (≥8 characters), a domain (math/ml/review), a mode (verify/discover) and a budget of 0–{max_budget} USD are required"}, 400)
     if mode == "discover" and domain != "math":
         return JSONResponse({"error": "discovery mode is available for mathematics (Lean-verifiable results)"}, 400)
     families = body.get("families")
@@ -317,7 +317,7 @@ async def api_create(request: Request):
     pid = f"{now()[:10]}-{slugify(question)}"
     if (HOME / pid).exists():
         return JSONResponse({"error": "a project for this question already exists today"}, 409)
-    scope = body.get("scope") or ("Formal proof in Lean 4 + Mathlib" if domain == "math" else "Data under /data.")
+    scope = body.get("scope") or DEFAULT_SCOPE[domain]
     from . import contracts
     errors = contracts.schema_errors("question", {"type": "question", "id": "Q-0001", "revision": 1, "createdAt": now(),
                                                   "createdBy": {"kind": "human", "userId": WebApprover.user},

@@ -5,7 +5,7 @@ import { GraphView, buildGraph } from "./Graph";
 import { LabView } from "./Lab";
 import { ProofView, ReportView } from "./Report";
 
-type ReplayFile = { project: string; title: string; domain: "math" | "ml"; stages: string[]; mode?: "verify" | "discover"; events: QEvent[]; report?: string | null };
+type ReplayFile = { project: string; title: string; domain: "math" | "ml" | "review"; stages: string[]; mode?: "verify" | "discover"; events: QEvent[]; report?: string | null };
 
 /** Replay: rebuilds the event log step by step. Needs no model calls or API key. */
 export function Replay({ pid }: { pid?: string }) {

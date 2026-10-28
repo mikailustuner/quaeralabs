@@ -66,6 +66,93 @@ function Critiques({ objects }: { objects: QObject[] }) {
 
 // ------------------------------------------------------------------ matematik -----------------------------------------
 
+const fmt = (x: number | undefined) => (x == null ? "—" : Number(x.toPrecision(4)).toString());
+
+/** Review domain: the locked protocol, screening counts, every study with its traced numbers, and the pooled estimate. */
+export function ReviewExperiment({ d, events }: { d: Derived; events: QEvent[] }) {
+  const st = useMemo(() => statesOf(events), [events]);
+  const objs = [...d.objects.values()];
+  const pre = objs.filter((o) => o.type === "preregistration").pop();
+  const h = objs.find((o) => o.id === st.hypothesis_id);
+  const full = objs.filter((o) => o.type === "run" && o.kind === "full").pop();
+  const ver = objs.filter((o) => o.type === "verification").pop();
+  const result = objs.filter((o) => o.type === "result").pop();
+  const link = objs.filter((o) => o.type === "evidence_link").pop();
+  const scr = st.screening, rows: any[] = st.extractions || [], m = full?.metrics || {};
+  const measure = st.plan?.effectMeasure;
+  const ratio = m.pooled_ratio != null;
+
+  let verdict: React.ReactNode = null;
+  if (h?.status === "supported") verdict = <Verdict tone="good" icon="✓" title="Hypothesis supported">The pooled estimate met the preregistered criterion{ver?.reproduced === "yes" ? " and the Verifier re-read every source and reproduced it" : ""}.</Verdict>;
+  else if (h?.status === "refuted") verdict = <Verdict tone="bad" icon="✕" title="Hypothesis refuted">The pooled estimate contradicts the preregistered criterion{ver?.reproduced === "yes" ? "; the Verifier re-read every source and reproduced it" : ""}.</Verdict>;
+  else if (h?.status === "under_critique") verdict = <Verdict tone="warn" icon="!" title="Unresolved objection">The hypothesis does not count as supported because the Critic's objection is still open.</Verdict>;
+  else if (result) verdict = <Verdict tone="warn" icon="?" title="Result inconclusive">No conclusive, verified pooled estimate was reached under the preregistered criterion.</Verdict>;
+
+  return (
+    <div className="stack-lg">
+      {verdict}
+      {pre && (
+        <section className="card stack" aria-labelledby="proto-h" style={{ gap: 12 }}>
+          <div className="card-head" style={{ marginBottom: 0 }}><h2 id="proto-h">Review protocol</h2>
+            {pre.lockedAt && <span className="lock" title={`Locked: ${pre.lockedAt}`}>🔒 locked before screening</span>}</div>
+          <div className="facts">
+            <div className="fact"><span className="k">Effect measure</span><span className="v">{measure}</span><span className="s">random effects, computed by code</span></div>
+            {st.plan?.outcome && <div className="fact"><span className="k">Outcome</span><span className="v">{st.plan.outcome}</span></div>}
+          </div>
+          <div className="inset"><h4 style={{ marginBottom: 4 }}>Success criterion (written before screening)</h4><InlineMath text={pre.successCriterion} /></div>
+          <details><summary><strong>Locked protocol</strong></summary><div style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{pre.analysisPlan}</div></details>
+        </section>
+      )}
+
+      {scr && (
+        <section className="card stack" aria-labelledby="scr-h" style={{ gap: 12 }}>
+          <div className="card-head" style={{ marginBottom: 0 }}><h2 id="scr-h">Studies</h2>
+            <span className="faint">{scr.identified} found · {scr.unique} unique · {scr.excluded} excluded · {scr.included.length} included · {rows.filter((r) => r.ok).length} traced</span></div>
+          <p className="muted" style={{ fontSize: 14 }}>A study counts only if its numbers are written in a verbatim quote that the code found in the source text; the effect sizes are computed by code from those numbers.</p>
+          {rows.length > 0 && (
+            <div className="table-wrap" tabIndex={0} role="region" aria-label="Included studies (scrollable)"><table className="data-table">
+              <thead><tr><th scope="col">Study (DOI)</th><th scope="col">Source</th><th scope="col">Effect</th><th scope="col">Variance</th><th scope="col">Traced</th></tr></thead>
+              <tbody>{rows.map((r) => (
+                <tr key={r.ref}><td className="mono">{r.ref}</td><td>{r.source || "—"}</td><td>{r.ok ? fmt(r.yi) : "—"}</td><td>{r.ok ? fmt(r.vi) : "—"}</td>
+                  <td>{r.ok ? <span className="badge good">yes</span> : <span title={(r.problems || []).join("; ")}><span className="badge bad">no</span> <Clamp lines={2}>{(r.problems || []).join("; ")}</Clamp></span>}</td></tr>))}</tbody>
+            </table></div>
+          )}
+          {rows.some((r) => r.ok && r.data?.quote) && <details><summary><strong>Quotes the numbers come from</strong></summary>
+            <ul style={{ marginTop: 8, paddingLeft: 18 }}>{rows.filter((r) => r.ok).map((r) => <li key={r.ref}><span className="mono">{r.ref}</span>: “{r.data.quote}”{r.data.reversed ? " (reported the other way round; the code flipped the sign)" : ""}</li>)}</ul></details>}
+        </section>
+      )}
+
+      {full && (
+        <section className="card stack" aria-labelledby="meta-h" style={{ gap: 10 }}>
+          <div className="card-head" style={{ marginBottom: 0 }}><h2 id="meta-h">Meta-analysis</h2>
+            {link && <span className={`badge ${link.relation === "supports" ? "good" : link.relation === "contradicts" ? "bad" : "warn"}`}>
+              {({ supports: "supports the hypothesis", contradicts: "contradicts the hypothesis", inconclusive: "inconclusive" } as any)[link.relation] || link.relation}</span>}</div>
+          {m.pooled_effect != null ? (
+            <div className="facts">
+              <div className="fact"><span className="k">Pooled {measure}</span><span className="v">{fmt(ratio ? m.pooled_ratio : m.pooled_effect)}</span>
+                <span className="s">95% CI {fmt(ratio ? m.ratio_ci_low : m.ci_low)} to {fmt(ratio ? m.ratio_ci_high : m.ci_high)}</span></div>
+              <div className="fact"><span className="k">Studies</span><span className="v">{m.k}</span><span className="s">p = {fmt(m.p_value)}</span></div>
+              <div className="fact"><span className="k">Heterogeneity</span><span className="v">I² {fmt(100 * m.i2)}%</span><span className="s">τ² = {fmt(m.tau2)}</span></div>
+            </div>
+          ) : <p>No pooled estimate: {m.k ?? 0} study with traceable numbers (at least 2 are needed).</p>}
+          {result && <Markdown text={result.summary} />}
+          {result && result.limitations?.length > 0 && <div><h4 style={{ marginBottom: 4 }}>Limitations</h4><ul style={{ margin: 0, paddingLeft: 18 }}>{result.limitations.map((l: string, i: number) => <li key={i}>{l}</li>)}</ul></div>}
+        </section>
+      )}
+
+      {ver && (
+        <section className="card stack" aria-labelledby="ver-h" style={{ gap: 10 }}>
+          <div className="card-head" style={{ marginBottom: 0 }}><h2 id="ver-h">Independent re-check</h2>
+            <span className={`badge ${ver.reproduced === "yes" ? "good" : "bad"}`}>{ver.reproduced === "yes" ? "reproduced exactly" : ver.reproduced === "partial" ? "partial" : "not reproduced"}</span></div>
+          <p className="muted" style={{ fontSize: 14 }}>The Verifier fetched every source again, re-checked each quote and number against the fresh text and recomputed the pooled estimate.</p>
+          {ver.differences?.length > 0 && <ul style={{ margin: 0, paddingLeft: 18 }}>{ver.differences.map((x: string, i: number) => <li key={i}>{x}</li>)}</ul>}
+        </section>
+      )}
+      <Critiques objects={objs} />
+    </div>
+  );
+}
+
 export function MathExperiment({ d, events, pid }: { d: Derived; events: QEvent[]; pid: string | null }) {
   const st = useMemo(() => statesOf(events), [events]);
   const objs = [...d.objects.values()];

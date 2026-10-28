@@ -1,6 +1,6 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { Learning, MemoryHit, Registry } from "../api";
-import { ROLES, ROLE_NAME, STAGE_NAME, STATUS_BADGE, api, date, money, needsAttention } from "../api";
+import { DOMAIN_LABEL, ROLES, ROLE_NAME, STAGE_NAME, STATUS_BADGE, api, date, money, needsAttention } from "../api";
 import { StateBox, statusBadge, useLoad } from "../components";
 import { BrandMark, EVAL_PREFIX } from "../ui";
 import { InlineMath } from "../rich";
@@ -40,7 +40,7 @@ export function Projects() {
                     <span className="t">{p.shortTitle}</span>
                     <span className="sub clamp"><InlineMath text={p.title} /></span>
                     <span className="row faint">
-                      <span className="badge">{p.domain === "ml" ? "AI / ML" : "Mathematics"}</span>
+                      <span className="badge">{DOMAIN_LABEL[p.domain]}</span>
                       <span>{date(p.createdAt)}</span>
                       <span>{p.current ? `stage: ${STAGE_NAME[p.current] || p.current}` : "finished"}</span>
                       <span>{money(p.spentUsd)}</span>
@@ -70,6 +70,7 @@ const EXAMPLES = [
   { domain: "math", mode: "discover", q: "For positive reals x₁,…,xₙ with product 1, is their sum at least n? Prove it in Lean exactly as stated." },
   { domain: "math", q: "If ∑ 1/aₙ converges for positive integers aₙ, does #{k : a_k ≤ n}/n tend to 0?" },
   { domain: "ml", q: "Does label smoothing improve calibration of a small MLP on this dataset?" },
+  { domain: "review", q: "Does aerobic exercise reduce depressive symptoms compared with usual care in adults with depression?" },
 ];
 
 /** Home page: a large centred composer as in the reference; domain, budget and autonomy below it. */
@@ -111,7 +112,7 @@ export function NewResearch() {
     if (!(f.budget > 0 && f.budget <= maxBudget)) er.budget = `Budget must be between $0 and $${maxBudget}.`;
     if (families && !families.length) er.question = "Choose at least one model family.";
     if (f.domain === "ml" && !f.dataDir.trim()) er.dataDir = "An ML study needs a data directory.";
-    if (off) er.question = `${f.domain === "math" ? "Mathematics" : "AI/ML"} research is not installed on this machine.`;
+    if (off) er.question = `${DOMAIN_LABEL[f.domain]} research is not installed on this machine.`;
     setErrors(er);
     if (Object.keys(er).length) {
       if (er.dataDir || er.budget) setMore(true);
@@ -144,7 +145,7 @@ export function NewResearch() {
         <div className="composer-bar">
           <div className="composer-controls">
           <div className="segmented" role="radiogroup" aria-label="Domain">
-            {([["math", "Mathematics"], ["ml", "AI / ML"]] as const).map(([v, t]) => (
+            {([["math", "Mathematics"], ["ml", "AI / ML"], ["review", "Review"]] as const).map(([v, t]) => (
               <button key={v} type="button" role="radio" aria-checked={f.domain === v} onClick={() => set("domain", v)}
                 disabled={domains?.[v]?.ready === false} title={domains?.[v]?.ready === false ? `Not installed on this machine` : undefined}>{t}</button>
             ))}
@@ -197,7 +198,7 @@ export function NewResearch() {
         {domains && Object.entries(domains).filter(([d, v]) => !v.ready && d !== f.domain).map(([d, v]) => (
           <p key={d} className="composer-note">{d === "math" ? "Mathematics" : "AI/ML"} research is not installed on this machine: {v.missing[0]}. <code>quaera doctor</code> lists what is missing.</p>
         ))}
-        {off && <p className="err" role="status">{f.domain === "math" ? "Mathematics" : "AI/ML"} research is not installed on this machine: {off.missing.join("; ")}. Run <code>quaera doctor</code> for details.</p>}
+        {off && <p className="err" role="status">{DOMAIN_LABEL[f.domain]} research is not installed on this machine: {off.missing.join("; ")}. Run <code>quaera doctor</code> for details.</p>}
         {discover && <p className="composer-note">Discover is experimental. Only Lean-verified lemmas count; on famous open problems expect partial lemmas, not a proof.</p>}
         {errors.budget && <p id="e-budget" className="err">{errors.budget}</p>}
         {more && (
@@ -220,7 +221,7 @@ export function NewResearch() {
             )}
             <label>Scope <span className="help">(optional)</span>
               <input id="f-scope" type="text" value={f.scope} onChange={(e) => set("scope", e.target.value)} aria-describedby="h-scope"
-                placeholder={f.domain === "math" ? "Formal proof in Lean 4 + Mathlib" : "Data under /data."} />
+                placeholder={f.domain === "math" ? "Formal proof in Lean 4 + Mathlib" : f.domain === "review" ? "Population and setting, e.g. randomized trials in adults" : "Data under /data."} />
               <span id="h-scope" className="help">The team's boundaries. A narrowed result is marked as "restricted scope" in the report.</span>
             </label>
             <label className="check-row">
@@ -249,7 +250,7 @@ export function NewResearch() {
       <div className="suggestions" aria-label="Example questions">
         {EXAMPLES.map((x) => (
           <button key={x.q} type="button" className="suggestion" onClick={() => { setF((v) => ({ ...v, question: x.q, domain: x.domain, mode: (x as any).mode || "verify", budget: (x as any).mode ? 25 : v.budget })); ta.current?.focus(); }}>
-            <span className="badge">{(x as any).mode === "discover" ? "Discover" : x.domain === "ml" ? "AI / ML" : "Math"}</span><InlineMath text={x.q} />
+            <span className="badge">{(x as any).mode === "discover" ? "Discover" : x.domain === "math" ? "Math" : DOMAIN_LABEL[x.domain]}</span><InlineMath text={x.q} />
           </button>
         ))}
       </div>

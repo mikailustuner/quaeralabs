@@ -20,12 +20,15 @@ from pathlib import Path
 
 from .gateway import ClaudeCLIProvider, Gateway
 from .ml_loop import ML_STAGES, MLOrchestrator
+from .review import REVIEW_STAGES, ReviewOrchestrator
 from .orchestrator import STAGES, AutoApprover, CapApprover, InteractiveApprover, Orchestrator
 from .permissions import Permissions
 from .store import Store, now
 from .tools import ToolRegistry
 
 HOME = Path(os.environ.get("QUAERA_HOME", Path.home() / ".quaera")) / "projects"
+DEFAULT_SCOPE = {"math": "Formal proof in Lean 4 + Mathlib", "ml": "Data under /data.",
+                 "review": "Published studies (Europe PMC, OpenAlex); data traced to open-access full texts and abstracts."}
 
 
 def slugify(text: str) -> str:
@@ -34,9 +37,11 @@ def slugify(text: str) -> str:
 
 
 def stages_for(store: Store) -> list[str]:
-    """The project's stage list: ML, math verification or math Discovery mode."""
+    """The project's stage list: ML, review, math verification or math Discovery mode."""
     if store.meta("domain") == "ml":
         return ML_STAGES
+    if store.meta("domain") == "review":
+        return REVIEW_STAGES
     if store.meta("mode") == "discover":
         from .discovery import DISCOVERY_STAGES
         return DISCOVERY_STAGES
@@ -116,7 +121,7 @@ def build(project: Path, budget: float | None, auto_limit: float | None, provide
         approver = InteractiveApprover()
     domain = domain or store.meta("domain", "math")
     store.set_meta("domain", domain)
-    cls = MLOrchestrator if domain == "ml" else Orchestrator
+    cls = {"ml": MLOrchestrator, "review": ReviewOrchestrator}.get(domain, Orchestrator)
     if domain == "math" and store.meta("mode") == "discover":
         from .discovery import DiscoveryOrchestrator
         cls = DiscoveryOrchestrator
@@ -165,7 +170,7 @@ def cmd_ask(a) -> int:
     orch.store.set_meta("title", a.question)
     if a.data_dir:
         orch.store.set_meta("dataDir", str(Path(a.data_dir).resolve()))
-    default_scope = "Formal proof in Lean 4 + Mathlib" if a.domain == "math" else "Data under /data."
+    default_scope = DEFAULT_SCOPE[a.domain]
     orch.store.put({"type": "question", "createdBy": orch.human(), "title": a.question, "domain": a.domain,
                     "scope": a.scope or default_scope})
     print(f"Project: {project}")
@@ -214,6 +219,11 @@ def cmd_branch(a) -> int:
 def cmd_verify(a) -> int:
     from .lean import LeanChecker
     store = Store(project_path(a.project) / "quaera.db")
+    if store.meta("domain") == "review":
+        from .review import recheck
+        out = recheck(store)
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return 0 if out["reproduced"] == "yes" else 1
     states = {e["payload"]["key"]: e["payload"]["value"] for e in store.events("state")}
     proof, formal = states.get("proof"), states.get("formal")
     if not proof:
@@ -646,8 +656,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("ask", help="new research project")
     s.add_argument("question")
-    s.add_argument("--domain", choices=["math", "ml"], default="math")
-    s.add_argument("--scope", help="ML: data description (columns, files)")
+    s.add_argument("--domain", choices=["math", "ml", "review"], default="math", help="review: systematic review and meta-analysis")
+    s.add_argument("--scope", help="ML: data description (columns, files); review: population and setting")
     s.add_argument("--data-dir", help="ML: data directory the experiment sees read-only (/data)")
     s.add_argument("--autonomy", choices=["manual", "under", "cap"], help="manual: every approval is asked · under: automatic below --auto-approve-under · cap: automatic up to the budget cap")
     s.add_argument("--budget", type=float, required=True, help="budget cap (USD); never exceeded")

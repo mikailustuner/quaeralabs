@@ -7,7 +7,7 @@ export type QEvent = { seq: number; at: string; kind: string; actor: Actor; payl
 export type QObject = { id: string; type: string; createdBy: Actor; [k: string]: any };
 
 export type Summary = {
-  id: string; title: string; shortTitle: string; managerUsd: number; domain: "math" | "ml"; mode?: "verify" | "discover"; families?: string[] | null; stages: string[]; done: string[]; current: string | null;
+  id: string; title: string; shortTitle: string; managerUsd: number; domain: "math" | "ml" | "review"; mode?: "verify" | "discover"; families?: string[] | null; stages: string[]; done: string[]; current: string | null;
   running: boolean; status?: ProjectStatus; error: string | null; stopped: any; spentUsd: number; capUsd: number | null; calls: number; cachedCalls?: number;
   keepTrying?: boolean; limits?: { calls?: number; tokens?: number; hours?: number; deadline?: number } | null;
   hypothesis: { id: string; status: string; statement: string } | null; branchOf: string | null; branchAt: number | null; createdAt: string | null;
@@ -144,6 +144,8 @@ export function useEventLog(pid: string | null) {
 
 // --- agents and stages --------------------------------------------------------------------
 
+export const DOMAIN_LABEL: Record<string, string> = { math: "Mathematics", ml: "AI / ML", review: "Review" };
+
 export const ROLES = ["director", "literature", "hypothesis", "experiment_designer", "engineer", "analyst", "critic", "verifier", "writer"] as const;
 export type Role = (typeof ROLES)[number];
 export const ROLE_NAME: Record<string, string> = {
@@ -163,6 +165,7 @@ export const STAGE_NAME: Record<string, string> = {
   critique: "Critique", result_review: "Result review", verification: "Verification", conclude: "Conclusion", report: "Report",
   landscape: "Research landscape", target: "Target claim", ideation: "Multi-model ideation", cross_review: "Cross-review",
   strategy_approval: "Strategy choice", program: "Lemma program", attack: "Attack rounds", synthesis: "Synthesis",
+  screening: "Screening", extraction: "Data extraction",
 };
 export const STAGE_ROLE: Record<string, Role> = {
   literature: "literature", data_profile: "engineer", explore: "engineer", hypothesis: "hypothesis", hypothesis_approval: "director", design: "experiment_designer",
@@ -170,12 +173,13 @@ export const STAGE_ROLE: Record<string, Role> = {
   formalize: "engineer", statement_review: "critic", prove: "engineer", analysis: "analyst", critique: "critic",
   result_review: "critic", verification: "verifier", conclude: "director", report: "writer",
   landscape: "literature", target: "hypothesis", ideation: "hypothesis", cross_review: "critic", strategy_approval: "director",
-  program: "engineer", attack: "engineer", synthesis: "engineer",
+  program: "engineer", attack: "engineer", synthesis: "engineer", screening: "literature", extraction: "analyst",
 };
 export const TOOL_NAME: Record<string, string> = {
   "lean.compile": "Compiling Lean", "sandbox.exec": "Running in the sandbox", "sandbox.write": "Writing code",
   "sandbox.create_clean": "Preparing a clean environment", "arxiv.search": "Searching arXiv", "openalex.search": "Searching OpenAlex",
   "mathlib.search": "Searching Mathlib", "arxiv.lookup": "Verifying a source", "crossref.lookup": "Verifying a DOI",
+  "europepmc.search": "Searching Europe PMC", "source.text": "Reading a source",
 };
 export const PURPOSE_NAME: Record<string, string> = {
   LITERATURE_PLAN: "Literature search plan", LITERATURE_SUMMARY: "Literature summary and novelty verdict", HYPOTHESIS: "Hypothesis proposals",
@@ -184,6 +188,8 @@ export const PURPOSE_NAME: Record<string, string> = {
   SKETCH: "Proof sketch (splitting into lemmas)", REFUTE: "Refutation attempt (counterexample)", EXPLORE_MATH: "Small-case exploration script",
   CRITIC_RESULT: "Reviewing the proof", DESIGN_ML: "Experiment design", CRITIC_EXPERIMENT: "Blind review of the experiment", ENGINEER_ML: "Experiment code",
   ANALYST: "Statistical analysis", ANALYST_RESPONSE: "Answering an objection", WRITER: "Report discussion", OTHER: "Model call",
+  HYPOTHESIS_REVIEW: "Hypothesis proposals (review)", DESIGN_REVIEW: "Review protocol", SCREEN: "Screening studies",
+  EXTRACT: "Extracting a study's numbers", CRITIC_REVIEW: "Blind review of the meta-analysis",
   LANDSCAPE: "Mapping approaches and barriers", TARGET: "Stating the target claim", IDEATE: "Proposing attack strategies",
   CROSS_REVIEW: "Cross-reviewing a strategy", PROGRAM: "Turning the strategy into lemmas", REPAIR: "Repairing a refuted lemma",
 };

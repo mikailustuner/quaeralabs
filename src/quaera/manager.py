@@ -58,9 +58,10 @@ def digest(store: Store) -> str:
     """Project digest given to the manager: question, stages, hypotheses, results, pending decisions, recent events."""
     from .ml_loop import ML_STAGES
     from .orchestrator import STAGES
+    from .review import REVIEW_STAGES
     objs = store.latest()
     domain = store.meta("domain", "math")
-    stages = ML_STAGES if domain == "ml" else STAGES
+    stages = {"ml": ML_STAGES, "review": REVIEW_STAGES}.get(domain, STAGES)
     done = [e["payload"]["stage"] for e in store.events("stage.done")]
     spent = sum(e["payload"]["costUsd"] for e in store.events("model.call"))
     states = {e["payload"]["key"]: e["payload"]["value"] for e in store.events("state")}

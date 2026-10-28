@@ -55,6 +55,8 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     if chosen and chosen["status"] == "refuted":
         how = ("the negation of the formal statement (a counterexample) was proved in Lean 4 and recompiled in a clean environment; this "
                "relies on the assumption that the statement encodes the hypothesis correctly" if q["domain"] == "math"
+               else "by the preregistered criterion the pooled estimate contradicts the hypothesis, and the Verifier re-read every source and "
+               "reproduced it" if q["domain"] == "review"
                else "by the preregistered criterion the result contradicts the hypothesis, and the Verifier reproduced it with the same seed")
         verdict = f"**Hypothesis refuted** ({chosen['id']}): {how}."
     elif chosen and chosen["status"] == "supported" and (critic_weaker or self_restricted):
@@ -64,7 +66,8 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
                    + " ".join(f"Scope note: {n}" for n in notes))
     elif chosen and chosen["status"] == "supported":
         how = ("the Lean 4 proof was recompiled in a clean environment" if q["domain"] == "math"
-               else "the preregistered criterion was met and the Verifier reproduced it with the same seed")
+               else "the pooled estimate met the preregistered criterion and the Verifier re-read every source and reproduced it"
+               if q["domain"] == "review" else "the preregistered criterion was met and the Verifier reproduced it with the same seed")
         verdict = f"**Hypothesis supported** ({chosen['id']}): {how}."
     elif chosen:
         why = "no verified proof was found" if q["domain"] == "math" else "no conclusive, verified result was reached under the preregistered criterion"
@@ -79,6 +82,7 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     lines = [f"# {q['title']}", "", f"_{now()[:10]} · {q['id']} · QuaeraLabs research report_", "",
              "> " + LABEL.format(models="; ".join(models), cross=cross, version=__version__), "", "## Summary", "", verdict, ""]
     if lit:
+        papers = [p for p in papers if p["id"] in lit.get("papers", [p["id"]])]   # a review's included studies are listed below
         basis = {"model_knowledge": " (the model's own knowledge, not verified by a source)",
                  "mathlib": " (the statement is already in Mathlib)"}.get(lit.get("basis"), "")
         lines += ["## Literature", "", lit["summary"] or "—", "", f"Novelty assessment: `{lit['verdict']}`{basis}."]
@@ -109,14 +113,18 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     if analysis:
         lines += ["## Preregistration", ""]
         for p_ in pre:
-            lines.append(f"- **{p_['id']}** ({p_['lockedAt'][:16]}): primary metric `{p_['primaryMetric']}` · success criterion: {p_['successCriterion']} · {p_.get('seeds')} seed")
-        lines += ["", "## Runs", "", "| ID | Kind | Seed | Status | Metrics |", "| --- | --- | --- | --- | --- |"]
-        for r in runs:
-            lines.append(f"| {r['id']} | {r['kind']} | {r['seed']} | {r['status']} | " + ", ".join(f"{k}={v:.4g}" for k, v in (r.get('metrics') or {}).items()) + " |")
-        lines += ["", "## Statistics (computed by code)", "", "| Metric | n | Mean | Std | 95% CI |", "| --- | --- | --- | --- | --- |"]
-        for k, v in analysis["table"].items():
-            ci = f"[{v['ci95'][0]:.4g}, {v['ci95'][1]:.4g}]" if v.get("ci95") else "—"
-            lines.append(f"| {k} | {v['n']} | {v['mean']:.4g} | {v['std']:.3g} | {ci} |")
+            lines.append(f"- **{p_['id']}** ({p_['lockedAt'][:16]}): primary metric `{p_['primaryMetric']}` · success criterion: {p_['successCriterion']}"
+                         + (f"\n  - Locked protocol: {' · '.join(p_['analysisPlan'].splitlines())}" if q["domain"] == "review" else f" · {p_.get('seeds')} seed"))
+        if q["domain"] == "review":
+            lines += review_section(store, runs)
+        else:
+            lines += ["", "## Runs", "", "| ID | Kind | Seed | Status | Metrics |", "| --- | --- | --- | --- | --- |"]
+            for r in runs:
+                lines.append(f"| {r['id']} | {r['kind']} | {r['seed']} | {r['status']} | " + ", ".join(f"{k}={v:.4g}" for k, v in (r.get('metrics') or {}).items()) + " |")
+            lines += ["", "## Statistics (computed by code)", "", "| Metric | n | Mean | Std | 95% CI |", "| --- | --- | --- | --- | --- |"]
+            for k, v in analysis["table"].items():
+                ci = f"[{v['ci95'][0]:.4g}, {v['ci95'][1]:.4g}]" if v.get("ci95") else "—"
+                lines.append(f"| {k} | {v['n']} | {v['mean']:.4g} | {v['std']:.3g} | {ci} |")
         lines += ["", f"Analyst's verdict under the preregistered criterion: **{analysis['relation']}**", ""]
     if writer:
         tr = {"yes": "Yes", "no": "No", "unclear": "Unclear"}
@@ -146,7 +154,9 @@ def write_report(store: Store, gateway: Gateway, out_dir: Path) -> Path:
     lines += [f"- **{c['id']}** [{c['severity']}, {c['status']}]: {c['body']}" + (f" → {c['resolution']['text']}" if c.get("resolution") else "")
               for c in crits] or ["- No objections recorded" + (", but the research stopped before the review was complete." if stopped else ".")]
     lines += ["", "## Verification", ""]
-    how_v = "one-off compilation in a clean environment" if q["domain"] == "math" else "the recorded commit was re-run in a clean directory with the same seed"
+    how_v = {"math": "one-off compilation in a clean environment",
+             "review": "every source was fetched again, its quotes and numbers re-checked and the pooled estimate recomputed"}.get(
+        q["domain"], "the recorded commit was re-run in a clean directory with the same seed")
     lines += [f"- **{v['id']}**: reproduced = `{v['reproduced']}` ({how_v}; cross-model: {'yes' if v['crossModel'] else 'no'})"
               + (f" · differences: {'; '.join(v['differences'])}" if v.get("differences") else "") for v in vers] or ["- No verification performed."]
     cost = sum(c["costUsd"] for c in calls)
@@ -205,6 +215,37 @@ def reuse_lines(store: Store) -> list[str]:
         return []
     return ["- Reused from the lab's lemma bank (each recompiled in this project before counting): "
             + ", ".join(f"{r['id']} (verified in {r['project']})" for r in reused)]
+
+
+def review_section(store: Store, runs: list[dict]) -> list[str]:
+    """Review domain: PRISMA counts, the included studies with their traced numbers, and the pooled estimate."""
+    states = {e["payload"]["key"]: e["payload"]["value"] for e in store.events("state")}
+    scr, rows, plan = states.get("screening") or {}, states.get("extractions") or [], states.get("plan") or {}
+    lines = ["", "## Screening (PRISMA)", "",
+             f"- Records found: {scr.get('identified', 0)} · unique with a DOI: {scr.get('unique', 0)} · screened: {scr.get('screened', 0)}"
+             f" · excluded: {scr.get('excluded', 0)}",
+             f"- Included: {len(scr.get('included', []))}" + (f" (another {scr['overLimit']} eligible over the study limit)" if scr.get("overLimit") else "")
+             + (f" · DOI not verified: {len(scr['notVerified'])}" if scr.get("notVerified") else ""),
+             f"- Numbers traced to a verbatim quote in the source: {sum(1 for r in rows if r['ok'])} of {len(rows)}", "",
+             "## Included studies", "", "| Study | Source | Data | Effect (yi) | Variance (vi) | Traced |", "| --- | --- | --- | --- | --- | --- |"]
+    for r in rows:
+        traced = "yes" if r["ok"] else "no: " + "; ".join(r.get("problems", []))[:160]
+        data = r.get("data") or {}
+        lines.append(f"| {r['ref']} | {r.get('source', '—')} | {data.get('kind', '—')}{' (sign flipped)' if data.get('reversed') else ''} | "
+                     + (f"{r['yi']:.4g} | {r['vi']:.4g}" if r["ok"] else "— | —") + f" | {traced} |")
+    full = next((r for r in runs if r["kind"] == "full"), None)
+    m = (full or {}).get("metrics") or {}
+    lines += ["", f"## Meta-analysis (computed by code: DerSimonian–Laird random effects, {plan.get('effectMeasure', '?')})", ""]
+    if "pooled_effect" in m:
+        if "pooled_ratio" in m:
+            lines.append(f"- Pooled {plan['effectMeasure']}: **{m['pooled_ratio']:.4g}** (95% CI {m['ratio_ci_low']:.4g} to {m['ratio_ci_high']:.4g})"
+                         f" · log scale {m['pooled_effect']:.4g} ± {m['se']:.3g}")
+        else:
+            lines.append(f"- Pooled {plan['effectMeasure']}: **{m['pooled_effect']:.4g}** (95% CI {m['ci_low']:.4g} to {m['ci_high']:.4g}) · SE {m['se']:.3g}")
+        lines.append(f"- Studies: {m['k']:.0f} · p = {m['p_value']:.3g} · heterogeneity: I² = {100 * m['i2']:.1f}%, τ² = {m['tau2']:.4g}, Q = {m['q']:.4g}")
+    else:
+        lines.append(f"- No pooled estimate: {m.get('k', 0):.0f} study with traceable numbers (at least 2 are needed).")
+    return lines
 
 
 def discovery_tally(store: Store, chosen: dict | None) -> str:

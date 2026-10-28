@@ -1,4 +1,4 @@
-"""Literature MCP server: arXiv, OpenAlex and Semantic Scholar search, arXiv/DOI verification.
+"""Literature MCP server: arXiv, OpenAlex, Semantic Scholar and Europe PMC search, arXiv/DOI verification, source text for reviews.
 
 Search results are cached for 7 days in ~/.quaera/cache/literature.db (improvement plan B3), so eval repeats and resumed
 runs do not query the services again; QUAERA_CACHE=off turns the cache off. Errors are never cached. Verification
@@ -127,6 +127,77 @@ def s2_search(query: str, max_results: int = 8) -> str:
             out.append({"id": ref, "title": p.get("title"), "year": p.get("year"), "citations": p.get("citationCount"),
                         "summary": " ".join((p.get("abstract") or "").split())[:500]})
     return json.dumps(out, ensure_ascii=False)
+
+
+EUROPEPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest"
+
+
+def _europepmc(query: str, size: int) -> tuple[int, list[dict]]:
+    params = urllib.parse.urlencode({"query": query, "format": "json", "resultType": "core", "pageSize": size})
+    status, body = citations._get(f"{EUROPEPMC}/search?{params}")
+    return status, (json.loads(body).get("resultList", {}).get("result", []) if status == 200 else [])
+
+
+@mcp.tool()
+@cached
+def europepmc_search(query: str, max_results: int = 8) -> str:
+    """Searches Europe PMC (PubMed, PMC and preprints: medicine, life and social sciences); returns the title, DOI, year,
+    whether open-access full text exists and the start of the abstract. Records without a DOI are left out (not verifiable)."""
+    status, results = _europepmc(query, min(max_results, 25))
+    if status != 200:
+        return json.dumps({"error": f"Europe PMC HTTP {status}"})
+    out = [{"title": r.get("title"), "doi": r["doi"], "year": r.get("pubYear"), "openAccess": r.get("isOpenAccess") == "Y",
+            "summary": re.sub(r"<[^>]+>", "", r.get("abstractText") or "")[:500]} for r in results if r.get("doi")]
+    return json.dumps(out, ensure_ascii=False)
+
+
+def _plain(xml_text: str) -> str:
+    """The readable text of a JATS article, each element on its own line, in reading priority: the abstract, the results
+    sections, every table, then the rest of the body. The extracting model sees only the start of a long article, and in
+    article order the results were often cut off."""
+    root = ET.fromstring(xml_text)
+    body = root.find(".//body")
+    results = [sec for sec in (body.findall("sec") if body is not None else [])
+               if re.search(r"result|finding", f"{sec.get('sec-type', '')} {sec.findtext('title') or ''}", re.I)]
+    parts = [root.find(".//abstract"), *results, *root.iter("table-wrap"), body]
+    lines = []
+    for part in (p for p in parts if p is not None):
+        for el in part.iter():
+            if el.tag in ("p", "title", "tr", "caption", "label"):
+                text = " ".join(" ".join(el.itertext()).split())
+                if text:
+                    lines.append(text)
+    return "\n".join(dict.fromkeys(lines))
+
+
+@mcp.tool()
+def source_text(ref: str) -> str:
+    """The text a review extracts data from, for a DOI: the open-access full text from Europe PMC, else the abstract (Europe PMC,
+    then OpenAlex). Never cached: the Verifier reads the source again. Returns {"text", "from"} or {"error"}."""
+    doi = ref.strip().lower().removeprefix("https://doi.org/")
+    status, results = _europepmc(f'DOI:"{doi}"', 1)
+    rec = results[0] if results and (results[0].get("doi") or "").lower() == doi else None
+    if rec and rec.get("pmcid") and rec.get("isOpenAccess") == "Y":
+        code, body = citations._get(f"{EUROPEPMC}/{rec['pmcid']}/fullTextXML")
+        if code == 200:
+            try:
+                text = _plain(body)
+            except ET.ParseError:
+                text = ""
+            if len(text) > 500:
+                return json.dumps({"text": text, "from": f"europepmc_fulltext:{rec['pmcid']}"}, ensure_ascii=False)
+    if rec and rec.get("abstractText"):
+        text = " ".join(re.sub(r"<[^>]+>", " ", rec["abstractText"]).split())
+        return json.dumps({"text": f"{rec.get('title', '')}\n{text}", "from": "europepmc_abstract"}, ensure_ascii=False)
+    code, body = citations._get(f"https://api.openalex.org/works/doi:{urllib.parse.quote(doi, safe='/')}")
+    if code == 200:
+        work = json.loads(body)
+        text = abstract_of(work.get("abstract_inverted_index"))
+        if text:
+            return json.dumps({"text": f"{work.get('title', '')}\n{text}", "from": "openalex_abstract"}, ensure_ascii=False)
+    if status != 200 and code != 200:
+        return json.dumps({"error": f"Europe PMC HTTP {status}, OpenAlex HTTP {code}"})
+    return json.dumps({"error": "no abstract or open-access full text found"})
 
 
 @mcp.tool()

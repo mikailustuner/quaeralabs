@@ -3,7 +3,7 @@ import { ACTION_NAME, Derived, Job, Pending, QEvent, ROLES, ROLE_NAME, STAGE_NAM
 import { ActiveAgents, AgentDrawer, TeamList } from "../agents";
 import { Avatar, Clamp } from "../components";
 import { DiscoveryTab, DiscoveryView } from "../discovery";
-import { MLExperiment, MathExperiment, statesOf } from "../experiment";
+import { MLExperiment, MathExperiment, ReviewExperiment, statesOf } from "../experiment";
 import { HypothesisRanking } from "../ranking";
 import { ManagerDrawer, ManagerState, ManagerThread, useManager } from "../manager";
 import { Code, InlineMath } from "../rich";
@@ -27,6 +27,9 @@ const PHASES: Record<string, [string, string[]][]> = {
   ml: [["Literature & data", ["literature", "data_profile"]], ["Hypothesis", ["hypothesis", "hypothesis_approval"]],
        ["Experiment design", ["design", "plan_review", "preregistration", "experiment_approval"]], ["Experiment", ["pilot", "run"]],
        ["Analysis", ["analysis", "critique", "verification"]], ["Report", ["conclude", "report"]]],
+  review: [["Literature", ["literature"]], ["Hypothesis", ["hypothesis", "hypothesis_approval"]],
+           ["Protocol", ["design", "plan_review", "preregistration", "experiment_approval"]], ["Screening & extraction", ["screening", "extraction"]],
+           ["Meta-analysis", ["analysis", "critique", "verification"]], ["Report", ["conclude", "report"]]],
   discover: [["Landscape", ["literature", "landscape"]], ["Target", ["target", "design"]],
              ["Ideation", ["ideation", "cross_review", "strategy_approval"]], ["Lemma program", ["formalize", "statement_review", "program"]],
              ["Attack", ["attack", "synthesis"]], ["Verification", ["analysis", "result_review", "verification"]], ["Report", ["conclude", "report"]]],
@@ -104,9 +107,10 @@ export function LabView({ summary, events, d, pending, live, onChanged, onToast,
         </section>
 
         <section aria-labelledby="exp-title" className="stack">
-          <h2 id="exp-title" className="section-title">{summary.domain === "ml" ? "Experiment" : summary.mode === "discover" ? "Discovery" : "Proof"}</h2>
+          <h2 id="exp-title" className="section-title">{summary.domain === "ml" ? "Experiment" : summary.domain === "review" ? "Review" : summary.mode === "discover" ? "Discovery" : "Proof"}</h2>
           {summary.mode === "discover" && <DiscoveryView events={events} pid={pid} tab={discTab} onTab={setDiscTab} />}
-          {summary.domain === "ml" ? <MLExperiment d={d} events={events} pid={pid} /> : <MathExperiment d={d} events={events} pid={pid} />}
+          {summary.domain === "ml" ? <MLExperiment d={d} events={events} pid={pid} /> : summary.domain === "review" ? <ReviewExperiment d={d} events={events} />
+            : <MathExperiment d={d} events={events} pid={pid} />}
         </section>
 
         <section className="card" aria-labelledby="feed-h">
@@ -343,7 +347,7 @@ function DecisionCard({ pid, p, d, events, domain, mode, onDone, onToast }: {
   };
   const discover = mode === "discover";
   const title = p.action === "accept_hypothesis" ? (discover ? "Confirm the target claim (not narrowed)" : "Which hypothesis should be tested?")
-    : p.action === "approve_experiment" ? (discover ? "Choose the strategy to pursue" : domain === "ml" ? "Approve the experiment plan" : "Approve the proof plan")
+    : p.action === "approve_experiment" ? (discover ? "Choose the strategy to pursue" : domain === "ml" ? "Approve the experiment plan" : domain === "review" ? "Approve the review protocol" : "Approve the proof plan")
     : `Please ${ACTION_NAME[p.action] || p.action}`;
   return (
     <section className="decision" aria-labelledby={`ap-${p.id}`}>

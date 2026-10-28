@@ -8,18 +8,19 @@ outputs: [artifact, message]
 stages: [literature, novelty_check]
 workflow:
   - Generate search queries from the question
-  - Search arXiv, Semantic Scholar, OpenAlex and Mathlib
+  - Search arXiv, Semantic Scholar, OpenAlex, Europe PMC and Mathlib
+  - In a review, screen candidates against the locked protocol
   - Verify each source by DOI or arXiv ID
   - Write one summary per source and add it to the graph
   - Produce a novelty report before the experiment plan goes for approval
-skills: [literature-search, citation, mathlib-search, novelty-check]
+skills: [literature-search, citation, mathlib-search, novelty-check, study-extraction]
 permissions:
   literatureRead: true
   graphWrite: [artifact]
   codeWrite: none
   codeExecute: none
   gpuSpend: none
-  networkAllowlist: [export.arxiv.org, api.openalex.org, api.semanticscholar.org, api.crossref.org, api.datacite.org]
+  networkAllowlist: [export.arxiv.org, api.openalex.org, api.semanticscholar.org, api.crossref.org, api.datacite.org, www.ebi.ac.uk]
   requestApproval: false
   sendMessages: [response, handoff]
   publish: false

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Detail, api, derive, useEventLog } from "../api";
+import { DOMAIN_LABEL, Detail, api, derive, useEventLog } from "../api";
 import { Clamp, StateBox, Toast, statusBadge, useLoad } from "../components";
 import { go } from "../router";
 import { InlineMath } from "../rich";
@@ -53,7 +53,7 @@ export function Project({ pid, tab }: { pid: string; tab: string }) {
       <header className="stack" style={{ gap: 4 }}>
         <div className="title-row">
           <Title pid={pid} title={data.shortTitle} onSaved={detail.reload} />
-          <span className="badge accent">{data.domain === "ml" ? "AI / ML" : "Mathematics"}</span>
+          <span className="badge accent">{DOMAIN_LABEL[data.domain]}</span>
           {data.mode === "discover" && <span className="badge info" title="Open-problem mode: multi-model ideation, cross-review, Lean lemma program">Discovery</span>}
         </div>
         <Clamp lines={3} className="question"><InlineMath text={data.title} /></Clamp>

@@ -492,7 +492,7 @@ class Orchestrator:
             self.store.put({"type": "hypothesis", "createdBy": branch["by"], "questionId": q["id"], "statement": branch["hypothesis"],
                             "falsifiabilityNote": f"Branch change: {branch.get('reason', '')}", "status": "draft"})
             return
-        system = prompts.HYPOTHESIS_ML if q["domain"] == "ml" else prompts.HYPOTHESIS
+        system = {"ml": prompts.HYPOTHESIS_ML, "review": prompts.HYPOTHESIS_REVIEW}.get(q["domain"], prompts.HYPOTHESIS)
         base = (f"Question: {q['title']}\nScope: {q['scope']}\nLiterature summary: {lit['summary']}"
                 + self._profile_text() + self.recall_memory(q))
         # #4: generate from two perspectives, drop near-duplicates, have the Critic score them, offer the best to the human.

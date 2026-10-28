@@ -5,6 +5,17 @@ All notable changes are listed here. Format: [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Review domain
+
+#### Added
+- `quaera ask … --domain review` (and **Review** in the web UI): systematic review and random-effects meta-analysis. The
+  protocol is locked in the preregistration before screening. Studies come from OpenAlex and Europe PMC, and each DOI must be
+  confirmed by Crossref or DataCite. A study's numbers count only if a verbatim quote containing them is in its fetched
+  source text. Effect sizes and the DerSimonian–Laird pooling are computed in code. The Verifier fetches every source again
+  and recomputes the result. `quaera verify` does the same for a finished review. Details: `docs/review-mode.md`.
+- Literature tools `europepmc.search` and `source.text`; skills `study-extraction` and `source-verification`. The Verifier
+  now has literature read access, so it can fetch sources again.
+
 Phases 1 to 6 of the improvement plan of 2026-10-20 (items A1–E4 below are named after it).
 
 ### Phases 5 and 6

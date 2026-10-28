@@ -2,7 +2,8 @@
 
 Verified, auditable AI research, open source and non-profit. Models write; code decides: a proof counts only if Lean
 accepts it, a source only if arXiv, Crossref or DataCite confirms it, a result only if it reproduces. Every run leaves a
-signed evidence package that anyone can check. Domains: **mathematics** (Lean 4 + Mathlib) and **AI/ML research**.
+signed evidence package that anyone can check. Domains: **mathematics** (Lean 4 + Mathlib), **AI/ML research** and
+**systematic review / meta-analysis** ([review mode](docs/review-mode.md): every extracted number is traced to a quote in its source).
 
 Three commands give value on their own, in minutes, without the full pipeline:
 

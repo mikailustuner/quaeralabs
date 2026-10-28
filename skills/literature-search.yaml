@@ -5,6 +5,7 @@ description: Searches arXiv, Semantic Scholar, OpenAlex and Crossref and summari
 domains:
 - math
 - ml
+- review
 tools:
 - name: arxiv.search
   protocol: mcp

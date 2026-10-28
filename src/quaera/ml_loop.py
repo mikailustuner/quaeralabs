@@ -68,6 +68,7 @@ def compare(a: dict, b: dict) -> tuple[str, list[str]]:
 
 class MLOrchestrator(Orchestrator):
     stages = ML_STAGES
+    critic_prompt = prompts.CRITIC_EXPERIMENT
 
     # helpers -------------------------------------------------------------
     @property
@@ -159,7 +160,7 @@ class MLOrchestrator(Orchestrator):
         rounds = self.permissions.spec("critic")["limits"].get("maxRounds", 3)
         for round_ in range(1, rounds + 1):
             plan = self.state("plan")
-            review, critic = self.ask_json("critic", prompts.CRITIC_EXPERIMENT,
+            review, critic = self.ask_json("critic", self.critic_prompt,
                                         f"This is a PLAN (no results yet). Question: {q['title']}\nData: {q['scope']}\n"
                                         f"Plan:\n{self.plan_text(plan)}", 3000)
             serious = review.get("flawed") and review.get("severity") in ("high", "blocking")
@@ -176,7 +177,7 @@ class MLOrchestrator(Orchestrator):
             exp = self._put_experiment(plan, designer, exp)
             self.set_state("plan", plan)
             self.message(designer, "response", "critic", cr["id"], "Plan revised to address the objection.", reply_to=obj["id"], round_=round_)
-            again, critic = self.ask_json("critic", prompts.CRITIC_EXPERIMENT,
+            again, critic = self.ask_json("critic", self.critic_prompt,
                                         f"This is a revised PLAN (no results yet). Question: {q['title']}\nData: {q['scope']}\n"
                                         f"Objection was: {cr['body']}\nRevised plan:\n{self.plan_text(plan)}", 3000)
             if not (again.get("flawed") and again.get("severity") in ("high", "blocking")):
@@ -339,7 +340,7 @@ class MLOrchestrator(Orchestrator):
                       f"Run configs: {json.dumps([{'seed': r['seed'], **r['config'], 'metrics': r['metrics']} for r in ok], ensure_ascii=False)}\n"
                       f"Plan: {self.plan_text(self.state('plan'))}\n\n2) Pre-registration: {pre['primaryMetric']} · {pre['successCriterion']} · locked {pre['lockedAt']}\n\n"
                       f"3) Analyst interpretation: {res['summary']} → relation {self.state('analysis')['relation']}. Limitations: {res['limitations']}")
-            review, critic = self.ask_json("critic", prompts.CRITIC_EXPERIMENT, f"Experiment report:\n{report}", 3000)
+            review, critic = self.ask_json("critic", self.critic_prompt, f"Experiment report:\n{report}", 3000)
             # Every flaw found in the interpretation (medium included) is opened as an objection and awaits the Analyst's reply.
             # Previously only high/blocking objections were opened; in live fault injection the Critic rated an
             # overgeneralization "medium", the finding was silently dropped and reached the report (evals/critic_live_check.py).
@@ -350,7 +351,7 @@ class MLOrchestrator(Orchestrator):
             severity = review.get("severity") if review.get("severity") in ("low", "medium", "high", "blocking") else "medium"
             note = ""
             if severity == "blocking":   # S3: one family alone cannot make an objection blocking; it stays open either way
-                severity, note = self.confirm_blocking(prompts.CRITIC_EXPERIMENT, f"Experiment report:\n{report}", critic,
+                severity, note = self.confirm_blocking(self.critic_prompt, f"Experiment report:\n{report}", critic,
                                                        lambda o: bool(o.get("flawed")) and o.get("severity") == "blocking")
             cr = self.store.put({"type": "critique", "createdBy": critic, "targetId": res["id"],
                                  "category": (review.get("categories") or ["methodology"])[0],

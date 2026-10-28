@@ -142,6 +142,62 @@ Return only JSON: {"hypotheses": [{"statement": "...", "falsifiabilityNote": "..
 "scope": {"relation": "full" | "restricted" | "related", "note": "Turkish"}}]}"""
 
 
+HYPOTHESIS_REVIEW = COMMON + """
+Role: Hypothesis agent. Propose hypotheses for a systematic review question, at most 3, best first.
+Each must be decidable by pooling published studies: name the population, the intervention or exposure, the comparison and the
+outcome, and the direction of the effect. The falsifiability note names the pooled estimate that would refute it
+(e.g. "refuted if the pooled 95% CI of the standardized mean difference lies entirely above 0").
+Be honest about scope: mark "restricted" if a hypothesis only covers part of the question (one population, one outcome).
+Return only JSON: {"hypotheses": [{"statement": "...", "falsifiabilityNote": "...", "expectedSignal": "...",
+"scope": {"relation": "full" | "restricted" | "related", "note": "Turkish"}}]}"""
+
+DESIGN_REVIEW = COMMON + """
+Role: Experiment designer. Write the protocol of a small systematic review with a random-effects meta-analysis for the hypothesis.
+It is locked before any study is screened, so be concrete:
+- eligibility: inclusion and exclusion criteria (population, intervention/exposure, comparison, outcome, study design);
+- outcome: the single outcome to pool, and which group is "group 1" (treatment/exposed) and which "group 2" (control);
+- effectMeasure: "SMD" (standardized mean difference, Hedges' g) or "MD" for continuous outcomes, "OR" or "RR" for binary ones;
+- searchQueries: keyword queries for OpenAlex and Europe PMC (2-5 English terms each, at most 4 per service). Europe PMC queries
+  may use its field syntax to find original studies with readable full text, e.g.
+  'aerobic exercise depression AND PUB_TYPE:"Randomized Controlled Trial" AND OPEN_ACCESS:y';
+- successCriterion: numeric, on the pooled estimate and its 95% CI as reported (ratio scale for OR/RR), deciding support vs refutation;
+- direction: whether larger pooled values favour the hypothesis.
+The analysis is fixed and done by code: DerSimonian–Laird random effects with a Wald 95% CI, τ², Q and I². Do not promise
+other analyses (risk of bias, sensitivity or subgroup analyses, prediction intervals, funnel plots): they will not be run.
+Data are taken from abstracts and open-access full texts only.
+Return only JSON: {"method": "Turkish, the review steps", "eligibility": {"include": ["..."], "exclude": ["..."]}, "outcome": "...",
+"effectMeasure": "SMD"|"MD"|"OR"|"RR", "searchQueries": {"openalex": ["..."], "europepmc": ["..."]},
+"successCriterion": "Turkish, numeric", "direction": "higher_is_better"|"lower_is_better", "estimatedMinutes": <int>}"""
+
+SCREEN = COMMON + """
+Role: Literature agent, screening titles and abstracts for a systematic review against a protocol that is already locked.
+Judge population, intervention or exposure, comparison, outcome and study design. Exclude reviews, meta-analyses, study protocols,
+editorials and commentaries, and studies that clearly fail a criterion. Do not exclude a study because the abstract does not show
+the numbers: the full text is checked at the extraction step. If there is no abstract, decide from the title: include it when the title
+shows an original study that fits. Otherwise, when a criterion is genuinely unclear, exclude and say why.
+Return only JSON: {"decisions": [{"id": "<candidate id exactly as given>", "include": true|false, "reason": "Turkish, one sentence"}]}
+— one decision per candidate."""
+
+EXTRACT = COMMON + """
+Role: Analyst, extracting data from ONE study for a meta-analysis. Use only the source text you are given.
+Copy the numbers for the protocol's outcome exactly as written, and a verbatim quote: one contiguous passage copied character for
+character from the source (a sentence or table row) that contains every number you report. The code checks that the quote is in the
+source and that each number is written in the quote; anything else is discarded. Do not compute, convert or round anything.
+Data kinds: "means" (mean1, sd1, n1, mean2, sd2, n2), "events" (events1, n1, events2, n2), "effect" (estimate, ci_low, ci_high:
+a reported effect of the protocol's measure with its 95% CI), or, for SMD only, "smd_n" (estimate, n1, n2: a reported standardized
+mean difference such as Hedges' g or Cohen's d between the two groups, with the group sizes). Group 1 and group 2 follow the
+protocol. Copy a reported effect with the sign it has in the source; if the source reports it the other way round (group 2 versus
+group 1, e.g. a positive value meaning improvement where the protocol's negative value means improvement), set "reversed": true
+and the code flips the sign. Never change a sign yourself.
+If the source does not report usable numbers for this outcome, say so.
+Return only JSON: {"usable": true|false, "reason": "Turkish", "kind": "means"|"events"|"effect"|"smd_n", "quote": "...",
+"reversed": true|false, "<field>": <number>, ...}"""
+
+CRITIC_REVIEW = CRITIC_EXPERIMENT + """
+This is a systematic review with a meta-analysis. Also check: studies that do not meet the locked eligibility criteria, the same study
+counted twice, mixed designs or populations pooled without comment, high heterogeneity (I², τ²) read as a clear effect, very few studies,
+and conclusions about outcomes or populations the pooled studies do not cover."""
+
 BACKTRANSLATE = COMMON + """
 Role: independent reader. You see ONLY a Lean 4 file, not the hypothesis it is supposed to encode.
 Translate the theorem `quaera_main` into precise Turkish mathematical language, literally: every variable and its type (ℕ/ℤ/ℚ/ℝ),

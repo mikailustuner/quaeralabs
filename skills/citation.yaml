@@ -5,6 +5,7 @@ description: Verifies every citation by DOI or arXiv ID; marks sources that cann
 domains:
 - math
 - ml
+- review
 tools:
 - name: crossref.lookup
   protocol: mcp

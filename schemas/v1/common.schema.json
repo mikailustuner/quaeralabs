@@ -15,7 +15,7 @@
     },
     "timestamp": { "type": "string", "format": "date-time" },
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "domain": { "enum": ["math", "ml"] },
+    "domain": { "enum": ["math", "ml", "review"] },
     "role": {
       "enum": ["director", "literature", "hypothesis", "experiment_designer", "engineer", "analyst", "critic", "verifier", "writer", "manager"]
     },

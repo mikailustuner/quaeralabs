@@ -12,10 +12,12 @@ workflow:
   - Build a clean sandbox from scratch using the recorded environment
   - Rerun with the same code, seed and config
   - Compare the metrics against the original within tolerance
+  - In a review, fetch every source again and re-check its quotes and numbers
   - Record the outcome as yes, partial or no
-skills: [clean-environment-setup, lean-recompile, result-comparison, run-logging]
+skills: [clean-environment-setup, lean-recompile, result-comparison, run-logging, source-verification]
 permissions:
-  literatureRead: false
+  literatureRead: true
+  networkAllowlist: [www.ebi.ac.uk, api.openalex.org]
   graphWrite: [verification, run, artifact]
   codeWrite: none
   codeExecute: clean_sandbox
